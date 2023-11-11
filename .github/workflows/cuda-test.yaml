@@ -1,0 +1,20 @@
+name: C++ CUDA Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+
+    - name: Build Docker image
+      run: docker build -t my-cuda-project .
+
+    - name: Run tests in Docker container
+      run: docker run my-cuda-project
