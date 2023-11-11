@@ -1,6 +1,6 @@
 CXX = g++
 NVCC = nvcc
-CXXFLAGS = -pthread -lstdc++ -std=gnu++17 -lrt -ldl -lm -I./src -I./tests
+CXXFLAGS = -pthread -lstdc++ -std=gnu++17 -lrt -ldl -lm -I./src -I./tests -I/usr/local/cuda/include
 NVCCFLAGS = -I./src -I./tests
 LDFLAGS =
 
