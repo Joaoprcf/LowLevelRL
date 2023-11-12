@@ -1,12 +1,12 @@
-#include <iostream>       // for cout
-#include <vector>         // for vector
-#include <cmath>          // for sqrt, max
-#include <fstream>        // for ifstream, ofstream
-#include <string>         // for string
-#include <cstddef>        // for size_t
-#include <cstdio>         // for printf
-#include <cstring>        // for memcpy
-#include <cuda_runtime.h> // for cudaMemcpy, cudaMemcpyHostToDevice
+#include "instructions.h"
+#include <iostream> // for cout
+#include <vector>   // for vector
+#include <cmath>    // for sqrt, max
+#include <fstream>  // for ifstream, ofstream
+#include <string>   // for string
+#include <cstddef>  // for size_t
+#include <cstdio>   // for printf
+#include <cstring>  // for memcpy
 #include <stdexcept>
 #include <memory>
 #include <chrono>  // for high_resolution_clock, time_point, duration_cast, milliseconds
@@ -16,7 +16,6 @@
 #include <map>
 #include <set>
 #include <assert.h>
-#include "instructions.h"
 
 using namespace std;
 
