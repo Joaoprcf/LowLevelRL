@@ -78,7 +78,7 @@ struct Instruction
         cout << "Address 2: " << reinterpret_cast<uintptr_t>(addr2) % 10000 << endl;
         if (weights != nullptr)
         {
-            cout << "Weights Address: " << weights << endl;
+            cout << "Weights Address: " << reinterpret_cast<uintptr_t>(weights) % 10000 << endl;
         }
         else
         {
