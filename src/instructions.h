@@ -1,15 +1,11 @@
+#include <cstring>        // Add this line to include the definition of memcpy
 #include <iostream>       // For std::cout, std::endl
 #include <string>         // For std::string
 #include <cuda_runtime.h> // For cudaMemcpy, cudaMemcpyHostToDevice
 #include <cstdio>         // For printf
+#include <vector>
 
 using namespace std;
-enum type_inst
-{
-    INIT,
-    COPY,
-    MULT
-};
 
 __host__ __device__ void fillLayer(float *input, float *output, float *weights, int inputSize, int layerSize)
 {
@@ -30,6 +26,13 @@ __host__ __device__ void fillLayer(float *input, float *output, float *weights, 
         output[neuron] = sum;
     }
 }
+
+enum type_inst
+{
+    INIT,
+    COPY,
+    MULT
+};
 
 struct Instruction
 {
@@ -89,3 +92,63 @@ private:
         }
     }
 };
+
+struct RecoverableInstruction
+{
+    type_inst op;
+    float size_in;  // Assumption: size_in needs to be initialized based on context
+    float size_out; // Assumption: size_out needs to be initialized based on context
+    size_t addr1;
+    size_t addr2;
+    size_t weights;
+
+    // Revised constructor with additional parameters for size_in and size_out
+    RecoverableInstruction(type_inst op, float size_in, float size_out, size_t addr1, size_t addr2, size_t weights = 0)
+        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), weights(weights) {}
+
+    RecoverableInstruction() {}
+};
+
+vector<RecoverableInstruction> ConvertToRecoverable(vector<Instruction> &instructions, float *datastreamAddr, float *weightsAddr)
+{
+    vector<RecoverableInstruction> recoverableInstructions;
+
+    for (const auto &inst : instructions)
+    {
+        size_t addr1Offset = inst.addr1 - datastreamAddr;
+        size_t addr2Offset = inst.addr2 - datastreamAddr;
+        size_t weightsOffset = inst.weights ? (inst.weights - weightsAddr) : 0;
+
+        recoverableInstructions.emplace_back(
+            inst.op,
+            inst.size_in,
+            inst.size_out,
+            addr1Offset,
+            addr2Offset,
+            weightsOffset);
+    }
+
+    return recoverableInstructions;
+}
+
+vector<Instruction> ConvertToPractical(vector<RecoverableInstruction> &instructions, float *datastreamAddr, float *weightsAddr)
+{
+    vector<Instruction> practicalInstructions;
+
+    for (const auto &inst : instructions)
+    {
+        float *addr1 = datastreamAddr + inst.addr1;
+        float *addr2 = datastreamAddr + inst.addr2;
+        float *weights = inst.op == MULT ? (weightsAddr + inst.weights) : nullptr;
+
+        practicalInstructions.emplace_back(
+            inst.op,
+            inst.size_in,
+            inst.size_out,
+            addr1,
+            addr2,
+            weights);
+    }
+
+    return practicalInstructions;
+}
