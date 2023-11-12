@@ -151,9 +151,51 @@ struct NeuralNetwork
     vector<Job> jobs;
     map<Layer *, float *> location;
     vector<Instruction> fastExecution;
+    bool usingOwnWeights = true;
+    vector<float> weights;
+
+    void useOwnWeights()
+    {
+        size_t totalWeightSize = 0;
+        // Calculate total weights size
+        for (Job &job : jobs)
+        {
+            if (Dense *denseLayer = dynamic_cast<Dense *>(job.layer))
+            {
+                totalWeightSize += denseLayer->weights_size;
+            }
+        }
+
+        // Reserve space to avoid reallocation
+        weights.reserve(totalWeightSize);
+
+        size_t weight_ptr = 0;
+        // Append weights to NeuralNetwork's weights vector
+        for (Job &job : jobs)
+        {
+            if (Dense *denseLayer = dynamic_cast<Dense *>(job.layer))
+            {
+                weights.insert(weights.end(), denseLayer->weights, denseLayer->weights + denseLayer->weights_size);
+
+                // Free the original weights memory
+                delete[] denseLayer->weights;
+
+                // Update Dense layer's weights pointer
+                denseLayer->weights = &weights[weight_ptr];
+
+                // Move the weight pointer forward
+                weight_ptr += denseLayer->weights_size;
+            }
+        }
+    }
 
     void BuildFastExecutionGraph()
     {
+        if (usingOwnWeights)
+        {
+            useOwnWeights();
+        }
+
         fastExecution.clear(); // Clear any existing instructions
 
         for (const Job &job : jobs)
@@ -201,7 +243,7 @@ struct NeuralNetwork
         }
     }
 
-    NeuralNetwork(vector<Input *> inputs, vector<Layer *> outputs) : size_in(0), size_out(0), datastream(nullptr)
+    NeuralNetwork(vector<Input *> inputs, vector<Layer *> outputs, bool usingOwnWeights = true) : size_in(0), size_out(0), datastream(nullptr), usingOwnWeights(usingOwnWeights)
     {
         // Ensure no duplicates or nullptrs in inputs and outputs
         assert(checkLayers(inputs));
@@ -333,9 +375,9 @@ struct NeuralNetwork
         }
     }
 
-    NeuralNetwork(Input *input, Layer *output) : NeuralNetwork(std::vector<Input *>{input}, std::vector<Layer *>{output}) {}
+    NeuralNetwork(Input *input, Layer *output, bool usingOwnWeights = true) : NeuralNetwork(std::vector<Input *>{input}, std::vector<Layer *>{output}, usingOwnWeights) {}
 
-    __device__ __host__ vector<float *> FeedForward(vector<float *> data_in)
+    vector<float *> FeedForward(vector<float *> data_in)
     {
         assert(inputs.size() == data_in.size());
         size_t pointer = 0;
