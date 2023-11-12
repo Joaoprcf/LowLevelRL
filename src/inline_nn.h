@@ -144,14 +144,14 @@ struct NeuralNetwork
 {
     size_t size_in;
     size_t size_out;
-    float *datastream;
     vector<Input *> inputs;
     vector<Layer *> outputs;
-    vector<float *> outputPointers;
+    vector<float *> outputLocations;
     vector<Job> jobs;
     map<Layer *, float *> location;
     vector<Instruction> fastExecution;
     bool usingOwnWeights = true;
+    vector<float> datastream;
     vector<float> weights;
 
     void useOwnWeights()
@@ -243,7 +243,7 @@ struct NeuralNetwork
         }
     }
 
-    NeuralNetwork(vector<Input *> inputs, vector<Layer *> outputs, bool usingOwnWeights = true) : size_in(0), size_out(0), datastream(nullptr), usingOwnWeights(usingOwnWeights)
+    NeuralNetwork(vector<Input *> inputs, vector<Layer *> outputs, bool usingOwnWeights = true) : size_in(0), size_out(0), datastream({}), usingOwnWeights(usingOwnWeights)
     {
         // Ensure no duplicates or nullptrs in inputs and outputs
         assert(checkLayers(inputs));
@@ -334,13 +334,13 @@ struct NeuralNetwork
         }
 
         // Allocate the datastream array
-        datastream = new float[pointer];
+        datastream.reserve(pointer);
         cout << "datastream size if " << pointer << endl;
 
         size_t inputPointer = 0;
         for (Layer *inputLayer : inputs)
         {
-            location[inputLayer] = datastream + inputPointer;
+            location[inputLayer] = datastream.data() + inputPointer;
             inputPointer += static_cast<Input *>(inputLayer)->size_out;
         }
 
@@ -348,11 +348,11 @@ struct NeuralNetwork
         size_t layerPointer = size_in;
         for (const auto &job : jobs)
         {
-            location[job.layer] = datastream + layerPointer;
+            location[job.layer] = datastream.data() + layerPointer;
             layerPointer += job.layer->size_out;
         }
 
-        // Populate outputPointers for each output layer TODO, make it more efficient
+        // Populate outputLocations for each output layer TODO, make it more efficient
         for (auto &outputLayer : outputs)
         {
             size_t outputPointer = 0;
@@ -360,7 +360,7 @@ struct NeuralNetwork
             {
                 if (job.layer == outputLayer)
                 {
-                    outputPointers.push_back(location[job.layer]);
+                    outputLocations.push_back(location[job.layer]);
                     break;
                 }
                 outputPointer += job.layer->size_out;
@@ -383,23 +383,51 @@ struct NeuralNetwork
         size_t pointer = 0;
         for (size_t i = 0; i < data_in.size(); i++)
         {
-            assert(datastream + pointer == location[inputs[i]]);
-            memcpy(datastream + pointer, data_in[i], sizeof(float) * inputs[i]->size_out);
+            assert(datastream.data() + pointer == location[inputs[i]]);
+            memcpy(datastream.data() + pointer, data_in[i], sizeof(float) * inputs[i]->size_out);
             pointer += inputs[i]->size_out;
         }
         for (auto type_inst : fastExecution)
         {
             type_inst.execute();
         }
-        return outputPointers;
+        return outputLocations;
     }
 
     float *FeedForwardSingle(float *data_in)
     {
         assert(inputs.size() == 1);
-        assert(outputPointers.size() == 1);
+        assert(outputLocations.size() == 1);
         vector<float *> result = this->FeedForward({data_in});
         assert(result.size() == 1);
         return result[0];
+    }
+};
+
+struct PipelineBuilder
+{
+    vector<RecoverableInstruction> instructions;
+    vector<size_t> input_sizes;
+    vector<size_t> output_sizes;
+    vector<size_t> output_locations;
+    size_t weight_size;
+    size_t datastream_size;
+    PipelineBuilder(NeuralNetwork *nn)
+    {
+        assert(nn->usingOwnWeights);
+        weight_size = nn->weights.size();
+        instructions = ConvertToRecoverable(nn->fastExecution, nn->datastream.data(), nn->weights.data());
+        for (auto input : nn->inputs)
+        {
+            input_sizes.push_back(input->size_out);
+        }
+        for (auto output : nn->outputs)
+        {
+            output_sizes.push_back(output->size_out);
+        }
+        for (auto location : nn->outputLocations)
+        {
+            output_locations.push_back(location - nn->datastream.data());
+        }
     }
 };
