@@ -1,3 +1,4 @@
+#pragma once
 #include <cstring>        // Add this line to include the definition of memcpy
 #include <iostream>       // For std::cout, std::endl
 #include <string>         // For std::string
@@ -44,8 +45,10 @@ struct Instruction
     float *weights;
 
     // Revised constructor with additional parameters for size_in and size_out
-    Instruction(type_inst op, float size_in, float size_out, float *addr1, float *addr2, float *weights = nullptr)
+    __device__ __host__ Instruction(type_inst op, float size_in, float size_out, float *addr1, float *addr2, float *weights = nullptr)
         : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), weights(weights) {}
+
+    __device__ __host__ Instruction() {}
 
     __device__ __host__ void execute()
     {
@@ -116,6 +119,8 @@ struct RecoverableInstruction
     RecoverableInstruction(type_inst op, float size_in, float size_out, size_t addr1, size_t addr2, size_t weights = 0)
         : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), weights(weights) {}
 
+    RecoverableInstruction() {}
+
 private:
     string operationToString(type_inst operation) const
     {
@@ -175,4 +180,23 @@ vector<Instruction> ConvertToPractical(vector<RecoverableInstruction> &instructi
     }
 
     return practicalInstructions;
+}
+
+__host__ __device__ void ConvertToPractical(RecoverableInstruction *recInstructions, size_t num_instructions, float *datastreamAddr, float *weightsAddr, Instruction *practicalInstructions)
+{
+    for (size_t i = 0; i < num_instructions; ++i)
+    {
+        const auto &inst = recInstructions[i];
+        float *addr1 = datastreamAddr + inst.addr1;
+        float *addr2 = datastreamAddr + inst.addr2;
+        float *weights = (inst.op == MULT) ? (weightsAddr + inst.weights) : nullptr;
+
+        practicalInstructions[i] = Instruction(
+            inst.op,
+            inst.size_in,
+            inst.size_out,
+            addr1,
+            addr2,
+            weights);
+    }
 }

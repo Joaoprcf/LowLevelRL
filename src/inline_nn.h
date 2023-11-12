@@ -1,3 +1,4 @@
+#pragma once
 #include "instructions.h"
 #include <iostream> // for cout
 #include <vector>   // for vector
@@ -334,7 +335,7 @@ struct NeuralNetwork
         }
 
         // Allocate the datastream array
-        datastream.reserve(pointer);
+        datastream.resize(pointer, 0);
         cout << "datastream size if " << pointer << endl;
 
         size_t inputPointer = 0;
@@ -406,28 +407,176 @@ struct NeuralNetwork
 
 struct PipelineBuilder
 {
-    vector<RecoverableInstruction> instructions;
-    vector<size_t> input_sizes;
-    vector<size_t> output_sizes;
-    vector<size_t> output_locations;
     size_t weight_size;
     size_t datastream_size;
+    size_t num_inputs;
+    size_t num_outputs;
+    size_t num_instructions;
+    RecoverableInstruction *instructions;
+    size_t *inputSizes;
+    size_t *outputSizes;
+    size_t *outputLocations;
+    Instruction *fastExecution; // Assuming allocation on the fly
+
     PipelineBuilder(NeuralNetwork *nn)
     {
         assert(nn->usingOwnWeights);
         weight_size = nn->weights.size();
-        instructions = ConvertToRecoverable(nn->fastExecution, nn->datastream.data(), nn->weights.data());
-        for (auto input : nn->inputs)
+
+        // Allocate and initialize instructions
+        num_instructions = nn->fastExecution.size(); // Function to calculate the size
+        vector<RecoverableInstruction> instructionVec = ConvertToRecoverable(nn->fastExecution, nn->datastream.data(), nn->weights.data());
+        instructions = new RecoverableInstruction[num_instructions];
+        memcpy(instructions, instructionVec.data(), sizeof(RecoverableInstruction) * num_instructions);
+        instructionVec.clear();
+
+        // Allocate and initialize inputSizes
+        num_inputs = nn->inputs.size();
+        inputSizes = new size_t[num_inputs];
+        for (size_t i = 0; i < num_inputs; ++i)
         {
-            input_sizes.push_back(input->size_out);
+            inputSizes[i] = nn->inputs[i]->size_out;
         }
-        for (auto output : nn->outputs)
+
+        // Allocate and initialize outputSizes
+        num_outputs = nn->outputs.size();
+        outputSizes = new size_t[num_outputs];
+        for (size_t i = 0; i < num_outputs; ++i)
         {
-            output_sizes.push_back(output->size_out);
+            outputSizes[i] = nn->outputs[i]->size_out;
         }
-        for (auto location : nn->outputLocations)
+
+        // Allocate and initialize outputLocations
+        size_t outputLocationsCount = nn->outputLocations.size();
+        outputLocations = new size_t[outputLocationsCount];
+        for (size_t i = 0; i < outputLocationsCount; ++i)
         {
-            output_locations.push_back(location - nn->datastream.data());
+            outputLocations[i] = nn->outputLocations[i] - nn->datastream.data();
         }
+
+        fastExecution = nullptr; // Allocate as needed
+    }
+
+    __device__ __host__ void init(float *datastream, float *weights)
+    {
+        delete[] fastExecution;
+        fastExecution = new Instruction[num_instructions];
+        ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
+    }
+
+    __device__ __host__ void FeedForward(float **dataIn, float *datastream, float **result)
+    {
+        size_t pointer = 0;
+        for (size_t i = 0; i < num_inputs; i++)
+        {
+            memcpy(datastream + pointer, dataIn[i], sizeof(float) * inputSizes[i]);
+            pointer += inputSizes[i];
+        }
+        for (size_t i = 0; i < num_instructions; i++)
+        {
+
+            fastExecution[i].execute();
+        }
+
+        for (size_t i = 0; i < num_outputs; i++)
+        {
+            memcpy(result[i], datastream + outputLocations[i], sizeof(float) * outputSizes[i]);
+        }
+    }
+
+    __device__ __host__ void FeedForwardSingle(float *dataIn, float *datastream, float *result)
+    {
+        assert(num_inputs == 1);
+        assert(num_outputs == 1);
+        float **resultArray = new float *[1];
+        resultArray[0] = result;
+        float **dataInArray = new float *[1];
+        dataInArray[0] = dataIn;
+        this->FeedForward(dataInArray, datastream, resultArray);
+    }
+
+    __host__ __device__ size_t calculateMemoryRequired() const
+    {
+        size_t totalSize = 0;
+
+        // Size for instructions
+        totalSize += num_instructions * sizeof(RecoverableInstruction);
+
+        // Size for inputSizes, outputSizes, and outputLocations
+        totalSize += (num_inputs + num_outputs * 2) * sizeof(size_t);
+
+        // Add sizes for any other dynamically sized members here
+
+        return totalSize;
+    }
+
+    // Serialize memory contents into a vector of void pointers
+    __host__ __device__ void serializeMemory(void *buffer)
+    {
+        if (!buffer)
+        {
+            // Handle null buffer
+            return;
+        }
+
+        // Pointer to keep track of current position in buffer
+        char *currentPosition = static_cast<char *>(buffer);
+
+        // Serialize instructions
+        size_t instSize = num_instructions * sizeof(RecoverableInstruction);
+        memcpy(currentPosition, instructions, instSize);
+        currentPosition += instSize;
+
+        // Serialize inputSizes
+        size_t inputSizesSize = num_inputs * sizeof(size_t);
+        memcpy(currentPosition, inputSizes, inputSizesSize);
+        currentPosition += inputSizesSize;
+
+        // Serialize outputSizes
+        size_t outputSizesSize = num_outputs * sizeof(size_t);
+        memcpy(currentPosition, outputSizes, outputSizesSize);
+        currentPosition += outputSizesSize;
+
+        // Serialize outputLocations
+        size_t outputLocationsSize = num_outputs * sizeof(size_t);
+        memcpy(currentPosition, outputLocations, outputLocationsSize);
+        currentPosition += outputLocationsSize;
+    }
+
+    // Unserialize memory contents from a vector of void pointers
+    __host__ __device__ void unserializeMemory(void *buffer)
+    {
+        if (!buffer)
+        {
+            // Handle null buffer
+            return;
+        }
+
+        // Pointer to keep track of the current position in buffer
+        char *currentPosition = static_cast<char *>(buffer);
+
+        // Unserialize instructions
+        size_t instSize = num_instructions * sizeof(RecoverableInstruction);
+        instructions = new RecoverableInstruction[num_instructions];
+        memcpy(instructions, currentPosition, instSize);
+        currentPosition += instSize;
+
+        // Unserialize inputSizes
+        size_t inputSizesSize = num_inputs * sizeof(size_t);
+        inputSizes = new size_t[num_inputs];
+        memcpy(inputSizes, currentPosition, inputSizesSize);
+        currentPosition += inputSizesSize;
+
+        // Unserialize outputSizes
+        size_t outputSizesSize = num_outputs * sizeof(size_t);
+        outputSizes = new size_t[num_outputs];
+        memcpy(outputSizes, currentPosition, outputSizesSize);
+        currentPosition += outputSizesSize;
+
+        // Unserialize outputLocations
+        size_t outputLocationsSize = num_outputs * sizeof(size_t);
+        outputLocations = new size_t[num_outputs];
+        memcpy(outputLocations, currentPosition, outputLocationsSize);
+        currentPosition += outputLocationsSize;
     }
 };
