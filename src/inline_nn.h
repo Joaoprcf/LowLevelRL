@@ -23,8 +23,9 @@ using namespace std;
 struct Layer
 {
     size_t size_out;
+    size_t datastream_space;
     Layer *from;
-    Layer(size_t size_out, Layer *from = nullptr) : size_out(size_out), from(from) {}
+    Layer(size_t size_out, size_t datastream_space, Layer *from = nullptr) : size_out(size_out), datastream_space(datastream_space), from(from) {}
     virtual ~Layer() {} // Virtual destructor to enable polymorphism
     // virtual void apply(float *input, size_t size);
     virtual vector<Instruction> createLowLevelInstructions(vector<void *> info)
@@ -37,7 +38,7 @@ struct Layer
 struct Input : Layer
 {
     float *input;
-    Input(size_t size_out) : Layer(size_out) {}
+    Input(size_t size_out) : Layer(size_out, size_out) {}
 };
 
 struct Dense : Layer
@@ -45,7 +46,7 @@ struct Dense : Layer
     size_t weights_size;
     float *weights;
     type_inst activation;
-    Dense(Layer *from, size_t size_out, type_inst activation = ACTIVATION_NONE) : Layer(size_out, from), activation(activation)
+    Dense(Layer *from, size_t size_out, type_inst activation = ACTIVATION_NONE) : Layer(size_out, size_out, from), activation(activation)
     {
         weights_size = size_out * (from->size_out + 1);
         weights = new float[weights_size];
@@ -70,6 +71,102 @@ struct Dense : Layer
     }
 };
 
+struct GRU : Layer
+{
+    size_t memory_size;
+    size_t weights_size;
+    size_t wz_weights_size;
+    size_t wr_weights_size;
+    size_t wh_weights_size;
+
+    float *weights;
+    float *memory;
+    GRU(Layer *from, size_t memory_size)
+        : Layer(memory_size, 0, from), memory_size(memory_size)
+    {
+
+        size_t input_size = from->size_out;
+
+        // Size for each set of weights and biases
+        wz_weights_size = (input_size + memory_size + 1) * memory_size;
+        wr_weights_size = wz_weights_size; // Same size as wz_weights_size
+        wh_weights_size = wz_weights_size;
+
+        // Total weight size
+        weights_size = wz_weights_size + wr_weights_size + wh_weights_size;
+
+        // Allocate memory for weights and initialize to 0
+        weights = new float[weights_size];
+        memset(weights, 0, sizeof(float) * weights_size);
+
+        // Allocate memory for GRU memory (hidden state)
+        memory = new float[memory_size];
+        memset(memory, 0, sizeof(float) * memory_size);
+
+        datastream_space = 9 * memory_size + from->size_out * 2; // TODO
+
+        cout << "weights_size: " << weights_size << endl;
+    }
+
+    vector<Instruction> createLowLevelInstructions(vector<void *> info) override
+    {
+
+        assert(info.size() == 3);
+
+        size_t *size_in = static_cast<size_t *>(info[0]);
+        float *addrInput = static_cast<float *>(info[1]);
+        float *addrOutput = static_cast<float *>(info[2]);
+        // this addrOuput is the dataseam addr
+
+        size_t hx_size = memory_size + *size_in;
+        float *hx_start = addrOutput;
+        float *zt_start = addrOutput + hx_size;
+        float *zt_inv_start = zt_start + memory_size;
+        float *rt_start = zt_inv_start + memory_size;    // Offset for r_t
+        float *candidate_start = rt_start + memory_size; // Offset for candidate state
+        float *candidate_output_start = candidate_start + hx_size;
+        float *sum_term1 = candidate_output_start + memory_size;
+        float *sum_term2 = sum_term1 + memory_size;
+        float *output_h = sum_term2 + memory_size; // occupies memory size
+
+        float *wz_weights = weights;
+        float *wr_weights = weights + wz_weights_size;
+        float *wh_weights = weights + wz_weights_size + wr_weights_size;
+
+        vector<Instruction> instructions = {
+            // Create hx
+            Instruction(COPY, memory_size, memory_size, memory, hx_start), // grab once from memory
+            Instruction(COPY, *size_in, *size_in, addrInput, hx_start + memory_size),
+
+            // Calculate update gate (z_t)
+            Instruction(DOT, hx_size, memory_size, hx_start, zt_start, wz_weights),
+            Instruction(ACTIVATION_SIGMOID, memory_size, memory_size, zt_start, zt_start),
+            Instruction(ARITHMETIC_INVERSE, memory_size, memory_size, zt_start, zt_inv_start),
+
+            // Calculate reset gate (r_t)
+            Instruction(DOT, hx_size, memory_size, hx_start, rt_start, wr_weights),
+            Instruction(ACTIVATION_SIGMOID, memory_size, memory_size, rt_start, rt_start),
+
+            // Calculate candidate hidden state (h_t)
+            Instruction(ELEMENTWISE_MULTIPLY, memory_size, memory_size, hx_start, rt_start, candidate_start),
+            Instruction(COPY, *size_in, *size_in, addrInput, candidate_start + memory_size),
+            Instruction(DOT, hx_size, memory_size, candidate_start, candidate_output_start, wh_weights),
+            Instruction(ACTIVATION_TANH, memory_size, memory_size, candidate_output_start, candidate_output_start),
+
+            // Calculate hidden state (h_t)
+            Instruction(ELEMENTWISE_MULTIPLY, memory_size, memory_size, zt_inv_start, addrInput, sum_term1),
+            Instruction(ELEMENTWISE_MULTIPLY, memory_size, memory_size, zt_start, candidate_output_start, sum_term2),
+            Instruction(ELEMENTWISE_ADD, memory_size, memory_size, sum_term1, sum_term2, output_h),
+
+            // Copy hidden state to memory
+            Instruction(COPY, memory_size, memory_size, output_h, memory),
+
+        };
+
+        return instructions;
+    }
+};
+
 template <typename T>
 bool checkLayers(const vector<T *> &layers)
 {
@@ -89,7 +186,7 @@ struct Concatenate : Layer
 {
     vector<Layer *> layers;
 
-    Concatenate(vector<Layer *> inputLayers, Layer *from = nullptr) : Layer(0, nullptr), layers(inputLayers)
+    Concatenate(vector<Layer *> inputLayers, Layer *from = nullptr) : Layer(0, 0, nullptr), layers(inputLayers)
     {
         assert(checkLayers(inputLayers));
         size_t totalSizeOut = 0;
@@ -98,6 +195,7 @@ struct Concatenate : Layer
             totalSizeOut += layer->size_out;
         }
         this->size_out = totalSizeOut;
+        this->datastream_space = totalSizeOut;
         cout << "Concatenate size: " << size_out << endl;
     }
 
@@ -157,15 +255,18 @@ struct NeuralNetwork
     vector<float *> outputLocations;
     vector<Job> jobs;
     map<Layer *, float *> location;
+    map<Layer *, float *> layerOuputLocation;
     vector<Instruction> fastExecution;
     bool usingOwnWeights = false;
     vector<float> datastream;
     vector<float> weights;
+    vector<float> memory;
 
     void useOwnWeights()
     {
         usingOwnWeights = true;
         size_t totalWeightSize = 0;
+        size_t totalMemorySize = 0;
         // Calculate total weights size
         for (Job &job : jobs)
         {
@@ -173,27 +274,40 @@ struct NeuralNetwork
             {
                 totalWeightSize += denseLayer->weights_size;
             }
+            else if (GRU *denseLayer = dynamic_cast<GRU *>(job.layer))
+            {
+                totalWeightSize += denseLayer->weights_size;
+                totalMemorySize += denseLayer->memory_size;
+            }
         }
 
         // Reserve space to avoid reallocation
         weights.reserve(totalWeightSize);
+        memory.reserve(totalMemorySize);
 
         size_t weight_ptr = 0;
+        size_t memory_ptr = 0;
         // Append weights to NeuralNetwork's weights vector
         for (Job &job : jobs)
         {
             if (Dense *denseLayer = dynamic_cast<Dense *>(job.layer))
             {
                 weights.insert(weights.end(), denseLayer->weights, denseLayer->weights + denseLayer->weights_size);
-
-                // Free the original weights memory
                 delete[] denseLayer->weights;
-
-                // Update Dense layer's weights pointer
                 denseLayer->weights = &weights[weight_ptr];
-
-                // Move the weight pointer forward
                 weight_ptr += denseLayer->weights_size;
+            }
+            else if (GRU *gruLayer = dynamic_cast<GRU *>(job.layer))
+            {
+                weights.insert(weights.end(), gruLayer->weights, gruLayer->weights + gruLayer->weights_size);
+                delete[] gruLayer->weights;
+                gruLayer->weights = &weights[weight_ptr];
+                weight_ptr += gruLayer->weights_size;
+
+                memory.insert(memory.end(), gruLayer->memory, gruLayer->memory + gruLayer->memory_size);
+                delete[] gruLayer->memory;
+                gruLayer->memory = &memory[memory_ptr];
+                memory_ptr += gruLayer->memory_size;
             }
         }
     }
@@ -218,8 +332,21 @@ struct NeuralNetwork
             // For Dense layers
             if (Dense *denseLayer = dynamic_cast<Dense *>(layer))
             {
-                float *inputAddress = location[denseLayer->from]; // Address of the input to this layer
-                float *outputAddress = location[layer];           // Output address of this layer
+                float *inputAddress = layerOuputLocation[denseLayer->from]; // Address of the input to this layer
+                float *outputAddress = location[layer];                     // Output address of this layer
+                size_t layer_size_out = static_cast<size_t>(denseLayer->from->size_out);
+
+                info.push_back(&layer_size_out);
+                info.push_back(inputAddress);
+                info.push_back(outputAddress);
+
+                vector<Instruction> layerInstructions = denseLayer->createLowLevelInstructions(info);
+                fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
+            }
+            else if (GRU *denseLayer = dynamic_cast<GRU *>(layer))
+            {
+                float *inputAddress = layerOuputLocation[denseLayer->from]; // Address of the input to this layer
+                float *outputAddress = location[layer];                     // Output address of this layer
                 size_t layer_size_out = static_cast<size_t>(denseLayer->from->size_out);
 
                 info.push_back(&layer_size_out);
@@ -240,7 +367,7 @@ struct NeuralNetwork
 
                 for (Layer *l : concatLayer->layers)
                 {
-                    float *layer_addr_data = location[l];
+                    float *layer_addr_data = layerOuputLocation[l];
 
                     info.push_back(&l->size_out);
                     info.push_back(layer_addr_data);
@@ -287,7 +414,17 @@ struct NeuralNetwork
             {
                 distinctInputs.insert(inputLayer); // Add to distinct inputs set
             }
-            else if (Dense *denseLayer = dynamic_cast<Dense *>(currentLayer))
+            else if (Layer *denseLayer = dynamic_cast<Dense *>(currentLayer))
+            {
+                layerCount[currentLayer] = 1;
+                Layer *fromLayer = denseLayer->from;
+                if (fromLayer != nullptr)
+                {
+                    layerQueue.push_back(fromLayer);
+                    reverseDependencies[fromLayer].push_back(currentLayer);
+                }
+            }
+            else if (GRU *denseLayer = dynamic_cast<GRU *>(currentLayer))
             {
                 layerCount[currentLayer] = 1;
                 Layer *fromLayer = denseLayer->from;
@@ -331,7 +468,7 @@ struct NeuralNetwork
             {
                 jobs.push_back({currentLayer, pointer});
                 cout << "job with size_out of " << currentLayer->size_out << " for layer of class " << typeid(*currentLayer).name() << endl;
-                pointer += currentLayer->size_out;
+                pointer += currentLayer->datastream_space;
             }
 
             for (Layer *dependentLayer : reverseDependencies[currentLayer])
@@ -350,7 +487,8 @@ struct NeuralNetwork
         for (Layer *inputLayer : inputs)
         {
             location[inputLayer] = datastream.data() + inputPointer;
-            inputPointer += static_cast<Input *>(inputLayer)->size_out;
+            inputPointer += static_cast<Input *>(inputLayer)->datastream_space;
+            layerOuputLocation[inputLayer] = location[inputLayer];
         }
 
         // Populate mappings for non-input layers
@@ -358,21 +496,20 @@ struct NeuralNetwork
         for (const auto &job : jobs)
         {
             location[job.layer] = datastream.data() + layerPointer;
-            layerPointer += job.layer->size_out;
+            layerPointer += job.layer->datastream_space;
+            layerOuputLocation[job.layer] = datastream.data() + layerPointer - job.layer->size_out;
         }
 
         // Populate outputLocations for each output layer TODO, make it more efficient
         for (auto &outputLayer : outputs)
         {
-            size_t outputPointer = 0;
             for (auto &job : jobs)
             {
                 if (job.layer == outputLayer)
                 {
-                    outputLocations.push_back(location[job.layer]);
+                    outputLocations.push_back(layerOuputLocation[job.layer]);
                     break;
                 }
-                outputPointer += job.layer->size_out;
             }
         }
 
@@ -394,7 +531,7 @@ struct NeuralNetwork
         {
             assert(datastream.data() + pointer == location[inputs[i]]);
             memcpy(datastream.data() + pointer, data_in[i], sizeof(float) * inputs[i]->size_out);
-            pointer += inputs[i]->size_out;
+            pointer += inputs[i]->datastream_space;
         }
         for (auto type_inst : fastExecution)
         {

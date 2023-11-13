@@ -68,10 +68,6 @@ struct Instruction
         case DOT:
             fillLayer(addr1, addr2, addr3, size_in, size_out);
             // printf("Executing fillArray writing in address %u: %f floats of data\n", (unsigned int)(reinterpret_cast<uintptr_t>(addr2) % 10000), (double)size_out);
-            for (size_t i = 0; i < size_out; i++)
-            {
-                // printf("output[%llu] = %.2f\n", static_cast<unsigned long long>(i), addr2[i]);
-            }
             break;
         case ACTIVATION_SIGMOID:
             for (size_t i = 0; i < size_out; i++)
@@ -133,6 +129,18 @@ private:
             return "COPY";
         case DOT:
             return "DOT";
+        case ACTIVATION_SIGMOID:
+            return "ACTIVATION_SIGMOID";
+        case ACTIVATION_TANH:
+            return "ACTIVATION_TANH";
+        case ACTIVATION_RELU:
+            return "ACTIVATION_RELU";
+        case ELEMENTWISE_MULTIPLY:
+            return "ELEMENTWISE_MULTIPLY";
+        case ELEMENTWISE_ADD:
+            return "ELEMENTWISE_ADD";
+        case ARITHMETIC_INVERSE:
+            return "ARITHMETIC_INVERSE";
         default:
             return "Unknown";
         }
