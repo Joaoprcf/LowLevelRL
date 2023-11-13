@@ -1,22 +1,12 @@
 #include "src/inline_nn.h"
+#include "src/grs.h"
 
 int main()
 {
 
-    Input input1(5);
-    Dense dense1(&input1, 2);
-    Dense dense2(&dense1, 2);
-    Concatenate ct({&dense1, &dense2});
-    Dense dense3(&ct, 2);
-    NeuralNetwork nn(&input1, &dense3);
-
-    dense1.weights[6] = 1;
-    dense2.weights[4] = 1;
-
-    dense3.weights[1] = 10;
-    dense3.weights[3] = -7;
-    dense3.weights[6] = -10;
-    dense3.weights[8] = 7;
+    Input input(5);
+    Dense output(&input, 2);
+    NeuralNetwork nn(&input, &output);
 
     for (size_t i = 0; i < nn.weights.size(); i++)
     {
@@ -26,9 +16,34 @@ int main()
 
     vector<float> data_in = {1.0, 1.0, 1.0, 1.0, 1.0};
     float *result = nn.FeedForwardSingle(data_in.data());
-    assert(3.0f == result[0]);
-    assert(-3.0f == result[1]);
 
-    // CUDA code goes here
+    GRS grs(&nn, 10);
+
+    grs.initGPU();
+
+    int blockSize, gridSize;
+    // Number of threads in each thread block
+    gridSize = ceil(grs.directions / 32.0);
+
+    // Number of thread blocks in grid
+    blockSize = 32;
+
+    for (size_t idx = 0; idx < 500000; idx++)
+    {
+        grs.updateWeightsUsingGPUInfo();
+
+        grs.copyWeigthsToGPU();
+
+        gpuPlay<<<gridSize, blockSize>>>(grs.builder, grs.directions, grs.gpuInstructions, grs.gpuDatastream, grs.gpuWeights, grs.gpuSerializedMemory, grs.gpuRewardArray);
+
+        cudaDeviceSynchronize();
+    }
+
+    grs.clearGPU();
+    for (size_t i = 0; i < grs.weight_size; i++)
+    {
+        printf("grs.weights[%zu] = %.2f\n", i, grs.currentWeights[i]);
+    }
+
     return 0;
 }

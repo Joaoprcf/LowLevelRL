@@ -56,14 +56,14 @@ struct Instruction
         {
         case COPY:
             memcpy(addr2, addr1, sizeof(float) * size_out);
-            printf("Executing copy writing in address %u: %f floats of data\n", (unsigned int)(reinterpret_cast<uintptr_t>(addr2) % 10000), (double)size_out);
+            // printf("Executing copy writing in address %u: %f floats of data\n", (unsigned int)(reinterpret_cast<uintptr_t>(addr2) % 10000), (double)size_out);
             break;
         case MULT:
             fillLayer(addr1, addr2, weights, size_in, size_out);
-            printf("Executing fillArray writing in address %u: %f floats of data\n", (unsigned int)(reinterpret_cast<uintptr_t>(addr2) % 10000), (double)size_out);
+            // printf("Executing fillArray writing in address %u: %f floats of data\n", (unsigned int)(reinterpret_cast<uintptr_t>(addr2) % 10000), (double)size_out);
             for (size_t i = 0; i < size_out; i++)
             {
-                printf("output[%zu] = %.2f\n", i, addr2[i]);
+                // printf("output[%llu] = %.2f\n", static_cast<unsigned long long>(i), addr2[i]);
             }
             break;
         default:

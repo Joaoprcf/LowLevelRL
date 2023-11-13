@@ -16,15 +16,23 @@ CU_OBJS = $(patsubst $(SRC_DIR)/%.cu, $(BUILD_DIR)/%.o, $(CU_SRCS))
 TEST_SRCS = $(wildcard $(TESTS_DIR)/*.cpp)
 TEST_EXECS = $(patsubst $(TESTS_DIR)/%.cpp, $(BUILD_DIR)/%, $(TEST_SRCS))
 
+INDEX_CU = index.cu
+INDEX_EXE = $(BUILD_DIR)/index
+
 .PHONY: all clean test build_dir
 
 all: test
 
-test: clean build_dir $(TEST_EXECS)
+test: clean build_dir $(TEST_EXECS) $(INDEX_EXE)
 	@for test_exec in $(TEST_EXECS) ; do \
 		echo "Running $$test_exec"; \
 		./$$test_exec; \
 	done
+	@echo "Compiling index.cu"
+	@$(NVCC) $(NVCCFLAGS) $(LDFLAGS) $(INDEX_CU) -o $(INDEX_EXE)
+
+$(INDEX_EXE): $(INDEX_CU)
+	$(NVCC) $(NVCCFLAGS) $(LDFLAGS) $< -o $@
 
 $(BUILD_DIR)/%: $(TESTS_DIR)/%.cpp $(CU_OBJS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
@@ -36,4 +44,4 @@ build_dir:
 	@mkdir -p $(BUILD_DIR)
 
 clean:
-	rm -f $(CU_OBJS) $(TEST_EXECS)
+	rm -f $(CU_OBJS) $(TEST_EXECS) $(INDEX_EXE)
