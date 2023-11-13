@@ -418,10 +418,14 @@ struct PipelineBuilder
     size_t *outputLocations;
     Instruction *fastExecution; // Assuming allocation on the fly
 
+    PipelineBuilder() {}
+
     PipelineBuilder(NeuralNetwork *nn)
     {
         assert(nn->usingOwnWeights);
         weight_size = nn->weights.size();
+
+        datastream_size = nn->datastream.size();
 
         // Allocate and initialize instructions
         num_instructions = nn->fastExecution.size(); // Function to calculate the size
@@ -464,7 +468,13 @@ struct PipelineBuilder
         ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
     }
 
-    __device__ __host__ void FeedForward(float **dataIn, float *datastream, float **result)
+    __device__ __host__ void init(float *datastream, float *weights, Instruction *revervedSpacedInstructions)
+    {
+        fastExecution = revervedSpacedInstructions;
+        ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
+    }
+
+    __device__ __host__ void FeedForward(float **dataIn, float *datastream)
     {
         size_t pointer = 0;
         for (size_t i = 0; i < num_inputs; i++)
@@ -477,22 +487,14 @@ struct PipelineBuilder
 
             fastExecution[i].execute();
         }
-
-        for (size_t i = 0; i < num_outputs; i++)
-        {
-            memcpy(result[i], datastream + outputLocations[i], sizeof(float) * outputSizes[i]);
-        }
     }
 
-    __device__ __host__ void FeedForwardSingle(float *dataIn, float *datastream, float *result)
+    __device__ __host__ void FeedForwardSingle(float *dataIn, float *datastream)
     {
         assert(num_inputs == 1);
         assert(num_outputs == 1);
-        float **resultArray = new float *[1];
-        resultArray[0] = result;
-        float **dataInArray = new float *[1];
-        dataInArray[0] = dataIn;
-        this->FeedForward(dataInArray, datastream, resultArray);
+        float *dataInArray[1] = {dataIn};
+        this->FeedForward(dataInArray, datastream);
     }
 
     __host__ __device__ size_t calculateMemoryRequired() const
@@ -555,28 +557,20 @@ struct PipelineBuilder
         // Pointer to keep track of the current position in buffer
         char *currentPosition = static_cast<char *>(buffer);
 
-        // Unserialize instructions
-        size_t instSize = num_instructions * sizeof(RecoverableInstruction);
-        instructions = new RecoverableInstruction[num_instructions];
-        memcpy(instructions, currentPosition, instSize);
-        currentPosition += instSize;
+        // Point instructions to the appropriate location in buffer
+        instructions = reinterpret_cast<RecoverableInstruction *>(currentPosition);
+        currentPosition += num_instructions * sizeof(RecoverableInstruction);
 
-        // Unserialize inputSizes
-        size_t inputSizesSize = num_inputs * sizeof(size_t);
-        inputSizes = new size_t[num_inputs];
-        memcpy(inputSizes, currentPosition, inputSizesSize);
-        currentPosition += inputSizesSize;
+        // Point inputSizes to the appropriate location in buffer
+        inputSizes = reinterpret_cast<size_t *>(currentPosition);
+        currentPosition += num_inputs * sizeof(size_t);
 
-        // Unserialize outputSizes
-        size_t outputSizesSize = num_outputs * sizeof(size_t);
-        outputSizes = new size_t[num_outputs];
-        memcpy(outputSizes, currentPosition, outputSizesSize);
-        currentPosition += outputSizesSize;
+        // Point outputSizes to the appropriate location in buffer
+        outputSizes = reinterpret_cast<size_t *>(currentPosition);
+        currentPosition += num_outputs * sizeof(size_t);
 
-        // Unserialize outputLocations
-        size_t outputLocationsSize = num_outputs * sizeof(size_t);
-        outputLocations = new size_t[num_outputs];
-        memcpy(outputLocations, currentPosition, outputLocationsSize);
-        currentPosition += outputLocationsSize;
+        // Point outputLocations to the appropriate location in buffer
+        outputLocations = reinterpret_cast<size_t *>(currentPosition);
+        // currentPosition += num_outputs * sizeof(size_t); // Not needed if this is the last item
     }
 };
