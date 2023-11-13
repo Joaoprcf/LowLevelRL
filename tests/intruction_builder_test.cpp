@@ -84,9 +84,9 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test")
 
     PipelineBuilder builder(&nn);
     float *customDatastream = new float[nn.datastream.size()];
-    float *result = new float[nn.outputs[0]->size_out];
     builder.init(customDatastream, nn.weights.data());
-    builder.FeedForwardSingle(data_in.data(), customDatastream, result);
+    float *result = customDatastream + builder.outputLocations[0];
+    builder.FeedForwardSingle(data_in.data(), customDatastream);
 
     REQUIRE(result[0] == Approx(3.0f));
     REQUIRE(result[1] == Approx(-3.0f));
@@ -130,8 +130,8 @@ TEST_CASE("PipelineBuilder Serialize Memory Test")
     PipelineBuilder builder(&nn);
 
     // Allocate buffer based on the calculated size
-    size_t bufferSize = builder.calculateMemoryRequired();
-    void *buffer = malloc(bufferSize);
+    size_t buffer_size = builder.calculateMemoryRequired();
+    void *buffer = malloc(buffer_size);
 
     // Serialize data into the buffer
     builder.serializeMemory(buffer);
@@ -193,8 +193,8 @@ TEST_CASE("PipelineBuilder Serialize and Deserialize Test")
     PipelineBuilder originalBuilder(&nn);
 
     // Serialize originalBuilder into a buffer
-    size_t bufferSize = originalBuilder.calculateMemoryRequired();
-    void *buffer = malloc(bufferSize);
+    size_t buffer_size = originalBuilder.calculateMemoryRequired();
+    void *buffer = malloc(buffer_size);
     originalBuilder.serializeMemory(buffer);
 
     PipelineBuilder newBuilder = originalBuilder;
