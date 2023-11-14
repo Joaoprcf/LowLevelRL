@@ -39,7 +39,6 @@ struct LeaderboardOptimizer : GRSOptimizer
 
     void updateRewards(float *newRewards) override
     {
-        printf("updating rewards\n");
         float previousValue = rewards[leaderboardSize - 1];
 
         memcpy(tempRewards, newRewards, sizeof(float) * directions);
@@ -47,11 +46,14 @@ struct LeaderboardOptimizer : GRSOptimizer
         memcpy(rewards + leaderboardSize, tempRewards, sizeof(float) * leaderboardSize);
         heapSort(rewards, leaderboardSize * 2, fcomp);
 
+#ifndef TEST
         // debug leaderboard
+        printf("updating rewards\n");
         for (size_t i = 0; i < leaderboardSize; i++)
         {
             printf("reward[%zu]: %f\n", i, rewards[i]);
         }
+#endif
 
         if (rewards[leaderboardSize - 1] <= previousValue)
         {
@@ -63,28 +65,31 @@ struct LeaderboardOptimizer : GRSOptimizer
             pointer--;
             total++;
         }
-
+#ifndef TEST
         printf("%f < %f, pointer = %d\n", rewards[leaderboardSize - 1], previousValue, pointer);
-
+#endif
         if (pointer >= limit)
         {
-            printf("%d / %d = %f\n", limit, total, (float)limit / (float)total);
             limit = leaderboardSize + (total - limit);
             float factor = 0.9f;
             learningRate *= factor;
             pointer = 0;
             total = 0;
+#ifndef TEST
             printf("learning rate is now %f, factor *= %.5f\n", learningRate, factor);
+#endif
         }
         else if (pointer <= -static_cast<int>(leaderboardSize)) // should we apply?
         {
-            printf("%d / %d = %f\n", limit, total, (float)limit / (float)total);
+
             limit += leaderboardSize;
             float factor = 0.9f;
             learningRate /= factor;
             pointer = 0;
             total = 0;
+#ifndef TEST
             printf("learning rate is now %f, factor /= %.5f\n", learningRate, factor);
+#endif
         }
     }
 
