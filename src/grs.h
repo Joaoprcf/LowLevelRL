@@ -7,6 +7,17 @@
 
 using namespace std;
 
+struct RunnerInfo
+{
+    PipelineBuilder builder;
+    size_t direction_idx;
+    Instruction *instructions;
+    float *targetWeights;
+    float *targetMemory;
+    float *targetDatastream;
+    float *reward;
+};
+
 struct GRS
 {
     size_t stairs;
@@ -22,13 +33,22 @@ struct GRS
     float **preStoredTempWeights;
 
     // gpu stuff
-    float *gpuWeights;
-    void *gpuSerializedMemory;
-    float *gpuRewardArray;
-    float *gpuDatastream;
-    Instruction *gpuInstructions;
+    float *gpuWeights = nullptr;
+    void *gpuSerializedMemory = nullptr;
+    float *gpuRewardArray = nullptr;
+    float *gpuDatastream = nullptr;
+    float *gpuMemory = nullptr;
+    Instruction *gpuInstructions = nullptr;
     std::default_random_engine generator;
     GRSOptimizer *optimizer;
+
+    // cpu stuff
+    size_t it_pointer;
+    float *cpuWeights = nullptr;
+    float *cpuRewardArray = nullptr;
+    float *cpuDatastream = nullptr;
+    float *cpuMemory = nullptr;
+    Instruction *cpuInstructions;
 
     GRS(NeuralNetwork *nn, size_t stairs) : stairs(stairs)
     {
@@ -124,12 +144,81 @@ struct GRS
         }
     }
 
+    void initCPU()
+    {
+        // Allocate memory for CPU weights
+        cpuWeights = new float[directions * weight_size];
+        memset(cpuWeights, 0, directions * weight_size * sizeof(float));
+
+        // Allocate memory for CPU reward array
+        cpuRewardArray = new float[directions];
+        memset(cpuRewardArray, 0, directions * sizeof(float));
+
+        // Allocate memory for CPU datastream
+        cpuDatastream = new float[builder.datastream_size * directions];
+        memset(cpuDatastream, 0, builder.datastream_size * directions * sizeof(float));
+
+        // Allocate memory for CPU datastream
+        cpuMemory = new float[builder.memory_size * directions];
+        memset(cpuMemory, 0, builder.memory_size * directions * sizeof(float));
+
+        // Allocate memory for CPU instructions
+        cpuInstructions = new Instruction[builder.num_instructions * directions];
+        // Initialize cpuInstructions if necessary, depending on how they are used in your program
+
+        // Other CPU initialization steps
+        it_pointer = 0; // Assuming it_pointer is used as an iterator or counter, initialize it as needed
+    }
+
+    void initIterator()
+    {
+        it_pointer = 0;
+    }
+
+    RunnerInfo getNext()
+    {
+        PipelineBuilder newBuilder = builder;
+        builder.init(cpuDatastream + it_pointer * builder.datastream_size, cpuWeights + it_pointer * weight_size, cpuInstructions + it_pointer * builder.num_instructions);
+        size_t current_pointer = it_pointer;
+        it_pointer++;
+        return {
+            newBuilder,
+            current_pointer,
+            cpuInstructions + current_pointer * builder.num_instructions,
+            cpuWeights + current_pointer * weight_size,
+            cpuMemory + current_pointer * builder.memory_size,
+            cpuDatastream + current_pointer * builder.datastream_size,
+            cpuRewardArray + current_pointer};
+    }
+
     void clearGPU()
     {
         cudaFree(gpuWeights);
         cudaFree(gpuRewardArray);
         cudaFree(gpuDatastream);
+        cudaFree(gpuMemory);
         cudaFree(gpuInstructions);
         cudaFree(gpuSerializedMemory);
+
+        gpuWeights = nullptr;
+        gpuRewardArray = nullptr;
+        gpuDatastream = nullptr;
+        gpuMemory = nullptr;
+        gpuInstructions = nullptr;
+        gpuSerializedMemory = nullptr;
+    }
+
+    void clearCPU()
+    {
+        delete[] cpuWeights;
+        delete[] cpuRewardArray;
+        delete[] cpuDatastream;
+        delete[] cpuMemory;
+        delete[] cpuInstructions;
+        cpuWeights = nullptr;
+        cpuRewardArray = nullptr;
+        cpuDatastream = nullptr;
+        cpuMemory = nullptr;
+        cpuInstructions = nullptr;
     }
 };
