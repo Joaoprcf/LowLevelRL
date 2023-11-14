@@ -24,7 +24,18 @@ TEST_CASE("ConvertToRecoverable Function Test")
         REQUIRE(recoverableInstructions[i].size_out == instructions[i].size_out);
         REQUIRE(recoverableInstructions[i].addr1 == (instructions[i].addr1 - datastream));
         REQUIRE(recoverableInstructions[i].addr2 == (instructions[i].addr2 - datastream));
-        REQUIRE((instructions[i].weights ? (recoverableInstructions[i].weights == (instructions[i].weights - weights)) : (recoverableInstructions[i].weights == 0)));
+        if (instructions[i].op == DOT)
+        {
+            REQUIRE(recoverableInstructions[i].addr3 == (instructions[i].addr3 - weights));
+        }
+        else if (recoverableInstructions[i].addr3 == 0xffffffffffff)
+        {
+            REQUIRE(instructions[i].addr3 == nullptr);
+        }
+        else
+        {
+            REQUIRE(recoverableInstructions[i].addr3 == (instructions[i].addr3 - datastream));
+        }
     }
 }
 
@@ -47,7 +58,7 @@ TEST_CASE("Practical -> Recoverable -> Practical Conversion")
         REQUIRE(practicalBack[i].size_out == instructions[i].size_out);
         REQUIRE(practicalBack[i].addr1 == instructions[i].addr1);
         REQUIRE(practicalBack[i].addr2 == instructions[i].addr2);
-        REQUIRE(practicalBack[i].weights == instructions[i].weights);
+        REQUIRE(practicalBack[i].addr3 == instructions[i].addr3);
     }
 }
 
@@ -70,6 +81,6 @@ TEST_CASE("Recoverable -> Practical -> Recoverable Conversion")
         REQUIRE(recoverableBack[i].size_out == recoverable[i].size_out);
         REQUIRE(recoverableBack[i].addr1 == recoverable[i].addr1);
         REQUIRE(recoverableBack[i].addr2 == recoverable[i].addr2);
-        REQUIRE(recoverableBack[i].weights == recoverable[i].weights);
+        REQUIRE(recoverableBack[i].addr3 == recoverable[i].addr3);
     }
 }
