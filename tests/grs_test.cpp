@@ -87,3 +87,75 @@ TEST_CASE("GRS updateWeights function")
     REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[1], grs.weight_size * sizeof(float)) == 0);
     REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[2], grs.weight_size * sizeof(float)) != 0);
 }
+
+TEST_CASE("GRS CPU Initialization and Cleanup")
+{
+    Input input1(5);
+    Dense dense1(&input1, 2);
+    Dense dense2(&dense1, 2);
+    Concatenate ct({&dense1, &dense2});
+    Dense dense3(&ct, 2);
+    NeuralNetwork nn(&input1, &dense3);
+
+    size_t stairs = 4;
+    GRS grs(&nn, stairs);
+
+    REQUIRE(grs.cpuWeights == nullptr);
+    REQUIRE(grs.cpuRewardArray == nullptr);
+    REQUIRE(grs.cpuDatastream == nullptr);
+    REQUIRE(grs.cpuMemory == nullptr);
+    REQUIRE(grs.cpuInstructions == nullptr);
+    REQUIRE(grs.it_pointer == 0); // Check initial value of iterator
+
+    grs.initCPU();
+
+    REQUIRE(grs.cpuWeights != nullptr);
+    REQUIRE(grs.cpuRewardArray != nullptr);
+    REQUIRE(grs.cpuDatastream != nullptr);
+    REQUIRE(grs.cpuMemory != nullptr);
+    REQUIRE(grs.cpuInstructions != nullptr);
+    REQUIRE(grs.it_pointer == 0); // Check initial value of iterator
+
+    grs.clearCPU();
+
+    REQUIRE(grs.cpuWeights == nullptr);
+    REQUIRE(grs.cpuRewardArray == nullptr);
+    REQUIRE(grs.cpuDatastream == nullptr);
+    REQUIRE(grs.cpuMemory == nullptr);
+    REQUIRE(grs.cpuInstructions == nullptr);
+}
+
+TEST_CASE("GRS getNext Method")
+{
+    // Setup NeuralNetwork and GRS
+    Input input1(5);
+    Dense dense1(&input1, 2);
+    Dense dense2(&dense1, 2);
+    Concatenate ct({&dense1, &dense2});
+    Dense dense3(&ct, 2);
+    NeuralNetwork nn(&input1, &dense3);
+
+    size_t stairs = 4;
+    GRS grs(&nn, stairs);
+
+    grs.initCPU();
+
+    // Iterate through all directions and check RunnerInfo
+    for (size_t i = 0; i < grs.directions; i++)
+    {
+        RunnerInfo runnerInfo = grs.getNext();
+
+        // Validate the runnerInfo contents
+        REQUIRE(runnerInfo.direction_idx == i); // Check current index
+        REQUIRE(runnerInfo.instructions == grs.cpuInstructions + i * grs.builder.num_instructions);
+        REQUIRE(runnerInfo.targetWeights == grs.cpuWeights + i * grs.weight_size);
+        REQUIRE(runnerInfo.targetMemory == grs.cpuMemory + i * grs.builder.memory_size);
+        REQUIRE(runnerInfo.targetDatastream == grs.cpuDatastream + i * grs.builder.datastream_size);
+        REQUIRE(runnerInfo.reward == grs.cpuRewardArray + i);
+
+        // Check iterator advancement
+        REQUIRE(grs.it_pointer == i + 1);
+    }
+
+    grs.clearCPU();
+}

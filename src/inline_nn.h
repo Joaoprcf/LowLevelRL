@@ -554,6 +554,7 @@ struct PipelineBuilder
 {
     size_t weight_size;
     size_t datastream_size;
+    size_t memory_size;
     size_t num_inputs;
     size_t num_outputs;
     size_t num_instructions;
@@ -569,8 +570,8 @@ struct PipelineBuilder
     {
         assert(nn->usingOwnWeights);
         weight_size = nn->weights.size();
-
         datastream_size = nn->datastream.size();
+        memory_size = nn->memory.size();
 
         // Allocate and initialize instructions
         num_instructions = nn->fastExecution.size(); // Function to calculate the size
