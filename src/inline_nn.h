@@ -44,7 +44,8 @@ struct Dense : Layer
 {
     size_t weights_size;
     float *weights;
-    Dense(Layer *from, size_t size_out) : Layer(size_out, from)
+    type_inst activation;
+    Dense(Layer *from, size_t size_out, type_inst activation = ACTIVATION_NONE) : Layer(size_out, from), activation(activation)
     {
         weights_size = size_out * (from->size_out + 1);
         weights = new float[weights_size];
@@ -59,7 +60,13 @@ struct Dense : Layer
         size_t *size_in = static_cast<size_t *>(info[0]);
         float *addrInput = static_cast<float *>(info[1]);
         float *addrOutput = static_cast<float *>(info[2]);
-        return {Instruction(MULT, *size_in, size_out, addrInput, addrOutput, weights)};
+        vector<Instruction> instructions;
+        instructions.push_back(Instruction(DOT, *size_in, size_out, addrInput, addrOutput, weights));
+        if (activation != ACTIVATION_NONE)
+        {
+            instructions.push_back(Instruction(activation, size_out, size_out, addrOutput, addrOutput, nullptr));
+        }
+        return instructions;
     }
 };
 
@@ -151,12 +158,13 @@ struct NeuralNetwork
     vector<Job> jobs;
     map<Layer *, float *> location;
     vector<Instruction> fastExecution;
-    bool usingOwnWeights = true;
+    bool usingOwnWeights = false;
     vector<float> datastream;
     vector<float> weights;
 
     void useOwnWeights()
     {
+        usingOwnWeights = true;
         size_t totalWeightSize = 0;
         // Calculate total weights size
         for (Job &job : jobs)
@@ -190,9 +198,9 @@ struct NeuralNetwork
         }
     }
 
-    void BuildFastExecutionGraph()
+    void BuildFastExecutionGraph(bool applyUsingOwnWeights)
     {
-        if (usingOwnWeights)
+        if (applyUsingOwnWeights && !usingOwnWeights)
         {
             useOwnWeights();
         }
@@ -244,7 +252,7 @@ struct NeuralNetwork
         }
     }
 
-    NeuralNetwork(vector<Input *> inputs, vector<Layer *> outputs, bool usingOwnWeights = true) : size_in(0), size_out(0), datastream({}), usingOwnWeights(usingOwnWeights)
+    NeuralNetwork(vector<Input *> inputs, vector<Layer *> outputs, bool applyUsingOwnWeights = true) : size_in(0), size_out(0), datastream({}), usingOwnWeights(false)
     {
         // Ensure no duplicates or nullptrs in inputs and outputs
         assert(checkLayers(inputs));
@@ -368,7 +376,7 @@ struct NeuralNetwork
             }
         }
 
-        BuildFastExecutionGraph();
+        BuildFastExecutionGraph(applyUsingOwnWeights);
         for (auto inst : fastExecution)
         {
             cout << "----\n";

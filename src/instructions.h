@@ -32,7 +32,11 @@ enum type_inst
 {
     INIT,
     COPY,
-    MULT
+    DOT,
+    ACTIVATION_NONE,
+    ACTIVATION_SIGMOID,
+    ACTIVATION_TANH,
+    ACTIVATION_RELU,
 };
 
 struct Instruction
@@ -58,12 +62,30 @@ struct Instruction
             memcpy(addr2, addr1, sizeof(float) * size_out);
             // printf("Executing copy writing in address %u: %f floats of data\n", (unsigned int)(reinterpret_cast<uintptr_t>(addr2) % 10000), (double)size_out);
             break;
-        case MULT:
+        case DOT:
             fillLayer(addr1, addr2, weights, size_in, size_out);
             // printf("Executing fillArray writing in address %u: %f floats of data\n", (unsigned int)(reinterpret_cast<uintptr_t>(addr2) % 10000), (double)size_out);
             for (size_t i = 0; i < size_out; i++)
             {
                 // printf("output[%llu] = %.2f\n", static_cast<unsigned long long>(i), addr2[i]);
+            }
+            break;
+        case ACTIVATION_SIGMOID:
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr2[i] = 1.0f / (1.0f + expf(-addr2[i]));
+            }
+            break;
+        case ACTIVATION_TANH:
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr2[i] = tanhf(addr2[i]);
+            }
+            break;
+        case ACTIVATION_RELU:
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr2[i] = addr2[i] > 0 ? addr2[i] : 0;
             }
             break;
         default:
@@ -88,8 +110,8 @@ private:
             return "INIT";
         case COPY:
             return "COPY";
-        case MULT:
-            return "MULT";
+        case DOT:
+            return "DOT";
         default:
             return "Unknown";
         }
@@ -142,7 +164,7 @@ vector<Instruction> ConvertToPractical(vector<RecoverableInstruction> &instructi
     {
         float *addr1 = datastreamAddr + inst.addr1;
         float *addr2 = datastreamAddr + inst.addr2;
-        float *weights = inst.op == MULT ? (weightsAddr + inst.weights) : nullptr;
+        float *weights = inst.op == DOT ? (weightsAddr + inst.weights) : nullptr;
 
         practicalInstructions.emplace_back(
             inst.op,
@@ -163,7 +185,7 @@ __host__ __device__ void ConvertToPractical(RecoverableInstruction *recInstructi
         const auto &inst = recInstructions[i];
         float *addr1 = datastreamAddr + inst.addr1;
         float *addr2 = datastreamAddr + inst.addr2;
-        float *weights = (inst.op == MULT) ? (weightsAddr + inst.weights) : nullptr;
+        float *weights = (inst.op == DOT) ? (weightsAddr + inst.weights) : nullptr;
 
         practicalInstructions[i] = Instruction(
             inst.op,
