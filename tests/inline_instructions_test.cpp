@@ -11,7 +11,7 @@ TEST_CASE("ConvertToRecoverable Function Test")
     // Create a vector of Instructions
     vector<Instruction> instructions = {
         Instruction(COPY, 5, 5, &datastream[0], &datastream[5]),
-        Instruction(MULT, 5, 5, &datastream[0], &datastream[5], &weights[0])};
+        Instruction(DOT, 5, 5, &datastream[0], &datastream[5], &weights[0])};
 
     // Convert to RecoverableInstructions
     vector<RecoverableInstruction> recoverableInstructions = ConvertToRecoverable(instructions, datastream, weights);
@@ -34,7 +34,7 @@ TEST_CASE("Practical -> Recoverable -> Practical Conversion")
     float weights[10];
     vector<Instruction> instructions = {
         Instruction(COPY, 5, 5, &datastream[0], &datastream[5]),
-        Instruction(MULT, 5, 5, &datastream[0], &datastream[5], &weights[0])};
+        Instruction(DOT, 5, 5, &datastream[0], &datastream[5], &weights[0])};
 
     auto recoverable = ConvertToRecoverable(instructions, datastream, weights);
     auto practicalBack = ConvertToPractical(recoverable, datastream, weights);
@@ -57,7 +57,7 @@ TEST_CASE("Recoverable -> Practical -> Recoverable Conversion")
     float weights[10];
     vector<RecoverableInstruction> recoverable = {
         RecoverableInstruction(COPY, 5, 5, 0, 5, 0),
-        RecoverableInstruction(MULT, 5, 5, 0, 5, 0)};
+        RecoverableInstruction(DOT, 5, 5, 0, 5, 0)};
 
     auto practical = ConvertToPractical(recoverable, datastream, weights);
     auto recoverableBack = ConvertToRecoverable(practical, datastream, weights);
