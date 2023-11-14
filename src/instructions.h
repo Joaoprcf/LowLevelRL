@@ -37,6 +37,9 @@ enum type_inst
     ACTIVATION_SIGMOID,
     ACTIVATION_TANH,
     ACTIVATION_RELU,
+    ELEMENTWISE_MULTIPLY,
+    ELEMENTWISE_ADD,
+    ARITHMETIC_INVERSE
 };
 
 struct Instruction
@@ -46,11 +49,11 @@ struct Instruction
     float size_out; // Assumption: size_out needs to be initialized based on context
     float *addr1;
     float *addr2;
-    float *weights;
+    float *addr3;
 
     // Revised constructor with additional parameters for size_in and size_out
-    __device__ __host__ Instruction(type_inst op, float size_in, float size_out, float *addr1, float *addr2, float *weights = nullptr)
-        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), weights(weights) {}
+    __device__ __host__ Instruction(type_inst op, float size_in, float size_out, float *addr1, float *addr2, float *addr3 = nullptr)
+        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3) {}
 
     __device__ __host__ Instruction() {}
 
@@ -63,7 +66,7 @@ struct Instruction
             // printf("Executing copy writing in address %u: %f floats of data\n", (unsigned int)(reinterpret_cast<uintptr_t>(addr2) % 10000), (double)size_out);
             break;
         case DOT:
-            fillLayer(addr1, addr2, weights, size_in, size_out);
+            fillLayer(addr1, addr2, addr3, size_in, size_out);
             // printf("Executing fillArray writing in address %u: %f floats of data\n", (unsigned int)(reinterpret_cast<uintptr_t>(addr2) % 10000), (double)size_out);
             for (size_t i = 0; i < size_out; i++)
             {
@@ -73,19 +76,37 @@ struct Instruction
         case ACTIVATION_SIGMOID:
             for (size_t i = 0; i < size_out; i++)
             {
-                addr2[i] = 1.0f / (1.0f + expf(-addr2[i]));
+                addr2[i] = 1.0f / (1.0f + expf(-addr1[i]));
             }
             break;
         case ACTIVATION_TANH:
             for (size_t i = 0; i < size_out; i++)
             {
-                addr2[i] = tanhf(addr2[i]);
+                addr2[i] = tanhf(addr1[i]);
             }
             break;
         case ACTIVATION_RELU:
             for (size_t i = 0; i < size_out; i++)
             {
-                addr2[i] = addr2[i] > 0 ? addr2[i] : 0;
+                addr2[i] = addr1[i] > 0 ? addr1[i] : 0;
+            }
+            break;
+        case ELEMENTWISE_MULTIPLY:
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr3[i] = addr1[i] * addr2[i];
+            }
+            break;
+        case ELEMENTWISE_ADD:
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr3[i] = addr1[i] + addr2[i];
+            }
+            break;
+        case ARITHMETIC_INVERSE:
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr2[i] = 1.0f - addr1[i];
             }
             break;
         default:
@@ -125,11 +146,11 @@ struct RecoverableInstruction
     float size_out; // Assumption: size_out needs to be initialized based on context
     size_t addr1;
     size_t addr2;
-    size_t weights;
+    size_t addr3;
 
     // Revised constructor with additional parameters for size_in and size_out
-    RecoverableInstruction(type_inst op, float size_in, float size_out, size_t addr1, size_t addr2, size_t weights = 0)
-        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), weights(weights) {}
+    RecoverableInstruction(type_inst op, float size_in, float size_out, size_t addr1, size_t addr2, size_t addr3 = 0)
+        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3) {}
 
     RecoverableInstruction() {}
 };
@@ -142,7 +163,15 @@ vector<RecoverableInstruction> ConvertToRecoverable(vector<Instruction> &instruc
     {
         size_t addr1Offset = inst.addr1 - datastreamAddr;
         size_t addr2Offset = inst.addr2 - datastreamAddr;
-        size_t weightsOffset = inst.weights ? (inst.weights - weightsAddr) : 0;
+        size_t addr3Offset;
+        if (inst.op == DOT)
+        {
+            addr3Offset = inst.addr3 - weightsAddr;
+        }
+        else
+        {
+            addr3Offset = inst.addr3 ? (datastreamAddr - inst.addr3) : 0xffffffffffff;
+        }
 
         recoverableInstructions.emplace_back(
             inst.op,
@@ -150,7 +179,7 @@ vector<RecoverableInstruction> ConvertToRecoverable(vector<Instruction> &instruc
             inst.size_out,
             addr1Offset,
             addr2Offset,
-            weightsOffset);
+            addr3Offset);
     }
 
     return recoverableInstructions;
@@ -164,7 +193,15 @@ vector<Instruction> ConvertToPractical(vector<RecoverableInstruction> &instructi
     {
         float *addr1 = datastreamAddr + inst.addr1;
         float *addr2 = datastreamAddr + inst.addr2;
-        float *weights = inst.op == DOT ? (weightsAddr + inst.weights) : nullptr;
+        float *addr3;
+        if (inst.op == DOT)
+        {
+            addr3 = (weightsAddr + inst.addr3);
+        }
+        else
+        {
+            addr3 = inst.addr3 == 0xffffffffffff ? nullptr : (datastreamAddr + inst.addr3);
+        }
 
         practicalInstructions.emplace_back(
             inst.op,
@@ -172,7 +209,7 @@ vector<Instruction> ConvertToPractical(vector<RecoverableInstruction> &instructi
             inst.size_out,
             addr1,
             addr2,
-            weights);
+            addr3);
     }
 
     return practicalInstructions;
@@ -185,7 +222,15 @@ __host__ __device__ void ConvertToPractical(RecoverableInstruction *recInstructi
         const auto &inst = recInstructions[i];
         float *addr1 = datastreamAddr + inst.addr1;
         float *addr2 = datastreamAddr + inst.addr2;
-        float *weights = (inst.op == DOT) ? (weightsAddr + inst.weights) : nullptr;
+        float *addr3;
+        if (inst.op == DOT)
+        {
+            addr3 = (weightsAddr + inst.addr3);
+        }
+        else
+        {
+            addr3 = inst.addr3 == 0xffffffffffff ? nullptr : (datastreamAddr + inst.addr3);
+        }
 
         practicalInstructions[i] = Instruction(
             inst.op,
@@ -193,6 +238,6 @@ __host__ __device__ void ConvertToPractical(RecoverableInstruction *recInstructi
             inst.size_out,
             addr1,
             addr2,
-            weights);
+            addr3);
     }
 }
