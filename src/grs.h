@@ -92,6 +92,14 @@ struct GRS
         }
     }
 
+    void copyWeigthsToCPU()
+    {
+        for (size_t i = 0; i < directions; i++)
+        {
+            memcpy(cpuWeights + i * weight_size, allWeights[i], weight_size * sizeof(float));
+        }
+    }
+
     void copyRewardsFromGPU(float *rewards)
     {
         cudaMemcpy(rewards, gpuRewardArray, directions * sizeof(float), cudaMemcpyDeviceToHost);
@@ -103,6 +111,17 @@ struct GRS
                 exit(0);
             }
         }
+    }
+
+    void copyRewardsFromCPU(float *rewards)
+    {
+        memcpy(rewards, cpuRewardArray, directions * sizeof(float));
+    }
+
+    void updateWeightsUsingCPUInfo()
+    {
+        copyRewardsFromCPU(preStoredRewards);
+        updateWeights(preStoredRewards);
     }
 
     void updateWeightsUsingGPUInfo()
@@ -120,7 +139,7 @@ struct GRS
         size_t pointer = 0;
         for (size_t stairIdx = 0; stairIdx < stairs; stairIdx++)
         {
-            printf("Sorted rEntries[%llu]: %f\n", static_cast<unsigned long long>(stairIdx), rEntries[stairIdx].reward);
+            // printf("Sorted rEntries[%llu]: %f\n", static_cast<unsigned long long>(stairIdx), rEntries[stairIdx].reward);
             size_t stairAmount = stairs - stairIdx;
 
             int idx = rEntries[stairIdx].index;
@@ -130,7 +149,7 @@ struct GRS
                 pointer++;
             }
         }
-        printf("\n");
+        // printf("\n");
 
         std::normal_distribution<float> distribution(0.0, 1);
         float noiseAmp = optimizer->getNextNoise();
@@ -178,7 +197,7 @@ struct GRS
     RunnerInfo getNext()
     {
         PipelineBuilder newBuilder = builder;
-        builder.init(cpuDatastream + it_pointer * builder.datastream_size, cpuWeights + it_pointer * weight_size, cpuInstructions + it_pointer * builder.num_instructions);
+        newBuilder.init(cpuDatastream + it_pointer * builder.datastream_size, cpuWeights + it_pointer * weight_size, cpuInstructions + it_pointer * builder.num_instructions);
         size_t current_pointer = it_pointer;
         it_pointer++;
         return {
@@ -215,6 +234,7 @@ struct GRS
         delete[] cpuDatastream;
         delete[] cpuMemory;
         delete[] cpuInstructions;
+
         cpuWeights = nullptr;
         cpuRewardArray = nullptr;
         cpuDatastream = nullptr;

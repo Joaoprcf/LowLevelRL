@@ -630,7 +630,6 @@ struct PipelineBuilder
         }
         for (size_t i = 0; i < num_instructions; i++)
         {
-
             fastExecution[i].execute();
         }
     }
