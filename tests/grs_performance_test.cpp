@@ -4,14 +4,14 @@
 #include "../src/grs.h"
 #include "../src/game_examples.h"
 
-TEST_CASE("GRS getNext Method")
+TEST_CASE("GRS test against GuessGame using IterativeOptimizer")
 {
     // Setup NeuralNetwork and GRS
     Input input(5);
     Dense output(&input, 2);
     NeuralNetwork nn(&input, &output);
 
-    size_t stairs = 4;
+    size_t stairs = 8;
     GRS grs(&nn, stairs);
 
     grs.initCPU();
@@ -50,8 +50,14 @@ TEST_CASE("GRS getNext Method")
 
             *runnerInfo.reward = reward;
         }
-        float worstReward = dynamic_cast<LeaderboardOptimizer *>(grs.optimizer)->rewards[stairs - 1];
+
+        grs.updateWeightsUsingCPUInfo();
+        float worstReward = dynamic_cast<IterativeOptimizer *>(grs.optimizer)->movingAvgScore;
         // printf("Worst Reward: %f\n", worstReward);
+        /*         if (idx)
+                {
+                    printf("%.f\n", worstReward);
+                } */
         if (idx == 49)
         {
             printf("%.f > 800.0\n", worstReward);
@@ -59,26 +65,26 @@ TEST_CASE("GRS getNext Method")
         }
         if (idx == 99)
         {
-            printf("%.f > 1000.0\n", worstReward);
-            REQUIRE(worstReward > 1000.0f);
+            printf("%.f > 1800.0\n", worstReward);
+            REQUIRE(worstReward > 1800.0f);
         }
         else if (idx == 199)
         {
-            printf("%.f > 2000.0\n", worstReward);
-            REQUIRE(worstReward > 2000.0f);
+            printf("%.f > 7500.0\n", worstReward);
+            REQUIRE(worstReward > 7500.0f);
         }
         else if (idx == 399)
         {
-            printf("%.f > 8000.0\n", worstReward);
-            REQUIRE(worstReward > 8000.0f);
+            printf("%.f > 25000.0\n", worstReward);
+            REQUIRE(worstReward > 25000.0f);
         }
         else if (idx == 799)
         {
-            printf("%.f > 28000.0\n", worstReward);
-            REQUIRE(worstReward > 28000.0f);
+            printf("%.f > 35000.0\n", worstReward);
+            REQUIRE(worstReward > 35000.0f);
         }
     }
 
-    float bestReward = dynamic_cast<LeaderboardOptimizer *>(grs.optimizer)->rewards[0];
+    float bestReward = dynamic_cast<IterativeOptimizer *>(grs.optimizer)->tempRewards[stairs - 1];
     grs.clearCPU();
 }

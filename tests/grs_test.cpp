@@ -68,7 +68,8 @@ TEST_CASE("GRS updateWeights function")
     REQUIRE(grs.preStoredRewards != nullptr);
     REQUIRE(grs.optimizer != nullptr);
 
-    dynamic_cast<LeaderboardOptimizer *>(grs.optimizer)->learningRate = 0;
+    grs.optimizer = new LeaderboardOptimizer(stairs, grs.directions);
+    grs.optimizer->learningRate = 0;
 
     float rewards[3] = {1, 2, 3};
 
