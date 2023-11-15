@@ -606,6 +606,10 @@ struct PipelineBuilder
 
         fastExecution = nullptr; // Allocate as needed
     }
+    ~PipelineBuilder()
+    {
+        // Deallocate instructions TODO
+    }
 
     __device__ __host__ void init(float *datastream, float *weights)
     {
