@@ -15,5 +15,7 @@ jobs:
     - name: Build Docker image
       run: docker build -t my-cuda-project .
 
-    - name: Run tests in Docker container
-      run: docker run my-cuda-project
+    - name: Run tests in Docker container 
+      run: |
+        set -e
+        docker run my-cuda-project
