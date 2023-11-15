@@ -71,6 +71,20 @@ struct GRS
         }
     }
 
+    ~GRS()
+    {
+        delete optimizer;
+        delete[] currentWeights;
+        delete[] preStoredRewards;
+        for (size_t i = 0; i < directions; i++)
+        {
+            delete[] allWeights[i];
+            delete[] preStoredTempWeights[i];
+        }
+        delete[] allWeights;
+        delete[] preStoredTempWeights;
+    }
+
     void initGPU()
     {
         cudaMalloc(&gpuWeights, directions * weight_size * sizeof(float));
