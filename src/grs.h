@@ -54,7 +54,8 @@ struct GRS
     {
         builder = PipelineBuilder(nn);
         directions = stairs * (stairs + 1) / 2;
-        optimizer = new LeaderboardOptimizer(stairs, directions);
+        // optimizer = new LeaderboardOptimizer(stairs, directions);
+        optimizer = new IterativeOptimizer(directions);
         weight_size = this->builder.weight_size;
         datastream_size = this->builder.datastream_size;
         currentWeights = new float[weight_size];
