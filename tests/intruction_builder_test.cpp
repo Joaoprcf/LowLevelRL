@@ -14,7 +14,7 @@ TEST_CASE("PipelineBuilder Initialization")
     REQUIRE(builder.num_inputs == nn.inputs.size());
     REQUIRE(builder.num_outputs == nn.outputs.size());
     REQUIRE(builder.num_outputs == nn.outputLocations.size());
-    REQUIRE(builder.weight_size == nn.weights.size());
+    REQUIRE(builder.weights_size == nn.weights.size());
 }
 
 TEST_CASE("PipelineBuilder Initialization Multi Input Output")
@@ -33,7 +33,7 @@ TEST_CASE("PipelineBuilder Initialization Multi Input Output")
     REQUIRE(builder.num_inputs == nn.inputs.size());
     REQUIRE(builder.num_outputs == nn.outputs.size());
     REQUIRE(builder.num_outputs == nn.outputLocations.size());
-    REQUIRE(builder.weight_size == nn.weights.size());
+    REQUIRE(builder.weights_size == nn.weights.size());
 }
 
 TEST_CASE("Instruction Conversion")

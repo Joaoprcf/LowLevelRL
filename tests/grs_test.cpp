@@ -18,7 +18,7 @@ TEST_CASE("GRS Constructor Initialization")
 
     REQUIRE(grs4.stairs == stairs);
     REQUIRE(grs4.directions == 10); // 4 * (4 + 1) / 2
-    REQUIRE(grs4.weight_size == nn.weights.size());
+    REQUIRE(grs4.weights_size == nn.weights.size());
     REQUIRE(grs4.datastream_size == 15);
     REQUIRE(grs4.builder.num_instructions == 5);
     REQUIRE(grs4.builder.num_inputs == 1);
@@ -33,7 +33,7 @@ TEST_CASE("GRS Constructor Initialization")
 
     REQUIRE(grs5.stairs == stairs);
     REQUIRE(grs5.directions == 15); // 5 * (5 + 1) / 2
-    REQUIRE(grs5.weight_size == nn.weights.size());
+    REQUIRE(grs5.weights_size == nn.weights.size());
     REQUIRE(grs5.datastream_size == 15);
     REQUIRE(grs5.builder.num_instructions == 5);
     REQUIRE(grs5.builder.num_inputs == 1);
@@ -59,7 +59,7 @@ TEST_CASE("GRS updateWeights function")
 
     REQUIRE(grs.stairs == stairs);
     REQUIRE(grs.directions == 3); // 4 * (4 + 1) / 2
-    REQUIRE(grs.weight_size == nn.weights.size());
+    REQUIRE(grs.weights_size == nn.weights.size());
     REQUIRE(grs.datastream_size == 15);
     REQUIRE(grs.builder.num_instructions == 5);
     REQUIRE(grs.builder.num_inputs == 1);
@@ -75,18 +75,18 @@ TEST_CASE("GRS updateWeights function")
 
     for (int i = 0; i < 3; ++i)
     {
-        memset(grs.allWeights[i], i, grs.weight_size * sizeof(float));
+        memset(grs.allWeights[i], i, grs.weights_size * sizeof(float));
     }
 
-    float winnerWeights[grs.weight_size];
-    memset(winnerWeights, 2, grs.weight_size * sizeof(float));
+    float winnerWeights[grs.weights_size];
+    memset(winnerWeights, 2, grs.weights_size * sizeof(float));
 
     grs.updateWeights(rewards);
 
-    REQUIRE(memcmp(grs.allWeights[0], grs.currentWeights, grs.weight_size * sizeof(float)) == 0);
-    REQUIRE(memcmp(grs.allWeights[0], winnerWeights, grs.weight_size * sizeof(float)) == 0);
-    REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[1], grs.weight_size * sizeof(float)) == 0);
-    REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[2], grs.weight_size * sizeof(float)) != 0);
+    REQUIRE(memcmp(grs.allWeights[0], grs.currentWeights, grs.weights_size * sizeof(float)) == 0);
+    REQUIRE(memcmp(grs.allWeights[0], winnerWeights, grs.weights_size * sizeof(float)) == 0);
+    REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[1], grs.weights_size * sizeof(float)) == 0);
+    REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[2], grs.weights_size * sizeof(float)) != 0);
 }
 
 TEST_CASE("GRS CPU Initialization and Cleanup")
@@ -148,8 +148,8 @@ TEST_CASE("GRS getNext Method")
 
         // Validate the runnerInfo contents
         REQUIRE(runnerInfo.direction_idx == i); // Check current index
-        REQUIRE(runnerInfo.instructions == grs.cpuInstructions + i * grs.builder.num_instructions);
-        REQUIRE(runnerInfo.targetWeights == grs.cpuWeights + i * grs.weight_size);
+        REQUIRE(runnerInfo.targetInstructions == grs.cpuInstructions + i * grs.builder.num_instructions);
+        REQUIRE(runnerInfo.targetWeights == grs.cpuWeights + i * grs.weights_size);
         REQUIRE(runnerInfo.targetMemory == grs.cpuMemory + i * grs.builder.memory_size);
         REQUIRE(runnerInfo.targetDatastream == grs.cpuDatastream + i * grs.builder.datastream_size);
         REQUIRE(runnerInfo.reward == grs.cpuRewardArray + i);

@@ -45,14 +45,14 @@ enum type_inst
 struct Instruction
 {
     type_inst op;
-    float size_in;  // Assumption: size_in needs to be initialized based on context
-    float size_out; // Assumption: size_out needs to be initialized based on context
+    uint32_t size_in;  // Assumption: size_in needs to be initialized based on context
+    uint32_t size_out; // Assumption: size_out needs to be initialized based on context
     float *addr1;
     float *addr2;
     float *addr3;
 
     // Revised constructor with additional parameters for size_in and size_out
-    __device__ __host__ Instruction(type_inst op, float size_in, float size_out, float *addr1, float *addr2, float *addr3 = nullptr)
+    __device__ __host__ Instruction(type_inst op, uint32_t size_in, uint32_t size_out, float *addr1, float *addr2, float *addr3 = nullptr)
         : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3) {}
 
     __device__ __host__ Instruction() {}
@@ -150,14 +150,14 @@ private:
 struct RecoverableInstruction
 {
     type_inst op;
-    float size_in;  // Assumption: size_in needs to be initialized based on context
-    float size_out; // Assumption: size_out needs to be initialized based on context
+    uint32_t size_in;  // Assumption: size_in needs to be initialized based on context
+    uint32_t size_out; // Assumption: size_out needs to be initialized based on context
     size_t addr1;
     size_t addr2;
     size_t addr3;
 
     // Revised constructor with additional parameters for size_in and size_out
-    RecoverableInstruction(type_inst op, float size_in, float size_out, size_t addr1, size_t addr2, size_t addr3 = 0)
+    RecoverableInstruction(type_inst op, uint32_t size_in, uint32_t size_out, size_t addr1, size_t addr2, size_t addr3 = 0)
         : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3) {}
 
     RecoverableInstruction() {}
