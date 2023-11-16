@@ -11,7 +11,7 @@ struct RunnerInfo
 {
     PipelineBuilder builder;
     size_t direction_idx;
-    Instruction *instructions;
+    Instruction *targetInstructions;
     float *targetWeights;
     float *targetMemory;
     float *targetDatastream;
@@ -22,7 +22,7 @@ struct GRS
 {
     size_t stairs;
     size_t directions;
-    size_t weight_size;
+    size_t weights_size;
     size_t datastream_size;
     float *currentWeights;
     float **allWeights;
@@ -56,18 +56,18 @@ struct GRS
         directions = stairs * (stairs + 1) / 2;
         // optimizer = new LeaderboardOptimizer(stairs, directions);
         optimizer = new IterativeOptimizer(directions);
-        weight_size = this->builder.weight_size;
+        weights_size = this->builder.weights_size;
         datastream_size = this->builder.datastream_size;
-        currentWeights = new float[weight_size];
+        currentWeights = new float[weights_size];
         preStoredRewards = new float[directions];
-        memset(currentWeights, 0, weight_size * sizeof(float));
+        memset(currentWeights, 0, weights_size * sizeof(float));
         allWeights = new float *[directions];
         preStoredTempWeights = new float *[directions];
         for (size_t i = 0; i < directions; i++)
         {
-            allWeights[i] = new float[weight_size];
-            preStoredTempWeights[i] = new float[weight_size];
-            memset(allWeights[i], 0, weight_size * sizeof(float));
+            allWeights[i] = new float[weights_size];
+            preStoredTempWeights[i] = new float[weights_size];
+            memset(allWeights[i], 0, weights_size * sizeof(float));
         }
     }
 
@@ -87,7 +87,7 @@ struct GRS
 
     void initGPU()
     {
-        cudaMalloc(&gpuWeights, directions * weight_size * sizeof(float));
+        cudaMalloc(&gpuWeights, directions * weights_size * sizeof(float));
         cudaMalloc(&gpuRewardArray, directions * sizeof(float));
         cudaMemset(gpuRewardArray, 0, directions * sizeof(float));
         cudaMalloc(&gpuDatastream, builder.datastream_size * directions * sizeof(float));
@@ -103,7 +103,7 @@ struct GRS
     {
         for (size_t i = 0; i < directions; i++)
         {
-            cudaMemcpy(gpuWeights + i * weight_size, allWeights[i], weight_size * sizeof(float), cudaMemcpyHostToDevice);
+            cudaMemcpy(gpuWeights + i * weights_size, allWeights[i], weights_size * sizeof(float), cudaMemcpyHostToDevice);
         }
     }
 
@@ -111,7 +111,7 @@ struct GRS
     {
         for (size_t i = 0; i < directions; i++)
         {
-            memcpy(cpuWeights + i * weight_size, allWeights[i], weight_size * sizeof(float));
+            memcpy(cpuWeights + i * weights_size, allWeights[i], weights_size * sizeof(float));
         }
     }
 
@@ -150,7 +150,7 @@ struct GRS
         optimizer->updateRewards(rewards);
         vector<RewardEntry> rEntries = createEntryFromRewards(rewards, directions, 1);
 
-        memcpy(currentWeights, allWeights[rEntries[0].index], weight_size * sizeof(float));
+        memcpy(currentWeights, allWeights[rEntries[0].index], weights_size * sizeof(float));
         size_t pointer = 0;
         for (size_t stairIdx = 0; stairIdx < stairs; stairIdx++)
         {
@@ -160,7 +160,7 @@ struct GRS
             int idx = rEntries[stairIdx].index;
             for (size_t i = 0; i < stairAmount; i++)
             {
-                memcpy(preStoredTempWeights[pointer], allWeights[idx], weight_size * sizeof(float));
+                memcpy(preStoredTempWeights[pointer], allWeights[idx], weights_size * sizeof(float));
                 pointer++;
             }
         }
@@ -170,7 +170,7 @@ struct GRS
         float noiseAmp = optimizer->getNextNoise();
         for (size_t dir = 0; dir < directions; dir++)
         {
-            for (size_t w_idx = 0; w_idx < weight_size; w_idx++)
+            for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
             {
                 float noise = distribution(generator) * noiseAmp;
                 allWeights[dir][w_idx] = preStoredTempWeights[dir][w_idx] + noise;
@@ -181,8 +181,8 @@ struct GRS
     void initCPU()
     {
         // Allocate memory for CPU weights
-        cpuWeights = new float[directions * weight_size];
-        memset(cpuWeights, 0, directions * weight_size * sizeof(float));
+        cpuWeights = new float[directions * weights_size];
+        memset(cpuWeights, 0, directions * weights_size * sizeof(float));
 
         // Allocate memory for CPU reward array
         cpuRewardArray = new float[directions];
@@ -212,14 +212,14 @@ struct GRS
     RunnerInfo getNext()
     {
         PipelineBuilder newBuilder = builder;
-        newBuilder.init(cpuDatastream + it_pointer * builder.datastream_size, cpuWeights + it_pointer * weight_size, cpuInstructions + it_pointer * builder.num_instructions);
+        newBuilder.init(cpuDatastream + it_pointer * builder.datastream_size, cpuWeights + it_pointer * weights_size, cpuInstructions + it_pointer * builder.num_instructions);
         size_t current_pointer = it_pointer;
         it_pointer++;
         return {
             newBuilder,
             current_pointer,
             cpuInstructions + current_pointer * builder.num_instructions,
-            cpuWeights + current_pointer * weight_size,
+            cpuWeights + current_pointer * weights_size,
             cpuMemory + current_pointer * builder.memory_size,
             cpuDatastream + current_pointer * builder.datastream_size,
             cpuRewardArray + current_pointer};

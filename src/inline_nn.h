@@ -552,7 +552,7 @@ struct NeuralNetwork
 
 struct PipelineBuilder
 {
-    size_t weight_size;
+    size_t weights_size;
     size_t datastream_size;
     size_t memory_size;
     size_t num_inputs;
@@ -569,7 +569,7 @@ struct PipelineBuilder
     PipelineBuilder(NeuralNetwork *nn)
     {
         assert(nn->usingOwnWeights);
-        weight_size = nn->weights.size();
+        weights_size = nn->weights.size();
         datastream_size = nn->datastream.size();
         memory_size = nn->memory.size();
 

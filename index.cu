@@ -12,7 +12,7 @@ void __global__ gpuPlay(PipelineBuilder builder, size_t directions, Instruction 
         return;
 
     float *targetDatastream = datastream + location * builder.datastream_size;
-    float *targetWeights = weights + location * builder.weight_size;
+    float *targetWeights = weights + location * builder.weights_size;
     Instruction *targetInstructions = instructions + location * builder.num_instructions;
     builder.init(targetDatastream, targetWeights, targetInstructions);
 
@@ -76,7 +76,7 @@ int main()
     }
 
     grs.clearGPU();
-    for (size_t i = 0; i < grs.weight_size; i++)
+    for (size_t i = 0; i < grs.weights_size; i++)
     {
         printf("grs.weights[%zu] = %.2f\n", i, grs.currentWeights[i]);
     }
