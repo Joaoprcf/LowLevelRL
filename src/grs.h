@@ -7,6 +7,13 @@
 
 using namespace std;
 
+struct WeightInfluence
+{
+    size_t location;
+    size_t length;
+    float influence;
+};
+
 struct RunnerInfo
 {
     PipelineBuilder builder;
@@ -53,21 +60,21 @@ struct GRS
     GRS(NeuralNetwork *nn, size_t stairs) : stairs(stairs)
     {
         builder = PipelineBuilder(nn);
-        directions = stairs * (stairs + 1) / 2;
+        directions = stairs * (stairs + 1);
         // optimizer = new LeaderboardOptimizer(stairs, directions);
-        optimizer = new IterativeOptimizer(directions);
+        optimizer = new IterativeOptimizer(stairs);
         weights_size = this->builder.weights_size;
         datastream_size = this->builder.datastream_size;
         currentWeights = new float[weights_size];
         preStoredRewards = new float[directions];
-        memset(currentWeights, 0, weights_size * sizeof(float));
+        memcpy(currentWeights, nn->weights.data(), weights_size * sizeof(float));
         allWeights = new float *[directions];
         preStoredTempWeights = new float *[directions];
         for (size_t i = 0; i < directions; i++)
         {
             allWeights[i] = new float[weights_size];
             preStoredTempWeights[i] = new float[weights_size];
-            memset(allWeights[i], 0, weights_size * sizeof(float));
+            memcpy(allWeights[i], nn->weights.data(), weights_size * sizeof(float));
         }
     }
 
@@ -133,29 +140,40 @@ struct GRS
         memcpy(rewards, cpuRewardArray, directions * sizeof(float));
     }
 
-    void updateWeightsUsingCPUInfo()
+    void updateWeightsUsingCPUInfo(vector<WeightInfluence> influences = {})
     {
         copyRewardsFromCPU(preStoredRewards);
-        updateWeights(preStoredRewards);
+        updateWeights(preStoredRewards, influences);
     }
 
-    void updateWeightsUsingGPUInfo()
+    void updateWeightsUsingGPUInfo(vector<WeightInfluence> influences = {})
     {
         copyRewardsFromGPU(preStoredRewards);
-        updateWeights(preStoredRewards);
+        updateWeights(preStoredRewards, influences);
     }
 
-    void updateWeights(float *rewards)
+    void updateWeights(float *rewards, vector<WeightInfluence> influences = {})
     {
+        // print influences
+        /*         for (auto influence : influences)
+                {
+                    cout << "influence: " << influence.location << " " << influence.length << " " << influence.influence << endl;
+                } */
         optimizer->updateRewards(rewards);
+        // optimizer->updateRewards(rewards);
         vector<RewardEntry> rEntries = createEntryFromRewards(rewards, directions, 1);
+
+        /* for (size_t i = 0; i < weights_size; i++)
+        {
+            printf("currentWeights[%llu]: %f\n", static_cast<unsigned long long>(i), currentWeights[i]);
+        } */
 
         memcpy(currentWeights, allWeights[rEntries[0].index], weights_size * sizeof(float));
         size_t pointer = 0;
         for (size_t stairIdx = 0; stairIdx < stairs; stairIdx++)
         {
             // printf("Sorted rEntries[%llu]: %f\n", static_cast<unsigned long long>(stairIdx), rEntries[stairIdx].reward);
-            size_t stairAmount = stairs - stairIdx;
+            size_t stairAmount = (stairs - stairIdx) * 2;
 
             int idx = rEntries[stairIdx].index;
             for (size_t i = 0; i < stairAmount; i++)
@@ -163,19 +181,30 @@ struct GRS
                 memcpy(preStoredTempWeights[pointer], allWeights[idx], weights_size * sizeof(float));
                 pointer++;
             }
+            /*            for (size_t i = 0; i < weights_size; i++)
+                       {
+                           printf("allWeights[%llu]: %f\n", static_cast<unsigned long long>(i), allWeights[idx][i]);
+                       } */
         }
         // printf("\n");
 
         std::normal_distribution<float> distribution(0.0, 1);
         float noiseAmp = optimizer->getNextNoise();
-        for (size_t dir = 0; dir < directions; dir++)
+        float *noises = new float[weights_size];
+        for (size_t dir = 0; dir < directions / 2; dir++)
         {
             for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
             {
-                float noise = distribution(generator) * noiseAmp;
-                allWeights[dir][w_idx] = preStoredTempWeights[dir][w_idx] + noise;
+                noises[w_idx] = distribution(generator) * noiseAmp;
+            }
+
+            for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
+            {
+                allWeights[dir * 2][w_idx] = preStoredTempWeights[dir * 2][w_idx] + noises[w_idx];
+                allWeights[dir * 2 + 1][w_idx] = preStoredTempWeights[dir * 2 + 1][w_idx] - noises[w_idx];
             }
         }
+        delete[] noises;
     }
 
     void initCPU()

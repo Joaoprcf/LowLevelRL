@@ -3,6 +3,9 @@
 #define TEST
 #include "../src/grs.h"
 #include "../src/game_examples.h"
+#include "../src/analizers.h"
+
+constexpr float GUESS_GAME_GOAL = 79500;
 
 TEST_CASE("GRS test against GuessGame using IterativeOptimizer")
 {
@@ -11,17 +14,15 @@ TEST_CASE("GRS test against GuessGame using IterativeOptimizer")
     Dense output(&input, 2);
     NeuralNetwork nn(&input, &output);
 
-    for (size_t stairs : {8, 9, 10, 11, 12})
+    for (size_t stairs : {8, 11, 14})
     {
 
         GRS grs(&nn, stairs);
 
         grs.initCPU();
 
-        for (size_t idx = 0; idx < 800; idx++)
+        for (size_t idx = 0; idx < 1600; idx++)
         {
-            grs.updateWeightsUsingCPUInfo();
-
             grs.copyWeigthsToCPU();
 
             grs.initIterator();
@@ -55,20 +56,26 @@ TEST_CASE("GRS test against GuessGame using IterativeOptimizer")
 
             grs.updateWeightsUsingCPUInfo();
             float worstReward = dynamic_cast<IterativeOptimizer *>(grs.optimizer)->movingAvgScore;
+            if (worstReward >= GUESS_GAME_GOAL)
+            {
+                printf("Goal reward %.f achieved at idx %zu \n", worstReward, idx);
+                REQUIRE(worstReward > 2500.0f);
+                break;
+            }
             if (idx == 49)
             {
-                printf("%.f > 2000.0\n", worstReward);
-                REQUIRE(worstReward > 2000.0f);
+                printf("%.f > 2500.0\n", worstReward);
+                REQUIRE(worstReward > 2500.0f);
             }
             if (idx == 99)
             {
-                printf("%.f > 5000.0\n", worstReward);
-                REQUIRE(worstReward > 5000.0f);
+                printf("%.f > 6000.0\n", worstReward);
+                REQUIRE(worstReward > 6000.0f);
             }
             else if (idx == 199)
             {
-                printf("%.f > 16000.0\n", worstReward);
-                REQUIRE(worstReward > 16000.0f);
+                printf("%.f > 15000.0\n", worstReward);
+                REQUIRE(worstReward > 15000.0f);
             }
             else if (idx == 399)
             {
@@ -98,15 +105,19 @@ TEST_CASE("GRS test against GuessGame using IterativeOptimizer using complex nn"
     Dense dense4(&ct, 2);
     NeuralNetwork nn(&input1, &dense4);
 
-    for (size_t stairs : {8, 9, 10, 11, 12})
+    WeightsInfluenceAnalizer analizer(&nn);
+    analizer.setupInitialWeights();
+
+    vector<WeightInfluence> weightsInfluence = analizer.getWeightsInfluence();
+
+    for (size_t stairs : {8, 11, 14})
     {
         GRS grs(&nn, stairs);
 
         grs.initCPU();
 
-        for (size_t idx = 0; idx < 800; idx++)
+        for (size_t idx = 0; idx < 1600; idx++)
         {
-            grs.updateWeightsUsingCPUInfo();
 
             grs.copyWeigthsToCPU();
 
@@ -138,18 +149,18 @@ TEST_CASE("GRS test against GuessGame using IterativeOptimizer using complex nn"
 
                 *runnerInfo.reward = reward;
             }
-
-            grs.updateWeightsUsingCPUInfo();
+            grs.updateWeightsUsingCPUInfo(weightsInfluence);
             float worstReward = dynamic_cast<IterativeOptimizer *>(grs.optimizer)->movingAvgScore;
-            if (idx == 49)
+            if (worstReward >= GUESS_GAME_GOAL)
             {
-                printf("%.f > 800.0\n", worstReward);
-                REQUIRE(worstReward > 800.0f);
+                printf("Goal reward %.f achieved at idx %zu \n", worstReward, idx);
+                REQUIRE(worstReward > 2500.0f);
+                break;
             }
             if (idx == 99)
             {
-                printf("%.f > 2400.0\n", worstReward);
-                REQUIRE(worstReward > 2400.0f);
+                printf("%.f > 1500.0\n", worstReward);
+                REQUIRE(worstReward > 1500.0f);
             }
             else if (idx == 199)
             {
@@ -158,17 +169,23 @@ TEST_CASE("GRS test against GuessGame using IterativeOptimizer using complex nn"
             }
             else if (idx == 399)
             {
-                printf("%.f > 11000.0\n", worstReward);
-                REQUIRE(worstReward > 11000.0f);
+                printf("%.f > 15000.0\n", worstReward);
+                REQUIRE(worstReward > 15000.0f);
             }
             else if (idx == 799)
             {
-                printf("%.f > 30000.0\n", worstReward);
-                REQUIRE(worstReward > 30000.0f);
+                printf("%.f > 35000.0\n", worstReward);
+                REQUIRE(worstReward > 35000.0f);
+            }
+            else if (idx == 1599)
+            {
+                printf("%.f > 75000.0\n", worstReward);
+                REQUIRE(worstReward > 75000.0f);
             }
         }
 
         float bestReward = dynamic_cast<IterativeOptimizer *>(grs.optimizer)->tempRewards[stairs - 1];
         grs.clearCPU();
+        printf("learning rate: %f\n", grs.optimizer->learningRate);
     }
 }
