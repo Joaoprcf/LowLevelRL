@@ -41,12 +41,20 @@ struct Input : Layer
     Input(size_t size_out) : Layer(size_out, size_out) {}
 };
 
-struct Dense : Layer
+struct TrainableLayer : Layer
 {
     size_t weights_size;
     float *weights;
+    TrainableLayer(Layer *from, size_t size_out, size_t datastream_space) : Layer(size_out, datastream_space, from)
+    {
+    }
+};
+
+struct Dense : TrainableLayer
+{
+
     type_inst activation;
-    Dense(Layer *from, size_t size_out, type_inst activation = ACTIVATION_NONE) : Layer(size_out, size_out, from), activation(activation)
+    Dense(Layer *from, size_t size_out, type_inst activation = ACTIVATION_NONE) : TrainableLayer(from, size_out, size_out), activation(activation)
     {
         weights_size = size_out * (from->size_out + 1);
         weights = new float[weights_size];
@@ -71,18 +79,16 @@ struct Dense : Layer
     }
 };
 
-struct GRU : Layer
+struct GRU : TrainableLayer
 {
     size_t memory_size;
-    size_t weights_size;
     size_t wz_weights_size;
     size_t wr_weights_size;
     size_t wh_weights_size;
 
-    float *weights;
     float *memory;
     GRU(Layer *from, size_t memory_size)
-        : Layer(memory_size, 0, from), memory_size(memory_size)
+        : TrainableLayer(from, memory_size, 0), memory_size(memory_size)
     {
 
         size_t input_size = from->size_out;
@@ -256,6 +262,8 @@ struct NeuralNetwork
     vector<Job> jobs;
     map<Layer *, float *> location;
     map<Layer *, float *> layerOuputLocation;
+    map<Layer *, vector<Layer *>> reverseDependencies;
+    map<Layer *, int> layerDependenciesCount;
     vector<Instruction> fastExecution;
     bool usingOwnWeights = false;
     vector<float> datastream;
@@ -388,10 +396,8 @@ struct NeuralNetwork
         this->inputs = inputs;
         this->outputs = outputs;
 
-        map<Layer *, int> layerCount;
         list<Layer *> layerQueue;
         set<Input *> distinctInputs;
-        map<Layer *, vector<Layer *>> reverseDependencies;
 
         // Initialize for multiple outputs
         for (auto &outputLayer : outputs)
@@ -406,7 +412,7 @@ struct NeuralNetwork
             layerQueue.pop_front();
 
             // Skip if already visited
-            if (layerCount.find(currentLayer) != layerCount.end())
+            if (layerDependenciesCount.find(currentLayer) != layerDependenciesCount.end())
                 continue;
 
             // Determine the count value based on the type of layer
@@ -416,7 +422,7 @@ struct NeuralNetwork
             }
             else if (Layer *denseLayer = dynamic_cast<Dense *>(currentLayer))
             {
-                layerCount[currentLayer] = 1;
+                layerDependenciesCount[currentLayer] = 1;
                 Layer *fromLayer = denseLayer->from;
                 if (fromLayer != nullptr)
                 {
@@ -426,7 +432,7 @@ struct NeuralNetwork
             }
             else if (GRU *denseLayer = dynamic_cast<GRU *>(currentLayer))
             {
-                layerCount[currentLayer] = 1;
+                layerDependenciesCount[currentLayer] = 1;
                 Layer *fromLayer = denseLayer->from;
                 if (fromLayer != nullptr)
                 {
@@ -436,7 +442,7 @@ struct NeuralNetwork
             }
             else if (Concatenate *concatLayer = dynamic_cast<Concatenate *>(currentLayer))
             {
-                layerCount[currentLayer] = concatLayer->layers.size();
+                layerDependenciesCount[currentLayer] = concatLayer->layers.size();
                 // Add all layers from the Concatenate layer to the queue and update reverse dependencies
                 for (Layer *layer : concatLayer->layers)
                 {
@@ -455,6 +461,8 @@ struct NeuralNetwork
         assert(validateInputLayers(distinctInputs, inputs));
 
         size_t pointer = size_in;
+
+        map<Layer *, int> layerCount = layerDependenciesCount;
 
         for (Layer *inputLayer : distinctInputs)
             layerQueue.push_back(inputLayer);
