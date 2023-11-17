@@ -64,15 +64,16 @@ int main()
     // Number of thread blocks in grid
     blockSize = 32;
 
-    for (size_t idx = 0; idx < 10000; idx++)
+    for (size_t idx = 0; idx < 50; idx++)
     {
-        grs.updateWeightsUsingGPUInfo();
 
         grs.copyWeigthsToGPU();
 
         gpuPlay<<<gridSize, blockSize>>>(grs.builder, grs.directions, grs.gpuInstructions, grs.gpuDatastream, grs.gpuWeights, grs.gpuSerializedMemory, grs.gpuRewardArray);
 
         cudaDeviceSynchronize();
+
+        grs.updateWeightsUsingGPUInfo();
     }
 
     grs.clearGPU();
