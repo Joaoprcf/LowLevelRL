@@ -19,7 +19,6 @@
 #include <assert.h>
 
 using namespace std;
-
 struct Layer
 {
     size_t size_out;
@@ -188,11 +187,57 @@ bool checkLayers(const vector<T *> &layers)
     return true;
 }
 
+struct OperatorLayer : Layer
+{
+    vector<Layer *> layers;
+    OperatorLayer(vector<Layer *> inputLayers, size_t size) : Layer(size, size, nullptr), layers(inputLayers)
+    {
+        assert(layers.size() > 1);
+        assert(checkLayers(inputLayers));
+    }
+};
+
+struct Multiply : OperatorLayer
+{
+
+    Multiply(vector<Layer *> inputLayers) : OperatorLayer(inputLayers, inputLayers.size() ? inputLayers[0]->size_out : 0)
+    {
+        size_t layer_size = inputLayers[0]->size_out;
+        for (Layer *layer : inputLayers)
+        {
+            assert(layer->size_out == layer_size);
+        }
+    }
+
+    vector<Instruction> createLowLevelInstructions(vector<void *> info) override
+    {
+        assert(info.size() == 1 + layers.size());
+
+        float *addrOutput = static_cast<float *>(info[0]);
+        float *addrInput0 = static_cast<float *>(info[1]);
+        float *addrInput1 = static_cast<float *>(info[2]);
+        vector<Instruction> instructions = {Instruction(ELEMENTWISE_MULTIPLY, size_out, size_out, addrInput0, addrInput1, addrOutput)};
+
+        for (size_t i = 2; i < layers.size(); i++)
+        {
+            float *addrInputNext = static_cast<float *>(info[i + 1]);
+            instructions.push_back(Instruction(ELEMENTWISE_MULTIPLY, size_out, size_out, addrOutput, addrInputNext, addrOutput));
+        }
+
+        return instructions;
+    }
+};
+
+Multiply operator*(Layer &lhs, Layer &rhs)
+{
+    return Multiply({&lhs, &rhs});
+}
+
 struct Concatenate : Layer
 {
     vector<Layer *> layers;
 
-    Concatenate(vector<Layer *> inputLayers, Layer *from = nullptr) : Layer(0, 0, nullptr), layers(inputLayers)
+    Concatenate(vector<Layer *> inputLayers) : Layer(0, 0, nullptr), layers(inputLayers)
     {
         assert(checkLayers(inputLayers));
         size_t totalSizeOut = 0;
@@ -384,6 +429,24 @@ struct NeuralNetwork
                 vector<Instruction> layerInstructions = concatLayer->createLowLevelInstructions(info);
                 fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
             }
+            // Operators
+            else if (OperatorLayer *operatorLayer = dynamic_cast<OperatorLayer *>(layer))
+            {
+                size_t num_layers = operatorLayer->layers.size();
+                float *outputAddress = location[layer]; // Output address of this layer
+
+                info.push_back(outputAddress);
+
+                for (Layer *l : operatorLayer->layers)
+                {
+                    float *layer_addr_data = layerOuputLocation[l];
+
+                    info.push_back(layer_addr_data);
+                }
+
+                vector<Instruction> layerInstructions = operatorLayer->createLowLevelInstructions(info);
+                fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
+            }
         }
     }
 
@@ -445,6 +508,16 @@ struct NeuralNetwork
                 layerDependenciesCount[currentLayer] = concatLayer->layers.size();
                 // Add all layers from the Concatenate layer to the queue and update reverse dependencies
                 for (Layer *layer : concatLayer->layers)
+                {
+                    layerQueue.push_back(layer);
+                    reverseDependencies[layer].push_back(currentLayer);
+                }
+            }
+            else if (OperatorLayer *operatorLayer = dynamic_cast<OperatorLayer *>(currentLayer))
+            {
+                layerDependenciesCount[currentLayer] = operatorLayer->layers.size();
+                // Add all layers from the OperatorLayer to the queue and update reverse dependencies
+                for (Layer *layer : operatorLayer->layers)
                 {
                     layerQueue.push_back(layer);
                     reverseDependencies[layer].push_back(currentLayer);
