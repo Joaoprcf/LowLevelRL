@@ -194,6 +194,11 @@ struct OperatorLayer : Layer
     {
         assert(layers.size() > 1);
         assert(checkLayers(inputLayers));
+        size_t layer_size = inputLayers[0]->size_out;
+        for (Layer *layer : inputLayers)
+        {
+            assert(layer->size_out == layer_size);
+        }
     }
 };
 
@@ -202,11 +207,6 @@ struct Multiply : OperatorLayer
 
     Multiply(vector<Layer *> inputLayers) : OperatorLayer(inputLayers, inputLayers.size() ? inputLayers[0]->size_out : 0)
     {
-        size_t layer_size = inputLayers[0]->size_out;
-        for (Layer *layer : inputLayers)
-        {
-            assert(layer->size_out == layer_size);
-        }
     }
 
     vector<Instruction> createLowLevelInstructions(vector<void *> info) override
@@ -228,9 +228,40 @@ struct Multiply : OperatorLayer
     }
 };
 
+struct Add : OperatorLayer
+{
+
+    Add(vector<Layer *> inputLayers) : OperatorLayer(inputLayers, inputLayers.size() ? inputLayers[0]->size_out : 0)
+    {
+    }
+
+    vector<Instruction> createLowLevelInstructions(vector<void *> info) override
+    {
+        assert(info.size() == 1 + layers.size());
+
+        float *addrOutput = static_cast<float *>(info[0]);
+        float *addrInput0 = static_cast<float *>(info[1]);
+        float *addrInput1 = static_cast<float *>(info[2]);
+        vector<Instruction> instructions = {Instruction(ELEMENTWISE_ADD, size_out, size_out, addrInput0, addrInput1, addrOutput)};
+
+        for (size_t i = 2; i < layers.size(); i++)
+        {
+            float *addrInputNext = static_cast<float *>(info[i + 1]);
+            instructions.push_back(Instruction(ELEMENTWISE_ADD, size_out, size_out, addrOutput, addrInputNext, addrOutput));
+        }
+
+        return instructions;
+    }
+};
+
 Multiply operator*(Layer &lhs, Layer &rhs)
 {
     return Multiply({&lhs, &rhs});
+}
+
+Add operator+(Layer &lhs, Layer &rhs)
+{
+    return Add({&lhs, &rhs});
 }
 
 struct Concatenate : Layer
