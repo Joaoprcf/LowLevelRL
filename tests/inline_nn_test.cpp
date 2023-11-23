@@ -142,3 +142,158 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Effect on W
     REQUIRE(nn.weights[0] == 5.0f);
     REQUIRE(nn.weights[1] == 6.0f);
 }
+
+TEST_CASE("NeuralNetwork FeedForwardSingle Test - Sigmoid Activation")
+{
+    // Scenario 1: Activation within Dense Layer
+    Input input(1);                             // Single input neuron
+    Dense dense(&input, 2, ACTIVATION_SIGMOID); // Dense layer with 2 output neurons
+    NeuralNetwork nn(&input, &dense);
+
+    // Set weights for testing
+    dense.weights[0] = 1.0f;  // Weight for first neuron
+    dense.weights[2] = -1.0f; // Weight for second neuron
+
+    std::vector<float> data_in = {1.0f}; // Input data
+    float *result = nn.FeedForwardSingle(data_in.data());
+
+    // Check output for Sigmoid activation
+    REQUIRE(result[0] == Approx(0.731059f)); // Expected sigmoid output for input 1.0
+    REQUIRE(result[1] == Approx(0.268941f)); // Expected sigmoid output for input -1.0
+
+    // Scenario 2: Separate Activation Layer
+    Dense dense_temp(&input, 2); // Dense layer with 2 output neurons
+    ActivationLayer activationLayer(&dense_temp, ACTIVATION_SIGMOID);
+    NeuralNetwork nn2(&input, &activationLayer);
+
+    dense_temp.weights[0] = 1.0f;  // Weight for first neuron
+    dense_temp.weights[2] = -1.0f; // Weight for second neuron
+
+    result = nn2.FeedForwardSingle(data_in.data());
+
+    // Check output again
+    REQUIRE(result[0] == Approx(0.731059f));
+    REQUIRE(result[1] == Approx(0.268941f));
+}
+
+TEST_CASE("NeuralNetwork FeedForwardSingle Test - RELU Activation")
+{
+    // Scenario 1: Activation within Dense Layer
+    Input input(1);
+    Dense dense(&input, 2, ACTIVATION_RELU);
+    NeuralNetwork nn(&input, &dense);
+
+    // Set weights for testing
+    dense.weights[0] = 1.0f;  // Weight for first neuron
+    dense.weights[2] = -1.0f; // Weight for second neuron
+
+    std::vector<float> data_in = {1.0f}; // Input data
+    float *result = nn.FeedForwardSingle(data_in.data());
+
+    // Check output for RELU activation
+    REQUIRE(result[0] == Approx(1.0f)); // Expected RELU output for input 1.0
+    REQUIRE(result[1] == Approx(0.0f)); // Expected RELU output for input -1.0
+
+    // Scenario 2: Separate Activation Layer
+    Dense dense_temp(&input, 2);
+    ActivationLayer activationLayer(&dense_temp, ACTIVATION_RELU);
+    NeuralNetwork nn2(&input, &activationLayer);
+
+    dense_temp.weights[0] = 1.0f;
+    dense_temp.weights[2] = -1.0f;
+
+    result = nn2.FeedForwardSingle(data_in.data());
+
+    // Check output again
+    REQUIRE(result[0] == Approx(1.0f));
+    REQUIRE(result[1] == Approx(0.0f));
+}
+
+TEST_CASE("NeuralNetwork FeedForwardSingle Test - TANH Activation")
+{
+    // Scenario 1: Activation within Dense Layer
+    Input input(1);
+    Dense dense(&input, 2, ACTIVATION_TANH);
+    NeuralNetwork nn(&input, &dense);
+
+    // Set weights for testing
+    dense.weights[0] = 1.0f;  // Weight for first neuron
+    dense.weights[2] = -1.0f; // Weight for second neuron
+
+    std::vector<float> data_in = {1.0f}; // Input data
+    float *result = nn.FeedForwardSingle(data_in.data());
+
+    // Check output for TANH activation
+    REQUIRE(result[0] == Approx(tanh(1.0f)));  // Expected TANH output for input 1.0
+    REQUIRE(result[1] == Approx(tanh(-1.0f))); // Expected TANH output for input -1.0
+
+    // Scenario 2: Separate Activation Layer
+    Dense dense_temp(&input, 2);
+    ActivationLayer activationLayer(&dense_temp, ACTIVATION_TANH);
+    NeuralNetwork nn2(&input, &activationLayer);
+
+    dense_temp.weights[0] = 1.0f;
+    dense_temp.weights[2] = -1.0f;
+
+    result = nn2.FeedForwardSingle(data_in.data());
+
+    // Check output again
+    REQUIRE(result[0] == Approx(tanh(1.0f)));
+    REQUIRE(result[1] == Approx(tanh(-1.0f)));
+}
+
+TEST_CASE("NeuralNetwork FeedForwardSingle Test - IF_POSITIVE Activation")
+{
+    Input input(1);
+    Dense dense(&input, 2, ACTIVATION_IF_POSITIVE);
+    NeuralNetwork nn(&input, &dense);
+
+    dense.weights[0] = 1.0f;
+    dense.weights[2] = -1.0f;
+
+    std::vector<float> data_in = {1.0f};
+    float *result = nn.FeedForwardSingle(data_in.data());
+
+    REQUIRE(result[0] == Approx(1.0f));
+    REQUIRE(result[1] == Approx(0.0f));
+
+    Dense dense_temp(&input, 2);
+    ActivationLayer activationLayer(&dense_temp, ACTIVATION_IF_POSITIVE);
+    NeuralNetwork nn2(&input, &activationLayer);
+
+    dense_temp.weights[0] = 1.0f;
+    dense_temp.weights[2] = -1.0f;
+
+    result = nn2.FeedForwardSingle(data_in.data());
+
+    REQUIRE(result[0] == Approx(1.0f));
+    REQUIRE(result[1] == Approx(0.0f));
+}
+
+TEST_CASE("NeuralNetwork FeedForwardSingle Test - ARITHMETIC INVERSION Activation")
+{
+    Input input(1);
+    Dense dense(&input, 2, ACTIVATION_ARITH_INV);
+    NeuralNetwork nn(&input, &dense);
+
+    dense.weights[0] = 0.2f;
+    dense.weights[2] = 0.8f;
+
+    std::vector<float> data_in = {1.0f};
+    float *result = nn.FeedForwardSingle(data_in.data());
+
+    REQUIRE(result[0] == Approx(0.8f));
+    REQUIRE(result[1] == Approx(0.2f));
+
+    Dense dense_temp(&input, 2);
+    ActivationLayer activationLayer(&dense_temp, ACTIVATION_ARITH_INV);
+    NeuralNetwork nn2(&input, &activationLayer);
+
+    dense_temp.weights[0] = 0.2f;
+    dense_temp.weights[2] = 0.8f;
+
+    result = nn2.FeedForwardSingle(data_in.data());
+
+    REQUIRE(result[0] == Approx(0.8f));
+    REQUIRE(result[1] == Approx(0.2f));
+}
