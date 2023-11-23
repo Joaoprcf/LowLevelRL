@@ -49,6 +49,23 @@ struct TrainableLayer : Layer
     }
 };
 
+struct ActivationLayer : Layer
+{
+    type_inst activation;
+    ActivationLayer(Layer *from, type_inst activation) : Layer(from->size_out, from->size_out, from), activation(activation)
+    {
+    }
+    vector<Instruction> createLowLevelInstructions(vector<void *> info) override
+    {
+        assert(info.size() == 2);
+
+        float *addrInput = static_cast<float *>(info[0]);
+        float *addrOutput = static_cast<float *>(info[1]);
+        vector<Instruction> instructions = {Instruction(activation, size_out, size_out, addrInput, addrOutput)};
+        return instructions;
+    }
+};
+
 struct Dense : TrainableLayer
 {
 
@@ -146,7 +163,7 @@ struct GRU : TrainableLayer
             // Calculate update gate (z_t)
             Instruction(DOT, hx_size, memory_size, hx_start, zt_start, wz_weights),
             Instruction(ACTIVATION_SIGMOID, memory_size, memory_size, zt_start, zt_start),
-            Instruction(ARITHMETIC_INVERSE, memory_size, memory_size, zt_start, zt_inv_start),
+            Instruction(ACTIVATION_ARITH_INV, memory_size, memory_size, zt_start, zt_inv_start),
 
             // Calculate reset gate (r_t)
             Instruction(DOT, hx_size, memory_size, hx_start, rt_start, wr_weights),
@@ -478,6 +495,17 @@ struct NeuralNetwork
                 vector<Instruction> layerInstructions = operatorLayer->createLowLevelInstructions(info);
                 fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
             }
+            else if (ActivationLayer *activationLayer = dynamic_cast<ActivationLayer *>(layer))
+            {
+                float *inputAddress = layerOuputLocation[activationLayer->from]; // Address of the input to this layer
+                float *outputAddress = location[layer];                          // Output address of this layer
+
+                info.push_back(inputAddress);
+                info.push_back(outputAddress);
+
+                vector<Instruction> layerInstructions = activationLayer->createLowLevelInstructions(info);
+                fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
+            }
         }
     }
 
@@ -514,7 +542,7 @@ struct NeuralNetwork
             {
                 distinctInputs.insert(inputLayer); // Add to distinct inputs set
             }
-            else if (Layer *denseLayer = dynamic_cast<Dense *>(currentLayer))
+            else if (Dense *denseLayer = dynamic_cast<Dense *>(currentLayer))
             {
                 layerDependenciesCount[currentLayer] = 1;
                 Layer *fromLayer = denseLayer->from;
@@ -552,6 +580,16 @@ struct NeuralNetwork
                 {
                     layerQueue.push_back(layer);
                     reverseDependencies[layer].push_back(currentLayer);
+                }
+            }
+            else if (ActivationLayer *activationLayer = dynamic_cast<ActivationLayer *>(currentLayer))
+            {
+                layerDependenciesCount[currentLayer] = 1;
+                Layer *fromLayer = activationLayer->from;
+                if (fromLayer != nullptr)
+                {
+                    layerQueue.push_back(fromLayer);
+                    reverseDependencies[fromLayer].push_back(currentLayer);
                 }
             }
         }

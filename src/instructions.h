@@ -37,9 +37,10 @@ enum type_inst
     ACTIVATION_SIGMOID,
     ACTIVATION_TANH,
     ACTIVATION_RELU,
+    ACTIVATION_IF_POSITIVE,
+    ACTIVATION_ARITH_INV,
     ELEMENTWISE_MULTIPLY,
-    ELEMENTWISE_ADD,
-    ARITHMETIC_INVERSE
+    ELEMENTWISE_ADD
 };
 
 struct Instruction
@@ -87,6 +88,18 @@ struct Instruction
                 addr2[i] = addr1[i] > 0 ? addr1[i] : 0;
             }
             break;
+        case ACTIVATION_IF_POSITIVE:
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr2[i] = addr1[i] > 0 ? 1 : 0;
+            }
+            break;
+        case ACTIVATION_ARITH_INV:
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr2[i] = 1.0f - addr1[i];
+            }
+            break;
         case ELEMENTWISE_MULTIPLY:
             for (size_t i = 0; i < size_out; i++)
             {
@@ -97,12 +110,6 @@ struct Instruction
             for (size_t i = 0; i < size_out; i++)
             {
                 addr3[i] = addr1[i] + addr2[i];
-            }
-            break;
-        case ARITHMETIC_INVERSE:
-            for (size_t i = 0; i < size_out; i++)
-            {
-                addr2[i] = 1.0f - addr1[i];
             }
             break;
         default:
@@ -139,8 +146,8 @@ private:
             return "ELEMENTWISE_MULTIPLY";
         case ELEMENTWISE_ADD:
             return "ELEMENTWISE_ADD";
-        case ARITHMETIC_INVERSE:
-            return "ARITHMETIC_INVERSE";
+        case ACTIVATION_ARITH_INV:
+            return "ACTIVATION_ARITH_INV";
         default:
             return "Unknown";
         }
