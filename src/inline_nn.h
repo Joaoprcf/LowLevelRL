@@ -43,10 +43,9 @@ bool validateInputLayers(const set<Input *> &distinctInputs, const vector<Input 
     return true;
 }
 
-struct NeuralNetwork
+struct NeuralNetwork : TrainableLayer
 {
     size_t size_in;
-    size_t size_out;
     vector<Input *> inputs;
     vector<Layer *> outputs;
     vector<float *> outputLocations;
@@ -58,7 +57,6 @@ struct NeuralNetwork
     vector<Instruction> fastExecution;
     bool usingOwnWeights = false;
     vector<float> datastream;
-    vector<float> weights;
     vector<float> memory;
 
     void useOwnWeights()
@@ -80,8 +78,9 @@ struct NeuralNetwork
             }
         }
 
-        // Reserve space to avoid reallocation
-        weights.reserve(totalWeightSize);
+        // Reserve space to avoid reallocatio
+        weights_size = totalWeightSize;
+        weights = new float[weights_size];
         memory.reserve(totalMemorySize);
 
         size_t weight_ptr = 0;
@@ -91,7 +90,7 @@ struct NeuralNetwork
         {
             if (GRU *gruLayer = dynamic_cast<GRU *>(job.layer))
             {
-                weights.insert(weights.end(), gruLayer->weights, gruLayer->weights + gruLayer->weights_size);
+                memcpy(weights + weight_ptr, gruLayer->weights, sizeof(float) * gruLayer->weights_size);
                 delete[] gruLayer->weights;
                 gruLayer->weights = &weights[weight_ptr];
                 weight_ptr += gruLayer->weights_size;
@@ -103,7 +102,7 @@ struct NeuralNetwork
             }
             else if (TrainableLayer *layer = dynamic_cast<TrainableLayer *>(job.layer))
             {
-                weights.insert(weights.end(), layer->weights, layer->weights + layer->weights_size);
+                memcpy(weights + weight_ptr, layer->weights, sizeof(float) * layer->weights_size);
                 delete[] layer->weights;
                 layer->weights = &weights[weight_ptr];
                 weight_ptr += layer->weights_size;
@@ -207,11 +206,11 @@ struct NeuralNetwork
         }
     }
 
-    NeuralNetwork() : size_in(0), size_out(0), datastream({}), usingOwnWeights(false)
+    NeuralNetwork() : TrainableLayer(nullptr, 0, 0), size_in(0), datastream({}), usingOwnWeights(false)
     {
     }
 
-    NeuralNetwork(vector<Input *> inputs, vector<Layer *> outputs, bool applyUsingOwnWeights = true) : size_in(0), size_out(0), datastream({}), usingOwnWeights(false)
+    NeuralNetwork(vector<Input *> inputs, vector<Layer *> outputs, bool applyUsingOwnWeights = true) : TrainableLayer(nullptr, 0, 0), size_in(0), datastream({}), usingOwnWeights(false)
     {
         // Ensure no duplicates or nullptrs in inputs and outputs
         assert(checkLayers(inputs));
@@ -421,13 +420,13 @@ struct PipelineBuilder
     PipelineBuilder(NeuralNetwork *nn)
     {
         assert(nn->usingOwnWeights);
-        weights_size = nn->weights.size();
+        weights_size = nn->weights_size;
         datastream_size = nn->datastream.size();
         memory_size = nn->memory.size();
 
         // Allocate and initialize instructions
         num_instructions = nn->fastExecution.size(); // Function to calculate the size
-        vector<RecoverableInstruction> instructionVec = ConvertToRecoverable(nn->fastExecution, nn->datastream.data(), nn->weights.data());
+        vector<RecoverableInstruction> instructionVec = ConvertToRecoverable(nn->fastExecution, nn->datastream.data(), nn->weights);
         instructions = new RecoverableInstruction[num_instructions];
         memcpy(instructions, instructionVec.data(), sizeof(RecoverableInstruction) * num_instructions);
         instructionVec.clear();

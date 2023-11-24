@@ -68,14 +68,14 @@ struct GRS
         datastream_size = this->builder.datastream_size;
         currentWeights = new float[weights_size];
         preStoredRewards = new float[directions];
-        memcpy(currentWeights, nn->weights.data(), weights_size * sizeof(float));
+        memcpy(currentWeights, nn->weights, weights_size * sizeof(float));
         allWeights = new float *[directions];
         preStoredTempWeights = new float *[directions];
         for (size_t i = 0; i < directions; i++)
         {
             allWeights[i] = new float[weights_size];
             preStoredTempWeights[i] = new float[weights_size];
-            memcpy(allWeights[i], nn->weights.data(), weights_size * sizeof(float));
+            memcpy(allWeights[i], nn->weights, weights_size * sizeof(float));
         }
     }
 

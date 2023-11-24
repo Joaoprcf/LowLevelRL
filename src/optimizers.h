@@ -235,3 +235,21 @@ struct LeaderboardOptimizer : GRSOptimizer
         return learningRate;
     }
 };
+
+struct LearnableOptimizer : GRSOptimizer
+{
+    PipelineBuilder builder;
+    size_t weights_size;
+    float *weights;
+    float **records;
+    LearnableOptimizer(NeuralNetwork *nn) : builder(PipelineBuilder(nn))
+    {
+        weights_size = builder.weights_size;
+        weights = new float[weights_size];
+    }
+
+    void updateRewards(float *newRewards) override
+    {
+        memcpy(weights, newRewards, sizeof(float) * weights_size);
+    }
+};
