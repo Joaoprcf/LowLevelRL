@@ -19,12 +19,6 @@
 
 using namespace std;
 
-struct Job
-{
-    Layer *layer;
-    size_t pos;
-};
-
 bool validateInputLayers(const set<Input *> &distinctInputs, const vector<Input *> &inputs)
 {
     if (distinctInputs.size() != inputs.size())
@@ -49,7 +43,7 @@ struct NeuralNetwork : TrainableLayer
     vector<Input *> inputs;
     vector<Layer *> outputs;
     vector<float *> outputLocations;
-    vector<Job> jobs;
+    vector<Layer *> jobs;
     map<Layer *, float *> location;
     map<Layer *, float *> layerOuputLocation;
     map<Layer *, vector<Layer *>> reverseDependencies;
@@ -65,13 +59,13 @@ struct NeuralNetwork : TrainableLayer
         size_t totalWeightSize = 0;
         size_t totalMemorySize = 0;
         // Calculate total weights size
-        for (Job &job : jobs)
+        for (Layer *layer : jobs)
         {
-            if (Dense *denseLayer = dynamic_cast<Dense *>(job.layer))
+            if (Dense *denseLayer = dynamic_cast<Dense *>(layer))
             {
                 totalWeightSize += denseLayer->weights_size;
             }
-            else if (GRU *denseLayer = dynamic_cast<GRU *>(job.layer))
+            else if (GRU *denseLayer = dynamic_cast<GRU *>(layer))
             {
                 totalWeightSize += denseLayer->weights_size;
                 totalMemorySize += denseLayer->memory_size;
@@ -86,9 +80,9 @@ struct NeuralNetwork : TrainableLayer
         size_t weight_ptr = 0;
         size_t memory_ptr = 0;
         // Append weights to NeuralNetwork's weights vector
-        for (Job &job : jobs)
+        for (Layer *job : jobs)
         {
-            if (GRU *gruLayer = dynamic_cast<GRU *>(job.layer))
+            if (GRU *gruLayer = dynamic_cast<GRU *>(job))
             {
                 memcpy(weights + weight_ptr, gruLayer->weights, sizeof(float) * gruLayer->weights_size);
                 delete[] gruLayer->weights;
@@ -100,7 +94,7 @@ struct NeuralNetwork : TrainableLayer
                 gruLayer->memory = &memory[memory_ptr];
                 memory_ptr += gruLayer->memory_size;
             }
-            else if (TrainableLayer *layer = dynamic_cast<TrainableLayer *>(job.layer))
+            else if (TrainableLayer *layer = dynamic_cast<TrainableLayer *>(job))
             {
                 memcpy(weights + weight_ptr, layer->weights, sizeof(float) * layer->weights_size);
                 delete[] layer->weights;
@@ -119,92 +113,25 @@ struct NeuralNetwork : TrainableLayer
 
         fastExecution.clear(); // Clear any existing instructions
 
-        for (const Job &job : jobs)
+        for (Layer *layer : jobs)
         {
-            Layer *layer = job.layer;
 
-            // We need to pass required information to createLowLevelInstructions.
-            // This is an example and might need adjustment based on your network design.
-            vector<void *> info;
+            size_t num_layers = layer->from.size();
+            float *outputAddress = location[layer]; // Output address of this layer
 
-            // For Dense layers
-            if (Dense *denseLayer = dynamic_cast<Dense *>(layer))
+            InstructionsGuide guide;
+
+            for (Layer *l : layer->from)
             {
-                float *inputAddress = layerOuputLocation[denseLayer->from[0]]; // Address of the input to this layer
-                float *outputAddress = location[layer];                        // Output address of this layer
-                size_t layer_size_out = static_cast<size_t>(denseLayer->from[0]->size_out);
+                float *layer_addr_data = layerOuputLocation[l];
 
-                InstructionsGuide guide;
-                guide.inputs = {inputAddress};
-                guide.outputs = {outputAddress};
-
-                vector<Instruction> layerInstructions = denseLayer->createLowLevelInstructions(guide);
-                fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
+                guide.inputs.push_back(layer_addr_data);
+                guide.sizes.push_back(l->size_out);
             }
-            else if (GRU *denseLayer = dynamic_cast<GRU *>(layer))
-            {
-                float *inputAddress = layerOuputLocation[denseLayer->from[0]]; // Address of the input to this layer
-                float *outputAddress = location[layer];                        // Output address of this layer
-                size_t layer_size_out = static_cast<size_t>(denseLayer->from[0]->size_out);
+            guide.outputs = {outputAddress};
 
-                InstructionsGuide guide;
-                guide.inputs = {inputAddress};
-                guide.outputs = {outputAddress};
-
-                vector<Instruction> layerInstructions = denseLayer->createLowLevelInstructions(guide);
-                fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
-            }
-            // For Concatenate layers
-            else if (Concatenate *concatLayer = dynamic_cast<Concatenate *>(layer))
-            {
-                size_t num_layers = concatLayer->from.size();
-                float *outputAddress = location[layer]; // Output address of this layer
-
-                InstructionsGuide guide;
-
-                for (Layer *l : concatLayer->from)
-                {
-                    float *layer_addr_data = layerOuputLocation[l];
-
-                    guide.inputs.push_back(layer_addr_data);
-                    guide.sizes.push_back(l->size_out);
-                }
-                guide.outputs = {outputAddress};
-
-                vector<Instruction> layerInstructions = concatLayer->createLowLevelInstructions(guide);
-                fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
-            }
-            // Operators
-            else if (OperatorLayer *operatorLayer = dynamic_cast<OperatorLayer *>(layer))
-            {
-                size_t num_layers = operatorLayer->from.size();
-                float *outputAddress = location[layer]; // Output address of this layer
-
-                InstructionsGuide guide;
-
-                for (Layer *l : operatorLayer->from)
-                {
-                    float *layer_addr_data = layerOuputLocation[l];
-                    guide.inputs.push_back(layer_addr_data);
-                }
-
-                guide.outputs = {outputAddress};
-
-                vector<Instruction> layerInstructions = operatorLayer->createLowLevelInstructions(guide);
-                fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
-            }
-            else if (ActivationLayer *activationLayer = dynamic_cast<ActivationLayer *>(layer))
-            {
-                float *inputAddress = layerOuputLocation[activationLayer->from[0]]; // Address of the input to this layer
-                float *outputAddress = location[layer];                             // Output address of this layer
-
-                InstructionsGuide guide;
-                guide.inputs = {inputAddress};
-                guide.outputs = {outputAddress};
-
-                vector<Instruction> layerInstructions = activationLayer->createLowLevelInstructions(guide);
-                fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
-            }
+            vector<Instruction> layerInstructions = layer->createLowLevelInstructions(guide);
+            fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
         }
     }
 
@@ -282,7 +209,7 @@ struct NeuralNetwork : TrainableLayer
 
             if (dynamic_cast<Input *>(currentLayer) == nullptr)
             {
-                jobs.push_back({currentLayer, pointer});
+                jobs.push_back(currentLayer);
                 cout << "job with size_out of " << currentLayer->size_out << " for layer of class " << typeid(*currentLayer).name() << endl;
                 pointer += currentLayer->datastream_space;
             }
@@ -309,21 +236,21 @@ struct NeuralNetwork : TrainableLayer
 
         // Populate mappings for non-input layers
         size_t layerPointer = size_in;
-        for (const auto &job : jobs)
+        for (Layer *layer : jobs)
         {
-            location[job.layer] = datastream.data() + layerPointer;
-            layerPointer += job.layer->datastream_space;
-            layerOuputLocation[job.layer] = datastream.data() + layerPointer - job.layer->size_out;
+            location[layer] = datastream.data() + layerPointer;
+            layerPointer += layer->datastream_space;
+            layerOuputLocation[layer] = datastream.data() + layerPointer - layer->size_out;
         }
 
         // Populate outputLocations for each output layer TODO, make it more efficient
         for (auto &outputLayer : outputs)
         {
-            for (auto &job : jobs)
+            for (Layer *layer : jobs)
             {
-                if (job.layer == outputLayer)
+                if (layer == outputLayer)
                 {
-                    outputLocations.push_back(layerOuputLocation[job.layer]);
+                    outputLocations.push_back(layerOuputLocation[layer]);
                     break;
                 }
             }
@@ -338,6 +265,12 @@ struct NeuralNetwork : TrainableLayer
     }
 
     NeuralNetwork(Input *input, Layer *output, bool usingOwnWeights = true) : NeuralNetwork(std::vector<Input *>{input}, std::vector<Layer *>{output}, usingOwnWeights) {}
+
+    virtual vector<Instruction> createLowLevelInstructions(InstructionsGuide guide)
+    {
+        // TODO
+        return vector<Instruction>();
+    }
 
     vector<float *> FeedForward(vector<float *> data_in)
     {
