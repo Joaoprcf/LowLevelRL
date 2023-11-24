@@ -130,9 +130,9 @@ struct NeuralNetwork : TrainableLayer
             // For Dense layers
             if (Dense *denseLayer = dynamic_cast<Dense *>(layer))
             {
-                float *inputAddress = layerOuputLocation[denseLayer->from]; // Address of the input to this layer
-                float *outputAddress = location[layer];                     // Output address of this layer
-                size_t layer_size_out = static_cast<size_t>(denseLayer->from->size_out);
+                float *inputAddress = layerOuputLocation[denseLayer->from[0]]; // Address of the input to this layer
+                float *outputAddress = location[layer];                        // Output address of this layer
+                size_t layer_size_out = static_cast<size_t>(denseLayer->from[0]->size_out);
 
                 info.push_back(&layer_size_out);
                 info.push_back(inputAddress);
@@ -143,9 +143,9 @@ struct NeuralNetwork : TrainableLayer
             }
             else if (GRU *denseLayer = dynamic_cast<GRU *>(layer))
             {
-                float *inputAddress = layerOuputLocation[denseLayer->from]; // Address of the input to this layer
-                float *outputAddress = location[layer];                     // Output address of this layer
-                size_t layer_size_out = static_cast<size_t>(denseLayer->from->size_out);
+                float *inputAddress = layerOuputLocation[denseLayer->from[0]]; // Address of the input to this layer
+                float *outputAddress = location[layer];                        // Output address of this layer
+                size_t layer_size_out = static_cast<size_t>(denseLayer->from[0]->size_out);
 
                 info.push_back(&layer_size_out);
                 info.push_back(inputAddress);
@@ -157,13 +157,13 @@ struct NeuralNetwork : TrainableLayer
             // For Concatenate layers
             else if (Concatenate *concatLayer = dynamic_cast<Concatenate *>(layer))
             {
-                size_t num_layers = concatLayer->layers.size();
+                size_t num_layers = concatLayer->from.size();
                 float *outputAddress = location[layer]; // Output address of this layer
 
                 info.push_back(&num_layers);
                 info.push_back(outputAddress);
 
-                for (Layer *l : concatLayer->layers)
+                for (Layer *l : concatLayer->from)
                 {
                     float *layer_addr_data = layerOuputLocation[l];
 
@@ -177,12 +177,12 @@ struct NeuralNetwork : TrainableLayer
             // Operators
             else if (OperatorLayer *operatorLayer = dynamic_cast<OperatorLayer *>(layer))
             {
-                size_t num_layers = operatorLayer->layers.size();
+                size_t num_layers = operatorLayer->from.size();
                 float *outputAddress = location[layer]; // Output address of this layer
 
                 info.push_back(outputAddress);
 
-                for (Layer *l : operatorLayer->layers)
+                for (Layer *l : operatorLayer->from)
                 {
                     float *layer_addr_data = layerOuputLocation[l];
 
@@ -194,8 +194,8 @@ struct NeuralNetwork : TrainableLayer
             }
             else if (ActivationLayer *activationLayer = dynamic_cast<ActivationLayer *>(layer))
             {
-                float *inputAddress = layerOuputLocation[activationLayer->from]; // Address of the input to this layer
-                float *outputAddress = location[layer];                          // Output address of this layer
+                float *inputAddress = layerOuputLocation[activationLayer->from[0]]; // Address of the input to this layer
+                float *outputAddress = location[layer];                             // Output address of this layer
 
                 info.push_back(inputAddress);
                 info.push_back(outputAddress);
@@ -217,6 +217,9 @@ struct NeuralNetwork : TrainableLayer
         assert(checkLayers(outputs));
 
         this->inputs = inputs;
+        this->from.clear();
+        for (Input *input : inputs)
+            this->from.push_back(dynamic_cast<Layer *>(input));
         this->outputs = outputs;
 
         list<Layer *> layerQueue;
@@ -243,54 +246,14 @@ struct NeuralNetwork : TrainableLayer
             {
                 distinctInputs.insert(inputLayer); // Add to distinct inputs set
             }
-            else if (Dense *denseLayer = dynamic_cast<Dense *>(currentLayer))
+            else if (Layer *layer = dynamic_cast<Layer *>(currentLayer))
             {
-                layerDependenciesCount[currentLayer] = 1;
-                Layer *fromLayer = denseLayer->from;
-                if (fromLayer != nullptr)
-                {
-                    layerQueue.push_back(fromLayer);
-                    reverseDependencies[fromLayer].push_back(currentLayer);
-                }
-            }
-            else if (GRU *denseLayer = dynamic_cast<GRU *>(currentLayer))
-            {
-                layerDependenciesCount[currentLayer] = 1;
-                Layer *fromLayer = denseLayer->from;
-                if (fromLayer != nullptr)
-                {
-                    layerQueue.push_back(fromLayer);
-                    reverseDependencies[fromLayer].push_back(currentLayer);
-                }
-            }
-            else if (Concatenate *concatLayer = dynamic_cast<Concatenate *>(currentLayer))
-            {
-                layerDependenciesCount[currentLayer] = concatLayer->layers.size();
-                // Add all layers from the Concatenate layer to the queue and update reverse dependencies
-                for (Layer *layer : concatLayer->layers)
-                {
-                    layerQueue.push_back(layer);
-                    reverseDependencies[layer].push_back(currentLayer);
-                }
-            }
-            else if (OperatorLayer *operatorLayer = dynamic_cast<OperatorLayer *>(currentLayer))
-            {
-                layerDependenciesCount[currentLayer] = operatorLayer->layers.size();
+                layerDependenciesCount[currentLayer] = layer->from.size();
                 // Add all layers from the OperatorLayer to the queue and update reverse dependencies
-                for (Layer *layer : operatorLayer->layers)
+                for (Layer *layer : layer->from)
                 {
                     layerQueue.push_back(layer);
                     reverseDependencies[layer].push_back(currentLayer);
-                }
-            }
-            else if (ActivationLayer *activationLayer = dynamic_cast<ActivationLayer *>(currentLayer))
-            {
-                layerDependenciesCount[currentLayer] = 1;
-                Layer *fromLayer = activationLayer->from;
-                if (fromLayer != nullptr)
-                {
-                    layerQueue.push_back(fromLayer);
-                    reverseDependencies[fromLayer].push_back(currentLayer);
                 }
             }
         }

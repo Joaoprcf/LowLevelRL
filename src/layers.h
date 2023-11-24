@@ -11,8 +11,8 @@ struct Layer
 {
     size_t size_out;
     size_t datastream_space;
-    Layer *from;
-    Layer(size_t size_out, size_t datastream_space, Layer *from = nullptr) : size_out(size_out), datastream_space(datastream_space), from(from) {}
+    vector<Layer *> from;
+    Layer(size_t size_out, size_t datastream_space, Layer *origin = nullptr) : size_out(size_out), datastream_space(datastream_space), from({origin}) {}
     virtual ~Layer() {} // Virtual destructor to enable polymorphism
     // virtual void apply(float *input, size_t size);
     virtual vector<Instruction> createLowLevelInstructions(vector<void *> info)
@@ -194,12 +194,12 @@ bool checkLayers(const vector<T *> &layers)
 
 struct OperatorLayer : Layer
 {
-    vector<Layer *> layers;
-    OperatorLayer(vector<Layer *> inputLayers, size_t size) : Layer(size, size, nullptr), layers(inputLayers)
+    OperatorLayer(vector<Layer *> inputLayers, size_t size) : Layer(size, size, nullptr)
     {
-        assert(layers.size() > 1);
+        assert(inputLayers.size() > 1);
         assert(checkLayers(inputLayers));
         size_t layer_size = inputLayers[0]->size_out;
+        from = inputLayers;
         for (Layer *layer : inputLayers)
         {
             assert(layer->size_out == layer_size);
@@ -216,14 +216,14 @@ struct Multiply : OperatorLayer
 
     vector<Instruction> createLowLevelInstructions(vector<void *> info) override
     {
-        assert(info.size() == 1 + layers.size());
+        assert(info.size() == 1 + from.size());
 
         float *addrOutput = static_cast<float *>(info[0]);
         float *addrInput0 = static_cast<float *>(info[1]);
         float *addrInput1 = static_cast<float *>(info[2]);
         vector<Instruction> instructions = {Instruction(ELEMENTWISE_MULTIPLY, size_out, size_out, addrInput0, addrInput1, addrOutput)};
 
-        for (size_t i = 2; i < layers.size(); i++)
+        for (size_t i = 2; i < from.size(); i++)
         {
             float *addrInputNext = static_cast<float *>(info[i + 1]);
             instructions.push_back(Instruction(ELEMENTWISE_MULTIPLY, size_out, size_out, addrOutput, addrInputNext, addrOutput));
@@ -242,14 +242,14 @@ struct Add : OperatorLayer
 
     vector<Instruction> createLowLevelInstructions(vector<void *> info) override
     {
-        assert(info.size() == 1 + layers.size());
+        assert(info.size() == 1 + from.size());
 
         float *addrOutput = static_cast<float *>(info[0]);
         float *addrInput0 = static_cast<float *>(info[1]);
         float *addrInput1 = static_cast<float *>(info[2]);
         vector<Instruction> instructions = {Instruction(ELEMENTWISE_ADD, size_out, size_out, addrInput0, addrInput1, addrOutput)};
 
-        for (size_t i = 2; i < layers.size(); i++)
+        for (size_t i = 2; i < from.size(); i++)
         {
             float *addrInputNext = static_cast<float *>(info[i + 1]);
             instructions.push_back(Instruction(ELEMENTWISE_ADD, size_out, size_out, addrOutput, addrInputNext, addrOutput));
@@ -271,19 +271,18 @@ Add operator+(Layer &lhs, Layer &rhs)
 
 struct Concatenate : Layer
 {
-    vector<Layer *> layers;
 
-    Concatenate(vector<Layer *> inputLayers) : Layer(0, 0, nullptr), layers(inputLayers)
+    Concatenate(vector<Layer *> inputLayers) : Layer(0, 0, nullptr)
     {
         assert(checkLayers(inputLayers));
         size_t totalSizeOut = 0;
-        for (Layer *layer : layers)
+        from = inputLayers;
+        for (Layer *layer : from)
         {
             totalSizeOut += layer->size_out;
         }
         this->size_out = totalSizeOut;
         this->datastream_space = totalSizeOut;
-
         cout << "Concatenate size: " << size_out << endl;
     }
 
