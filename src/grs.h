@@ -4,6 +4,7 @@
 #include "game_examples.h"
 #include "optimizers.h"
 #include <vector>
+#include <random>
 
 using namespace std;
 
@@ -110,7 +111,7 @@ struct GRS
     {
         for (size_t i = 0; i < directions; i++)
         {
-            cudaMemcpy(gpuWeights + i * weights_size, allWeights[i], weights_size * sizeof(float), cudaMemcpyHostToDevice);
+            cudaMemcpyAsync(gpuWeights + i * weights_size, allWeights[i], weights_size * sizeof(float), cudaMemcpyHostToDevice);
         }
     }
 
@@ -124,15 +125,10 @@ struct GRS
 
     void copyRewardsFromGPU(float *rewards)
     {
-        cudaMemcpy(rewards, gpuRewardArray, directions * sizeof(float), cudaMemcpyDeviceToHost);
-        for (size_t i = 0; i < directions; i++)
+        cudaMemcpyAsync(rewards, gpuRewardArray, directions * sizeof(float), cudaMemcpyDeviceToHost);
+        /* for (size_t i = 0; i < directions; i++)
         {
-            if (abs(rewards[i]) > 10000.0f)
-            {
-                cout << "something went wrong: " << rewards[i] << endl;
-                exit(0);
-            }
-        }
+        } */
     }
 
     void copyRewardsFromCPU(float *rewards)
@@ -197,6 +193,13 @@ struct GRS
             {
                 noises[w_idx] = distribution(generator) * noiseAmp;
             }
+            /* for (auto influence : influences)
+            {
+                for (size_t w_idx = influence.location; w_idx < influence.location + influence.length; w_idx++)
+                {
+                    noises[w_idx] *= influence.influence;
+                }
+            } */
 
             for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
             {
