@@ -18,7 +18,7 @@ TEST_CASE("GRS Constructor Initialization")
 
     REQUIRE(grs4.stairs == stairs);
     REQUIRE(grs4.directions == 20); // 4 * (4 + 1)
-    REQUIRE(grs4.weights_size == nn.weights.size());
+    REQUIRE(grs4.weights_size == nn.weights_size);
     REQUIRE(grs4.datastream_size == 15);
     REQUIRE(grs4.builder.num_instructions == 5);
     REQUIRE(grs4.builder.num_inputs == 1);
@@ -33,7 +33,7 @@ TEST_CASE("GRS Constructor Initialization")
 
     REQUIRE(grs5.stairs == stairs);
     REQUIRE(grs5.directions == 30); // 5 * (5 + 1) / 2
-    REQUIRE(grs5.weights_size == nn.weights.size());
+    REQUIRE(grs5.weights_size == nn.weights_size);
     REQUIRE(grs5.datastream_size == 15);
     REQUIRE(grs5.builder.num_instructions == 5);
     REQUIRE(grs5.builder.num_inputs == 1);
@@ -59,7 +59,7 @@ TEST_CASE("GRS updateWeights function")
 
     REQUIRE(grs.stairs == stairs);
     REQUIRE(grs.directions == 6); // 4 * (4 + 1) / 2
-    REQUIRE(grs.weights_size == nn.weights.size());
+    REQUIRE(grs.weights_size == nn.weights_size);
     REQUIRE(grs.datastream_size == 15);
     REQUIRE(grs.builder.num_instructions == 5);
     REQUIRE(grs.builder.num_inputs == 1);
@@ -108,7 +108,6 @@ TEST_CASE("GRS CPU Initialization and Cleanup")
     REQUIRE(grs.cpuDatastream == nullptr);
     REQUIRE(grs.cpuMemory == nullptr);
     REQUIRE(grs.cpuInstructions == nullptr);
-    REQUIRE(grs.it_pointer == 0); // Check initial value of iterator
 
     grs.initCPU();
 

@@ -89,7 +89,7 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Simple Setu
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream.data());
 
     REQUIRE(nn.usingOwnWeights == false);
-    REQUIRE(nn.weights.empty());
+    REQUIRE(nn.weights_size == 0);
     REQUIRE(denseLayer.weights[0] == 3.0f);
     REQUIRE(denseLayer.weights[1] == 4.0f);
 }
@@ -112,7 +112,7 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Complex Set
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream.data());
 
     REQUIRE(nn.usingOwnWeights == false);
-    REQUIRE(nn.weights.empty());
+    REQUIRE(nn.weights_size == 0);
     REQUIRE(dense1.weights[0] == 1.0f);
     REQUIRE(dense2.weights[1] == 2.0f);
     REQUIRE(dense3.weights[2] == 3.0f);
@@ -132,13 +132,13 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Effect on W
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream.data());
 
     REQUIRE(nn.usingOwnWeights == false);
-    REQUIRE(nn.weights.empty());
+    REQUIRE(nn.weights_size == 0);
     REQUIRE(denseLayer.weights[0] == 5.0f);
     REQUIRE(denseLayer.weights[1] == 6.0f);
 
     // Manual call to useOwnWeights and recheck
     nn.useOwnWeights();
-    REQUIRE(nn.weights.size() == denseLayer.weights_size);
+    REQUIRE(nn.weights_size == denseLayer.weights_size);
     REQUIRE(nn.weights[0] == 5.0f);
     REQUIRE(nn.weights[1] == 6.0f);
 }

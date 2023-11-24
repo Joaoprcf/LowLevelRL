@@ -15,7 +15,7 @@ TEST_CASE("Analizer initialization")
     WeightsInfluenceAnalizer analizer(&nn);
     analizer.setupInitialWeights();
 
-    for (size_t i = 0; i < nn.weights.size(); i++)
+    for (size_t i = 0; i < nn.weights_size; i++)
     {
         printf("weight[%zu] = %f\n", i, nn.weights[i]);
     }

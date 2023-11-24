@@ -44,7 +44,7 @@ int main()
     Dense output(&input, 2);
     NeuralNetwork nn(&input, &output);
 
-    for (size_t i = 0; i < nn.weights.size(); i++)
+    for (size_t i = 0; i < nn.weights_size; i++)
     {
         /* code */
         printf("nn.weights[%zu] = %.2f\n", i, nn.weights[i]);

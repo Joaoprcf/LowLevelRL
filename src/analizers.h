@@ -118,7 +118,7 @@ struct WeightsInfluenceAnalizer : GraphAnalizer
                 continue;
             if (TrainableLayer *trainableLayer = dynamic_cast<TrainableLayer *>(layer))
             {
-                result.push_back({static_cast<size_t>(trainableLayer->weights - nn->weights.data()),
+                result.push_back({static_cast<size_t>(trainableLayer->weights - nn->weights),
                                   trainableLayer->weights_size,
                                   powf(0.5f, value - 1)});
             }

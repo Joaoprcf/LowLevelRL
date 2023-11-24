@@ -14,7 +14,7 @@ TEST_CASE("PipelineBuilder Initialization")
     REQUIRE(builder.num_inputs == nn.inputs.size());
     REQUIRE(builder.num_outputs == nn.outputs.size());
     REQUIRE(builder.num_outputs == nn.outputLocations.size());
-    REQUIRE(builder.weights_size == nn.weights.size());
+    REQUIRE(builder.weights_size == nn.weights_size);
 }
 
 TEST_CASE("PipelineBuilder Initialization Multi Input Output")
@@ -33,7 +33,7 @@ TEST_CASE("PipelineBuilder Initialization Multi Input Output")
     REQUIRE(builder.num_inputs == nn.inputs.size());
     REQUIRE(builder.num_outputs == nn.outputs.size());
     REQUIRE(builder.num_outputs == nn.outputLocations.size());
-    REQUIRE(builder.weights_size == nn.weights.size());
+    REQUIRE(builder.weights_size == nn.weights_size);
 }
 
 TEST_CASE("Instruction Conversion")
@@ -84,7 +84,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test")
 
     PipelineBuilder builder(&nn);
     float *customDatastream = new float[nn.datastream.size()];
-    builder.init(customDatastream, nn.weights.data());
+    builder.init(customDatastream, nn.weights);
     float *result = customDatastream + builder.outputLocations[0];
     builder.FeedForwardSingle(data_in.data(), customDatastream);
 
