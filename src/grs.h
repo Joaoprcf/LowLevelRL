@@ -51,7 +51,7 @@ struct GRS
     GRSOptimizer *optimizer;
 
     // cpu stuff
-    size_t it_pointer;
+    size_t it_pointer = 0;
     float *cpuWeights = nullptr;
     float *cpuRewardArray = nullptr;
     float *cpuDatastream = nullptr;

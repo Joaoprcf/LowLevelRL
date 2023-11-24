@@ -58,7 +58,13 @@ struct WeightsInfluenceAnalizer : GraphAnalizer
 
             TrainableLayer *trainableLayer = dynamic_cast<TrainableLayer *>(currentLayer);
 
-            bool indirectInfluence = trainableLayer != nullptr && !findElement(nn->inputs, dynamic_cast<Input *>(trainableLayer->from));
+            bool indirectInfluence = trainableLayer != nullptr;
+            for (Layer *fromLayer : currentLayer->from)
+            {
+                if (!indirectInfluence)
+                    break;
+                indirectInfluence = indirectInfluence && !findElement(nn->inputs, dynamic_cast<Input *>(fromLayer));
+            }
 
             for (Layer *dependentLayer : nn->reverseDependencies[currentLayer])
             {
@@ -92,7 +98,7 @@ struct WeightsInfluenceAnalizer : GraphAnalizer
         {
             if (Dense *dense = dynamic_cast<Dense *>(layer))
             {
-                size_t size_in = layer->from->size_out;
+                size_t size_in = layer->from[0]->size_out;
                 for (int output_idx = 0; output_idx < layer->size_out; output_idx++)
                 {
                     int start_idx = output_idx * (size_in + 1);
