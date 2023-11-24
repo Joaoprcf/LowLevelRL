@@ -52,3 +52,42 @@ TEST_CASE("Game Reset Functionality")
     REQUIRE(game.reward == 0);
     REQUIRE(game.missing_steps == 20);
 }
+
+TEST_CASE("GameHard Reset Functionality")
+{
+    GuessGameHard game(12345);
+    float observation[5] = {};
+    float action[2] = {0.5f, -0.5f};
+    game.reset(observation);
+    game.step(action, observation);
+    game.reset(observation);
+
+    REQUIRE(game.reward == 0);
+    REQUIRE(game.missing_steps == 20);
+}
+
+TEST_CASE("GameHard Step Functionality")
+{
+    GuessGameHard game(12345);
+    float observation[5] = {};
+    float action[2] = {0.5f, -0.5f};
+    game.reset(observation);
+
+    game.step(action, observation);
+
+    REQUIRE(game.missing_steps == 19);
+
+    for (int i = 0; i < 5; ++i)
+    {
+        REQUIRE(observation[i] == game.values[i]);
+        REQUIRE(observation[i] >= -1);
+        REQUIRE(observation[i] <= 1);
+    }
+
+    for (int i = 0; i < 19; i++)
+    {
+        game.step(action, observation);
+    }
+
+    REQUIRE(game.missing_steps == 0);
+}
