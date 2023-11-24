@@ -11,7 +11,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test")
     Dense dense3(&ct, 2);
     NeuralNetwork nn(&input1, &dense3);
 
-    REQUIRE(nn.fastExecution[0].addr1 == nn.datastream.data());
+    REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
     dense1.weights[6] = 1;
     dense2.weights[4] = 1;
@@ -38,7 +38,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test Activations")
     Dense dense3(&ct, 2, ACTIVATION_RELU);
     NeuralNetwork nn(&input1, &dense3);
 
-    REQUIRE(nn.fastExecution[0].addr1 == nn.datastream.data());
+    REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
     dense1.weights[6] = 1;
     dense2.weights[4] = 1;
@@ -86,7 +86,7 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Simple Setu
 
     NeuralNetwork nn(&input, &denseLayer, false);
 
-    REQUIRE(nn.fastExecution[0].addr1 == nn.datastream.data());
+    REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
     REQUIRE(nn.usingOwnWeights == false);
     REQUIRE(nn.weights_size == 0);
@@ -109,7 +109,7 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Complex Set
 
     NeuralNetwork nn(&input, &dense3, false);
 
-    REQUIRE(nn.fastExecution[0].addr1 == nn.datastream.data());
+    REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
     REQUIRE(nn.usingOwnWeights == false);
     REQUIRE(nn.weights_size == 0);
@@ -129,7 +129,7 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Effect on W
 
     NeuralNetwork nn(&input, &denseLayer, false);
 
-    REQUIRE(nn.fastExecution[0].addr1 == nn.datastream.data());
+    REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
     REQUIRE(nn.usingOwnWeights == false);
     REQUIRE(nn.weights_size == 0);

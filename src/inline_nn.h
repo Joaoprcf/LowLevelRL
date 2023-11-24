@@ -50,7 +50,7 @@ struct NeuralNetwork : TrainableLayer
     map<Layer *, int> layerDependenciesCount;
     vector<Instruction> fastExecution;
     bool usingOwnWeights = false;
-    vector<float> datastream;
+    float *datastream = nullptr;
     vector<float> memory;
 
     void useOwnWeights()
@@ -135,11 +135,11 @@ struct NeuralNetwork : TrainableLayer
         }
     }
 
-    NeuralNetwork() : TrainableLayer(nullptr, 0, 0), size_in(0), datastream({}), usingOwnWeights(false)
+    NeuralNetwork() : TrainableLayer(nullptr, 0, 0), size_in(0), usingOwnWeights(false)
     {
     }
 
-    NeuralNetwork(vector<Input *> inputs, vector<Layer *> outputs, bool applyUsingOwnWeights = true) : TrainableLayer(nullptr, 0, 0), size_in(0), datastream({}), usingOwnWeights(false)
+    NeuralNetwork(vector<Input *> inputs, vector<Layer *> outputs, bool applyUsingOwnWeights = true) : TrainableLayer(nullptr, 0, 0), size_in(0), usingOwnWeights(false)
     {
         // Ensure no duplicates or nullptrs in inputs and outputs
         assert(checkLayers(inputs));
@@ -211,7 +211,7 @@ struct NeuralNetwork : TrainableLayer
             {
                 jobs.push_back(currentLayer);
                 cout << "job with size_out of " << currentLayer->size_out << " for layer of class " << typeid(*currentLayer).name() << endl;
-                pointer += currentLayer->datastream_space;
+                pointer += currentLayer->datastream_size;
             }
 
             for (Layer *dependentLayer : reverseDependencies[currentLayer])
@@ -223,14 +223,15 @@ struct NeuralNetwork : TrainableLayer
         }
 
         // Allocate the datastream array
-        datastream.resize(pointer, 0);
+        datastream = new float[pointer];
+        datastream_size = pointer;
         cout << "datastream size if " << pointer << endl;
 
         size_t inputPointer = 0;
         for (Layer *inputLayer : inputs)
         {
-            location[inputLayer] = datastream.data() + inputPointer;
-            inputPointer += static_cast<Input *>(inputLayer)->datastream_space;
+            location[inputLayer] = datastream + inputPointer;
+            inputPointer += static_cast<Input *>(inputLayer)->datastream_size;
             layerOuputLocation[inputLayer] = location[inputLayer];
         }
 
@@ -238,9 +239,9 @@ struct NeuralNetwork : TrainableLayer
         size_t layerPointer = size_in;
         for (Layer *layer : jobs)
         {
-            location[layer] = datastream.data() + layerPointer;
-            layerPointer += layer->datastream_space;
-            layerOuputLocation[layer] = datastream.data() + layerPointer - layer->size_out;
+            location[layer] = datastream + layerPointer;
+            layerPointer += layer->datastream_size;
+            layerOuputLocation[layer] = datastream + layerPointer - layer->size_out;
         }
 
         // Populate outputLocations for each output layer TODO, make it more efficient
@@ -278,9 +279,9 @@ struct NeuralNetwork : TrainableLayer
         size_t pointer = 0;
         for (size_t i = 0; i < data_in.size(); i++)
         {
-            assert(datastream.data() + pointer == location[inputs[i]]);
-            memcpy(datastream.data() + pointer, data_in[i], sizeof(float) * inputs[i]->size_out);
-            pointer += inputs[i]->datastream_space;
+            assert(datastream + pointer == location[inputs[i]]);
+            memcpy(datastream + pointer, data_in[i], sizeof(float) * inputs[i]->size_out);
+            pointer += inputs[i]->datastream_size;
         }
         for (auto type_inst : fastExecution)
         {
@@ -319,12 +320,12 @@ struct PipelineBuilder
     {
         assert(nn->usingOwnWeights);
         weights_size = nn->weights_size;
-        datastream_size = nn->datastream.size();
+        datastream_size = nn->datastream_size;
         memory_size = nn->memory.size();
 
         // Allocate and initialize instructions
         num_instructions = nn->fastExecution.size(); // Function to calculate the size
-        vector<RecoverableInstruction> instructionVec = ConvertToRecoverable(nn->fastExecution, nn->datastream.data(), nn->weights);
+        vector<RecoverableInstruction> instructionVec = ConvertToRecoverable(nn->fastExecution, nn->datastream, nn->weights);
         instructions = new RecoverableInstruction[num_instructions];
         memcpy(instructions, instructionVec.data(), sizeof(RecoverableInstruction) * num_instructions);
         instructionVec.clear();
@@ -350,7 +351,7 @@ struct PipelineBuilder
         outputLocations = new size_t[outputLocationsCount];
         for (size_t i = 0; i < outputLocationsCount; ++i)
         {
-            outputLocations[i] = nn->outputLocations[i] - nn->datastream.data();
+            outputLocations[i] = nn->outputLocations[i] - nn->datastream;
         }
 
         fastExecution = nullptr; // Allocate as needed

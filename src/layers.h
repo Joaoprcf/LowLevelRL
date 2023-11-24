@@ -19,9 +19,9 @@ struct InstructionsGuide
 struct Layer
 {
     size_t size_out;
-    size_t datastream_space;
+    size_t datastream_size;
     vector<Layer *> from;
-    Layer(size_t size_out, size_t datastream_space, Layer *origin = nullptr) : size_out(size_out), datastream_space(datastream_space), from({origin}) {}
+    Layer(size_t size_out, size_t datastream_size, Layer *origin = nullptr) : size_out(size_out), datastream_size(datastream_size), from({origin}) {}
     virtual ~Layer() {} // Virtual destructor to enable polymorphism
     // virtual void apply(float *input, size_t size);
     virtual vector<Instruction> createLowLevelInstructions(InstructionsGuide guide)
@@ -41,7 +41,7 @@ struct TrainableLayer : Layer
 {
     size_t weights_size;
     float *weights;
-    TrainableLayer(Layer *from, size_t size_out, size_t datastream_space) : Layer(size_out, datastream_space, from)
+    TrainableLayer(Layer *from, size_t size_out, size_t datastream_size) : Layer(size_out, datastream_size, from)
     {
     }
 };
@@ -121,7 +121,7 @@ struct GRU : TrainableLayer
         memory = new float[memory_size];
         memset(memory, 0, sizeof(float) * memory_size);
 
-        datastream_space = 9 * memory_size + from->size_out * 2; // TODO
+        datastream_size = 9 * memory_size + from->size_out * 2; // TODO
 
         cout << "weights_size: " << weights_size << endl;
     }
@@ -288,7 +288,7 @@ struct Concatenate : Layer
             totalSizeOut += layer->size_out;
         }
         this->size_out = totalSizeOut;
-        this->datastream_space = totalSizeOut;
+        this->datastream_size = totalSizeOut;
         cout << "Concatenate size: " << size_out << endl;
     }
 

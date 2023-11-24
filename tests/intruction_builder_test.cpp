@@ -83,7 +83,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test")
     std::vector<float> data_in = {1.0, 1.0, 1.0, 1.0, 1.0};
 
     PipelineBuilder builder(&nn);
-    float *customDatastream = new float[nn.datastream.size()];
+    float *customDatastream = new float[nn.datastream_size];
     builder.init(customDatastream, nn.weights);
     float *result = customDatastream + builder.outputLocations[0];
     builder.FeedForwardSingle(data_in.data(), customDatastream);

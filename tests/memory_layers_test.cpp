@@ -9,7 +9,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test")
     NeuralNetwork nn(&input1, &gru1);
 
     REQUIRE(nn.fastExecution[0].addr1 == nn.memory.data());
-    REQUIRE(nn.fastExecution[1].addr1 == nn.datastream.data());
+    REQUIRE(nn.fastExecution[1].addr1 == nn.datastream);
 
     gru1.memory[0] = -1;
     gru1.memory[1] = -1;
@@ -51,7 +51,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test")
         gru_start + hx_size * 2 + ms * 5, // term2
         gru_start + hx_size * 2 + ms * 6, // output_h
     };
-    for (size_t i = 0; i < nn.datastream.size(); i++)
+    for (size_t i = 0; i < nn.datastream_size; i++)
     {
         if (find(breaks.begin(), breaks.end(), i) != breaks.end())
         {
