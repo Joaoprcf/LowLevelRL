@@ -134,11 +134,11 @@ struct NeuralNetwork : TrainableLayer
                 float *outputAddress = location[layer];                        // Output address of this layer
                 size_t layer_size_out = static_cast<size_t>(denseLayer->from[0]->size_out);
 
-                info.push_back(&layer_size_out);
-                info.push_back(inputAddress);
-                info.push_back(outputAddress);
+                InstructionsGuide guide;
+                guide.inputs = {inputAddress};
+                guide.outputs = {outputAddress};
 
-                vector<Instruction> layerInstructions = denseLayer->createLowLevelInstructions(info);
+                vector<Instruction> layerInstructions = denseLayer->createLowLevelInstructions(guide);
                 fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
             }
             else if (GRU *denseLayer = dynamic_cast<GRU *>(layer))
@@ -147,11 +147,11 @@ struct NeuralNetwork : TrainableLayer
                 float *outputAddress = location[layer];                        // Output address of this layer
                 size_t layer_size_out = static_cast<size_t>(denseLayer->from[0]->size_out);
 
-                info.push_back(&layer_size_out);
-                info.push_back(inputAddress);
-                info.push_back(outputAddress);
+                InstructionsGuide guide;
+                guide.inputs = {inputAddress};
+                guide.outputs = {outputAddress};
 
-                vector<Instruction> layerInstructions = denseLayer->createLowLevelInstructions(info);
+                vector<Instruction> layerInstructions = denseLayer->createLowLevelInstructions(guide);
                 fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
             }
             // For Concatenate layers
@@ -160,18 +160,18 @@ struct NeuralNetwork : TrainableLayer
                 size_t num_layers = concatLayer->from.size();
                 float *outputAddress = location[layer]; // Output address of this layer
 
-                info.push_back(&num_layers);
-                info.push_back(outputAddress);
+                InstructionsGuide guide;
 
                 for (Layer *l : concatLayer->from)
                 {
                     float *layer_addr_data = layerOuputLocation[l];
 
-                    info.push_back(&l->size_out);
-                    info.push_back(layer_addr_data);
+                    guide.inputs.push_back(layer_addr_data);
+                    guide.sizes.push_back(l->size_out);
                 }
+                guide.outputs = {outputAddress};
 
-                vector<Instruction> layerInstructions = concatLayer->createLowLevelInstructions(info);
+                vector<Instruction> layerInstructions = concatLayer->createLowLevelInstructions(guide);
                 fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
             }
             // Operators
@@ -180,16 +180,17 @@ struct NeuralNetwork : TrainableLayer
                 size_t num_layers = operatorLayer->from.size();
                 float *outputAddress = location[layer]; // Output address of this layer
 
-                info.push_back(outputAddress);
+                InstructionsGuide guide;
 
                 for (Layer *l : operatorLayer->from)
                 {
                     float *layer_addr_data = layerOuputLocation[l];
-
-                    info.push_back(layer_addr_data);
+                    guide.inputs.push_back(layer_addr_data);
                 }
 
-                vector<Instruction> layerInstructions = operatorLayer->createLowLevelInstructions(info);
+                guide.outputs = {outputAddress};
+
+                vector<Instruction> layerInstructions = operatorLayer->createLowLevelInstructions(guide);
                 fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
             }
             else if (ActivationLayer *activationLayer = dynamic_cast<ActivationLayer *>(layer))
@@ -197,10 +198,11 @@ struct NeuralNetwork : TrainableLayer
                 float *inputAddress = layerOuputLocation[activationLayer->from[0]]; // Address of the input to this layer
                 float *outputAddress = location[layer];                             // Output address of this layer
 
-                info.push_back(inputAddress);
-                info.push_back(outputAddress);
+                InstructionsGuide guide;
+                guide.inputs = {inputAddress};
+                guide.outputs = {outputAddress};
 
-                vector<Instruction> layerInstructions = activationLayer->createLowLevelInstructions(info);
+                vector<Instruction> layerInstructions = activationLayer->createLowLevelInstructions(guide);
                 fastExecution.insert(fastExecution.end(), layerInstructions.begin(), layerInstructions.end());
             }
         }

@@ -7,6 +7,15 @@
 
 using namespace std;
 
+struct InstructionsGuide
+{
+    vector<float *> inputs;
+    vector<size_t> sizes;
+    vector<float *> outputs;
+    vector<float *> weights;
+    vector<float *> memory;
+};
+
 struct Layer
 {
     size_t size_out;
@@ -15,7 +24,7 @@ struct Layer
     Layer(size_t size_out, size_t datastream_space, Layer *origin = nullptr) : size_out(size_out), datastream_space(datastream_space), from({origin}) {}
     virtual ~Layer() {} // Virtual destructor to enable polymorphism
     // virtual void apply(float *input, size_t size);
-    virtual vector<Instruction> createLowLevelInstructions(vector<void *> info)
+    virtual vector<Instruction> createLowLevelInstructions(InstructionsGuide guide)
     {
         // Default implementation (possibly empty)
         return vector<Instruction>();
@@ -43,12 +52,13 @@ struct ActivationLayer : Layer
     ActivationLayer(Layer *from, type_inst activation) : Layer(from->size_out, from->size_out, from), activation(activation)
     {
     }
-    vector<Instruction> createLowLevelInstructions(vector<void *> info) override
+    vector<Instruction> createLowLevelInstructions(InstructionsGuide guide) override
     {
-        assert(info.size() == 2);
+        assert(guide.inputs.size() == 1);
+        assert(guide.outputs.size() == 1);
 
-        float *addrInput = static_cast<float *>(info[0]);
-        float *addrOutput = static_cast<float *>(info[1]);
+        float *addrInput = guide.inputs[0];
+        float *addrOutput = guide.outputs[0];
         vector<Instruction> instructions = {Instruction(activation, size_out, size_out, addrInput, addrOutput)};
         return instructions;
     }
@@ -65,16 +75,14 @@ struct Dense : TrainableLayer
         memset(weights, 0, sizeof(float) * weights_size);
         cout << "weights_size: " << weights_size << endl;
     }
-    vector<Instruction> createLowLevelInstructions(vector<void *> info) override
+    vector<Instruction> createLowLevelInstructions(InstructionsGuide guide) override
     {
 
-        assert(info.size() == 3);
-
-        size_t *size_in = static_cast<size_t *>(info[0]);
-        float *addrInput = static_cast<float *>(info[1]);
-        float *addrOutput = static_cast<float *>(info[2]);
+        float size_in = from[0]->size_out;
+        float *addrInput = guide.inputs[0];
+        float *addrOutput = guide.outputs[0];
         vector<Instruction> instructions;
-        instructions.push_back(Instruction(DOT, *size_in, size_out, addrInput, addrOutput, weights));
+        instructions.push_back(Instruction(DOT, size_in, size_out, addrInput, addrOutput, weights));
         if (activation != ACTIVATION_NONE)
         {
             instructions.push_back(Instruction(activation, size_out, size_out, addrOutput, addrOutput, nullptr));
@@ -118,17 +126,15 @@ struct GRU : TrainableLayer
         cout << "weights_size: " << weights_size << endl;
     }
 
-    vector<Instruction> createLowLevelInstructions(vector<void *> info) override
+    vector<Instruction> createLowLevelInstructions(InstructionsGuide guide) override
     {
 
-        assert(info.size() == 3);
-
-        size_t *size_in = static_cast<size_t *>(info[0]);
-        float *addrInput = static_cast<float *>(info[1]);
-        float *addrOutput = static_cast<float *>(info[2]);
+        float size_in = from[0]->size_out;
+        float *addrInput = guide.inputs[0];
+        float *addrOutput = guide.outputs[0];
         // this addrOuput is the dataseam addr
 
-        size_t hx_size = memory_size + *size_in;
+        size_t hx_size = memory_size + size_in;
         float *hx_start = addrOutput;
         float *zt_start = addrOutput + hx_size;
         float *zt_inv_start = zt_start + memory_size;
@@ -146,7 +152,7 @@ struct GRU : TrainableLayer
         vector<Instruction> instructions = {
             // Create hx
             Instruction(COPY, memory_size, memory_size, memory, hx_start), // grab once from memory
-            Instruction(COPY, *size_in, *size_in, addrInput, hx_start + memory_size),
+            Instruction(COPY, size_in, size_in, addrInput, hx_start + memory_size),
 
             // Calculate update gate (z_t)
             Instruction(DOT, hx_size, memory_size, hx_start, zt_start, wz_weights),
@@ -159,7 +165,7 @@ struct GRU : TrainableLayer
 
             // Calculate candidate hidden state (h_t)
             Instruction(ELEMENTWISE_MULTIPLY, memory_size, memory_size, hx_start, rt_start, candidate_start),
-            Instruction(COPY, *size_in, *size_in, addrInput, candidate_start + memory_size),
+            Instruction(COPY, size_in, size_in, addrInput, candidate_start + memory_size),
             Instruction(DOT, hx_size, memory_size, candidate_start, candidate_output_start, wh_weights),
             Instruction(ACTIVATION_TANH, memory_size, memory_size, candidate_output_start, candidate_output_start),
 
@@ -214,18 +220,17 @@ struct Multiply : OperatorLayer
     {
     }
 
-    vector<Instruction> createLowLevelInstructions(vector<void *> info) override
+    vector<Instruction> createLowLevelInstructions(InstructionsGuide guide) override
     {
-        assert(info.size() == 1 + from.size());
 
-        float *addrOutput = static_cast<float *>(info[0]);
-        float *addrInput0 = static_cast<float *>(info[1]);
-        float *addrInput1 = static_cast<float *>(info[2]);
+        float *addrOutput = guide.outputs[0];
+        float *addrInput0 = guide.inputs[0];
+        float *addrInput1 = guide.inputs[1];
         vector<Instruction> instructions = {Instruction(ELEMENTWISE_MULTIPLY, size_out, size_out, addrInput0, addrInput1, addrOutput)};
 
         for (size_t i = 2; i < from.size(); i++)
         {
-            float *addrInputNext = static_cast<float *>(info[i + 1]);
+            float *addrInputNext = guide.inputs[i];
             instructions.push_back(Instruction(ELEMENTWISE_MULTIPLY, size_out, size_out, addrOutput, addrInputNext, addrOutput));
         }
 
@@ -240,18 +245,19 @@ struct Add : OperatorLayer
     {
     }
 
-    vector<Instruction> createLowLevelInstructions(vector<void *> info) override
+    vector<Instruction> createLowLevelInstructions(InstructionsGuide guide) override
     {
-        assert(info.size() == 1 + from.size());
+        assert(guide.inputs.size() == from.size());
+        assert(guide.outputs.size() == 1);
 
-        float *addrOutput = static_cast<float *>(info[0]);
-        float *addrInput0 = static_cast<float *>(info[1]);
-        float *addrInput1 = static_cast<float *>(info[2]);
+        float *addrOutput = guide.outputs[0];
+        float *addrInput0 = guide.inputs[0];
+        float *addrInput1 = guide.inputs[1];
         vector<Instruction> instructions = {Instruction(ELEMENTWISE_ADD, size_out, size_out, addrInput0, addrInput1, addrOutput)};
 
         for (size_t i = 2; i < from.size(); i++)
         {
-            float *addrInputNext = static_cast<float *>(info[i + 1]);
+            float *addrInputNext = guide.inputs[i];
             instructions.push_back(Instruction(ELEMENTWISE_ADD, size_out, size_out, addrOutput, addrInputNext, addrOutput));
         }
 
@@ -286,21 +292,18 @@ struct Concatenate : Layer
         cout << "Concatenate size: " << size_out << endl;
     }
 
-    vector<Instruction> createLowLevelInstructions(vector<void *> info) override
+    vector<Instruction> createLowLevelInstructions(InstructionsGuide guide) override
     {
 
-        assert(info.size() >= 4);
         vector<Instruction> intructions;
-        size_t num_layers = *static_cast<size_t *>(info[0]);
+        size_t num_layers = from.size();
         assert(num_layers >= 2);
-        float *addrOutput = static_cast<float *>(info[1]);
-        size_t idxPointer = 2;
-        size_t limit = idxPointer + num_layers * 2;
+        float *addrOutput = guide.outputs[0];
         size_t pointer = 0;
-        for (size_t i = idxPointer; i < limit; i += 2)
+        for (size_t i = 0; i < guide.inputs.size(); i++)
         {
-            size_t layer_size_out = *static_cast<size_t *>(info[i]);
-            float *layer_addr_data = static_cast<float *>(info[i + 1]);
+            size_t layer_size_out = guide.sizes[i];
+            float *layer_addr_data = guide.inputs[i];
             intructions.push_back(Instruction(COPY, layer_size_out, layer_size_out, layer_addr_data, addrOutput + pointer));
             pointer += layer_size_out;
         }
