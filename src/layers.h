@@ -68,7 +68,7 @@ struct Dense : TrainableLayer
 {
 
     type_inst activation;
-    Dense(Layer *from, size_t size_out, type_inst activation = ACTIVATION_NONE) : TrainableLayer(from, size_out, size_out), activation(activation)
+    Dense(Layer *from, size_t size_out, type_inst activation = ACTIVATION_NONE) : TrainableLayer(from, size_out, activation == ACTIVATION_NONE ? size_out : size_out * 2), activation(activation)
     {
         weights_size = size_out * (from->size_out + 1);
         weights = new float[weights_size];
@@ -85,7 +85,7 @@ struct Dense : TrainableLayer
         instructions.push_back(Instruction(DOT, size_in, size_out, addrInput, addrOutput, weights));
         if (activation != ACTIVATION_NONE)
         {
-            instructions.push_back(Instruction(activation, size_out, size_out, addrOutput, addrOutput, nullptr));
+            instructions.push_back(Instruction(activation, size_out, size_out, addrOutput, addrOutput + size_out));
         }
         return instructions;
     }
