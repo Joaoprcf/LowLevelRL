@@ -33,6 +33,18 @@ test: clean build_dir $(TEST_EXECS) $(INDEX_EXE)
 	echo "Compiling index.cu"; \
 	$(NVCC) $(NVCCFLAGS) $(LDFLAGS) $(INDEX_CU) -o $(INDEX_EXE)
 
+fast_test: clean build_dir
+	$(MAKE) -j $(TEST_EXECS)
+	@status=0; \
+	for test_exec in $(TEST_EXECS) ; do \
+		echo "Running $$test_exec"; \
+		./$$test_exec || status=1; \
+	done; \
+	if [ $$status -ne 0 ]; then exit 1; fi;
+	echo "Compiling index.cu"; \
+	$(NVCC) $(NVCCFLAGS) $(LDFLAGS) $(INDEX_CU) -o $(INDEX_EXE)
+
+
 $(INDEX_EXE): $(INDEX_CU)
 	$(NVCC) $(NVCCFLAGS) $(LDFLAGS) $< -o $@
 
