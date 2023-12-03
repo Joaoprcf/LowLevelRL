@@ -2,7 +2,7 @@
 #include "helper_functions.h"
 #include "inline_nn.h"
 #include "game_examples.h"
-#include "grs_optimizers.h"
+#include "grs_optimizers/core.h"
 #include <vector>
 #include <random>
 
@@ -58,9 +58,8 @@ struct GRS
     float *cpuMemory = nullptr;
     Instruction *cpuInstructions = nullptr;
 
-    GRS(NeuralNetwork *nn, size_t stairs) : stairs(stairs)
+    GRS(NeuralNetwork *nn, size_t stairs) : stairs(stairs), builder(PipelineBuilder(nn))
     {
-        builder = PipelineBuilder(nn);
         directions = stairs * (stairs + 1);
         // optimizer = new LeaderboardOptimizer(stairs, directions);
         optimizer = new IterativeOptimizer(stairs);
@@ -76,6 +75,26 @@ struct GRS
             allWeights[i] = new float[weights_size];
             preStoredTempWeights[i] = new float[weights_size];
             memcpy(allWeights[i], nn->weights, weights_size * sizeof(float));
+        }
+    }
+
+    GRS(PipelineBuilder builder, size_t stairs) : stairs(stairs), builder(builder)
+    {
+        directions = stairs * (stairs + 1);
+        // optimizer = new LeaderboardOptimizer(stairs, directions);
+        optimizer = new IterativeOptimizer(stairs);
+        weights_size = this->builder.weights_size;
+        datastream_size = this->builder.datastream_size;
+        currentWeights = new float[weights_size];
+        preStoredRewards = new float[directions];
+        memset(currentWeights, 0, weights_size * sizeof(float));
+        allWeights = new float *[directions];
+        preStoredTempWeights = new float *[directions];
+        for (size_t i = 0; i < directions; i++)
+        {
+            allWeights[i] = new float[weights_size];
+            preStoredTempWeights[i] = new float[weights_size];
+            memset(allWeights[i], 0, weights_size * sizeof(float));
         }
     }
 

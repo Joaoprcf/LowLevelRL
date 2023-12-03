@@ -40,24 +40,13 @@ void __global__ gpuPlay(PipelineBuilder builder, size_t directions, Instruction 
 int main()
 {
 
-    Input input(5);
-    Dense output(&input, 2);
-    NeuralNetwork nn(&input, &output);
+    LearnableOptimizer *optimizer = new LearnableOptimizer();
 
-    for (size_t i = 0; i < nn.weights_size; i++)
-    {
-        /* code */
-        printf("nn.weights[%zu] = %.2f\n", i, nn.weights[i]);
-    }
+    GRS grs(optimizer->builder, 10);
 
-    vector<float> data_in = {1.0, 1.0, 1.0, 1.0, 1.0};
-    float *result = nn.FeedForwardSingle(data_in.data());
+    grs.initCPU();
 
-    GRS grs(&nn, 10);
-
-    grs.initGPU();
-
-    int blockSize, gridSize;
+    /* int blockSize, gridSize;
     // Number of threads in each thread block
     gridSize = ceil(grs.directions / 32.0);
 
@@ -80,7 +69,7 @@ int main()
     for (size_t i = 0; i < grs.weights_size; i++)
     {
         printf("grs.weights[%zu] = %.2f\n", i, grs.currentWeights[i]);
-    }
+    } */
 
     return 0;
 }
