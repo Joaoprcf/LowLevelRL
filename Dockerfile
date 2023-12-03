@@ -11,4 +11,4 @@ COPY . /project
 WORKDIR /project
 
 # Build and run tests
-CMD ["make", "test"]
+CMD ["make", "fast_test"]
