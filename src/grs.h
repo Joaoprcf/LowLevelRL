@@ -2,7 +2,7 @@
 #include "helper_functions.h"
 #include "inline_nn.h"
 #include "game_examples.h"
-#include "optimizers.h"
+#include "grs_optimizers.h"
 #include <vector>
 #include <random>
 
@@ -56,7 +56,7 @@ struct GRS
     float *cpuRewardArray = nullptr;
     float *cpuDatastream = nullptr;
     float *cpuMemory = nullptr;
-    Instruction *cpuInstructions;
+    Instruction *cpuInstructions = nullptr;
 
     GRS(NeuralNetwork *nn, size_t stairs) : stairs(stairs)
     {

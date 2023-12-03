@@ -283,9 +283,9 @@ struct NeuralNetwork : TrainableLayer
             memcpy(datastream + pointer, data_in[i], sizeof(float) * inputs[i]->size_out);
             pointer += inputs[i]->datastream_size;
         }
-        for (auto type_inst : fastExecution)
+        for (auto inst : fastExecution)
         {
-            type_inst.execute();
+            inst.execute();
         }
         return outputLocations;
     }
