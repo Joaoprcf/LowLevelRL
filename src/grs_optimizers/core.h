@@ -1,6 +1,6 @@
 #pragma once
 #include <cstddef>
-#include "helper_functions.h"
+#include "../helper_functions.h"
 
 struct GRSOptimizer
 {
@@ -16,7 +16,7 @@ struct GRSOptimizer
 
     virtual float getNextNoise()
     {
-        return 0.1f;
+        return learningRate;
     }
 
     virtual void updateRewards(float *newRewards)
@@ -240,16 +240,112 @@ struct LearnableOptimizer : GRSOptimizer
 {
     PipelineBuilder builder;
     size_t weights_size;
+    size_t datastream_size;
     float *weights;
+    float *datastream;
     float **records;
-    LearnableOptimizer(NeuralNetwork *nn) : builder(PipelineBuilder(nn))
+    float *learningRateHistory;
+    float *reservedCalculationSpace;
+    size_t record_pointer = 0;
+    size_t max_context_window = 400;
+    size_t batch_record_size = 5;
+    LearnableOptimizer()
     {
+        Input input(15);
+        Dense dense1(&input, 2, ACTIVATION_TANH);
+        NeuralNetwork nn(&input, &dense1);
+        builder = PipelineBuilder(&nn);
+
         weights_size = builder.weights_size;
         weights = new float[weights_size];
+        datastream_size = builder.datastream_size;
+        datastream = new float[datastream_size];
+
+        learningRateHistory = new float[max_context_window];
+        records = new float *[max_context_window];
+        for (size_t i = 0; i < max_context_window; i++)
+        {
+            records[i] = new float[batch_record_size];
+        }
+        builder.init(datastream, weights);
+    }
+
+    void loadWeights(float *weights)
+    {
+        memcpy(this->weights, weights, sizeof(float) * weights_size);
+    }
+
+    float getMedianFromRecord(float *record, size_t amount)
+    {
+        size_t medianIdx = amount / 2;
+
+        return record[medianIdx];
+    }
+
+    float getMedianFromContextWindow(size_t amount, size_t batch)
+    {
+        size_t record_idx = record_pointer % max_context_window;
+        amount = max(record_pointer, amount);
+        size_t medianIdx = amount / 2;
+        size_t start_idx = record_idx + max_context_window - amount;
+        for (size_t i = 0; i < amount; i++)
+        {
+            reservedCalculationSpace[i] = getMedianFromRecord(records[(start_idx + i) % max_context_window], batch);
+        }
+        heapSort(reservedCalculationSpace, amount, fcomp);
+        return reservedCalculationSpace[medianIdx];
     }
 
     void updateRewards(float *newRewards) override
     {
-        memcpy(weights, newRewards, sizeof(float) * weights_size);
+        size_t record_idx = record_pointer % max_context_window;
+        memcpy(records[record_idx], newRewards, sizeof(float) * weights_size);
+        heapSort(records[record_idx], weights_size, fcomp);
+        float values3[5]{
+            getMedianFromRecord(records[record_idx], 3),
+            getMedianFromContextWindow(3, 3),
+            getMedianFromContextWindow(11, 3),
+            getMedianFromContextWindow(55, 3),
+        };
+
+        float values5[6]{
+            getMedianFromRecord(records[record_idx], 5),
+            getMedianFromContextWindow(3, 5),
+            getMedianFromContextWindow(11, 5),
+            getMedianFromContextWindow(55, 5),
+            getMedianFromContextWindow(199, 5),
+            getMedianFromContextWindow(399, 5)};
+
+        float inputs[15]{
+            // new values3 against previous
+            values3[0] > values3[1] ? 1.0f : 0.0f,
+            values3[0] > values3[2] ? 1.0f : 0.0f,
+            values3[0] > values3[3] ? 1.0f : 0.0f,
+            // new values5 against previous
+            values5[0] > values5[1] ? 1.0f : 0.0f,
+            values5[0] > values5[2] ? 1.0f : 0.0f,
+            values5[0] > values5[3] ? 1.0f : 0.0f,
+            values5[0] > values5[4] ? 1.0f : 0.0f,
+            values5[0] > values5[5] ? 1.0f : 0.0f,
+            // old against old +1
+            values5[1] > values5[2] ? 1.0f : 0.0f,
+            values5[2] > values5[3] ? 1.0f : 0.0f,
+            values5[3] > values5[4] ? 1.0f : 0.0f,
+            values5[4] > values5[5] ? 1.0f : 0.0f,
+            // old against old +2
+            values5[1] > values5[3] ? 1.0f : 0.0f,
+            values5[2] > values5[4] ? 1.0f : 0.0f,
+            values5[3] > values5[5] ? 1.0f : 0.0f,
+        };
+
+        learningRateHistory[record_idx] = learningRate;
+
+        builder.FeedForwardSingle(inputs, datastream);
+        float *output = datastream + builder.outputLocations[0];
+        float adjustment = output[0] > 0 ? 1.0f / (1.001f - output[0]) : 1.01f + output[0];
+        learningRate *= adjustment;
+        if (output[1] >= 0.8f)
+            learningRate = 0.1f;
+        record_pointer++;
     }
 };
