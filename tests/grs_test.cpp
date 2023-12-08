@@ -20,8 +20,8 @@ TEST_CASE("GRS Constructor Initialization")
     REQUIRE(grs4.directions == 20); // 4 * (4 + 1)
     REQUIRE(grs4.weights_size == nn.weights_size);
     REQUIRE(grs4.datastream_size == 15);
-    REQUIRE(grs4.builder.num_instructions == 5);
-    REQUIRE(grs4.builder.num_inputs == 1);
+    REQUIRE(grs4.builder->num_instructions == 5);
+    REQUIRE(grs4.builder->num_inputs == 1);
     REQUIRE(grs4.currentWeights != nullptr);
     REQUIRE(grs4.allWeights != nullptr);
     REQUIRE(grs4.preStoredRewards != nullptr);
@@ -35,8 +35,8 @@ TEST_CASE("GRS Constructor Initialization")
     REQUIRE(grs5.directions == 30); // 5 * (5 + 1) / 2
     REQUIRE(grs5.weights_size == nn.weights_size);
     REQUIRE(grs5.datastream_size == 15);
-    REQUIRE(grs5.builder.num_instructions == 5);
-    REQUIRE(grs5.builder.num_inputs == 1);
+    REQUIRE(grs5.builder->num_instructions == 5);
+    REQUIRE(grs5.builder->num_inputs == 1);
     REQUIRE(grs5.currentWeights != nullptr);
     REQUIRE(grs5.allWeights != nullptr);
     REQUIRE(grs5.preStoredRewards != nullptr);
@@ -61,8 +61,8 @@ TEST_CASE("GRS updateWeights function")
     REQUIRE(grs.directions == 6); // 4 * (4 + 1) / 2
     REQUIRE(grs.weights_size == nn.weights_size);
     REQUIRE(grs.datastream_size == 15);
-    REQUIRE(grs.builder.num_instructions == 5);
-    REQUIRE(grs.builder.num_inputs == 1);
+    REQUIRE(grs.builder->num_instructions == 5);
+    REQUIRE(grs.builder->num_inputs == 1);
     REQUIRE(grs.currentWeights != nullptr);
     REQUIRE(grs.allWeights != nullptr);
     REQUIRE(grs.preStoredRewards != nullptr);
@@ -149,10 +149,10 @@ TEST_CASE("GRS getNext Method")
 
         // Validate the runnerInfo contents
         REQUIRE(runnerInfo.direction_idx == i); // Check current index
-        REQUIRE(runnerInfo.targetInstructions == grs.cpuInstructions + i * grs.builder.num_instructions);
+        REQUIRE(runnerInfo.targetInstructions == grs.cpuInstructions + i * grs.builder->num_instructions);
         REQUIRE(runnerInfo.targetWeights == grs.cpuWeights + i * grs.weights_size);
-        REQUIRE(runnerInfo.targetMemory == grs.cpuMemory + i * grs.builder.memory_size);
-        REQUIRE(runnerInfo.targetDatastream == grs.cpuDatastream + i * grs.builder.datastream_size);
+        REQUIRE(runnerInfo.targetMemory == grs.cpuMemory + i * grs.builder->memory_size);
+        REQUIRE(runnerInfo.targetDatastream == grs.cpuDatastream + i * grs.builder->datastream_size);
         REQUIRE(runnerInfo.reward == grs.cpuRewardArray + i);
 
         // Check iterator advancement

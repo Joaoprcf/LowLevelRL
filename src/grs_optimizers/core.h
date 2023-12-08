@@ -26,6 +26,53 @@ struct GRSOptimizer
     virtual ~GRSOptimizer() {}
 };
 
+struct GRSAdamOptimizer : GRSOptimizer
+{
+    float beta1 = 0.9f;
+    float beta2 = 0.999f;
+    float epsilon = 1e-8f;
+    float v = 0.0f;
+    float m = 0.0f;
+    float t = 0.0f;
+    float *tempRewards;
+    float previous_reward = -INFINITY;
+    size_t directions;
+
+    GRSAdamOptimizer(size_t directions) : GRSOptimizer(0.1f), directions(directions)
+    {
+        tempRewards = new float[directions];
+    }
+    ~GRSAdamOptimizer()
+    {
+        delete[] tempRewards;
+    }
+    void updateRewards(float *newRewards) override
+    {
+        memcpy(tempRewards, newRewards, sizeof(float) * directions);
+        heapSort(tempRewards, directions, fcomp);
+        float reward = tempRewards[1]; // second best reward
+        if (previous_reward != -INFINITY)
+        {
+            float gradient = previous_reward - reward; // negative gradient is good?
+            t += 1.0f;
+            m = beta1 * m + (1.0f - beta1) * gradient;
+            v = beta2 * v + (1.0f - beta2) * gradient * gradient;
+            float m_hat = m / (1.0f - pow(beta1, t));
+            float v_hat = v / (1.0f - pow(beta2, t));
+            learningRate = abs(m_hat / (sqrt(v_hat) + epsilon));
+            // printf all values
+            // printf("gradient: %f\n", gradient);
+            // printf("t: %f\n", t);
+            // printf("m: %f\n", m);
+            // printf("v: %f\n", v);
+            // printf("m_hat: %f\n", m_hat);
+            // printf("v_hat: %f\n", v_hat);
+            // printf("learningRate: %f\n", learningRate);
+        }
+        previous_reward = reward;
+    }
+};
+
 struct IterativeOptimizer : GRSOptimizer
 {
     // config
@@ -148,6 +195,15 @@ struct IterativeOptimizer : GRSOptimizer
         #endif */
     }
 
+    ~IterativeOptimizer()
+    {
+        printf("Clearing IterativeOptimizer");
+        delete[] tempRewards;
+        delete[] analitics;
+        delete[] avgRecords;
+        delete[] offsetRecords;
+    }
+
     float getNextNoise() override
     {
         return learningRate;
@@ -230,6 +286,12 @@ struct LeaderboardOptimizer : GRSOptimizer
         }
     }
 
+    ~LeaderboardOptimizer()
+    {
+        delete[] rewards;
+        delete[] tempRewards;
+    }
+
     virtual float getNextNoise()
     {
         return learningRate;
@@ -238,7 +300,7 @@ struct LeaderboardOptimizer : GRSOptimizer
 
 struct LearnableOptimizer : GRSOptimizer
 {
-    PipelineBuilder builder;
+    PipelineBuilder *builder;
     size_t weights_size;
     size_t datastream_size;
     float *weights;
@@ -246,28 +308,65 @@ struct LearnableOptimizer : GRSOptimizer
     float **records;
     float *learningRateHistory;
     float *reservedCalculationSpace;
+    float *tempRewards;
     size_t record_pointer = 0;
     size_t max_context_window = 400;
     size_t batch_record_size = 5;
-    LearnableOptimizer()
-    {
-        Input input(15);
-        Dense dense1(&input, 2, ACTIVATION_TANH);
-        NeuralNetwork nn(&input, &dense1);
-        builder = PipelineBuilder(&nn);
+    size_t directions;
 
-        weights_size = builder.weights_size;
+    LearnableOptimizer(size_t directions) : GRSOptimizer(0.1f), directions(directions)
+    {
+        builder = getBuilder();
+
+        weights_size = builder->weights_size;
         weights = new float[weights_size];
-        datastream_size = builder.datastream_size;
+        memset(weights, 0, sizeof(float) * weights_size);
+        datastream_size = builder->datastream_size;
         datastream = new float[datastream_size];
 
         learningRateHistory = new float[max_context_window];
+        reservedCalculationSpace = new float[max_context_window];
+        tempRewards = new float[max_context_window];
         records = new float *[max_context_window];
+
         for (size_t i = 0; i < max_context_window; i++)
         {
             records[i] = new float[batch_record_size];
         }
-        builder.init(datastream, weights);
+        builder->init(datastream, weights);
+    }
+
+    LearnableOptimizer(size_t directions, string weights_path) : LearnableOptimizer(directions)
+    {
+        loadParams(weights_path, weights, weights_size);
+    }
+
+    ~LearnableOptimizer()
+    {
+        printf("deleting learnable optimizer\n");
+        delete builder;
+        delete[] weights;
+        delete[] datastream;
+        delete[] learningRateHistory;
+        for (size_t i = 0; i < max_context_window; i++)
+        {
+            delete[] records[i];
+        }
+        delete[] records;
+    }
+
+    // static PipelineBuilder *defaultBuilder;
+
+    static PipelineBuilder *getBuilder()
+    {
+        Input input1(10);
+        Input input2(7);
+        Dense dense1(&input1, 3, ACTIVATION_TANH);
+        Concatenate ct({&dense1, &input2});
+        Dense dense2(&ct, 2, ACTIVATION_TANH);
+        NeuralNetwork nn({&input1, &input2}, {&dense1, &dense2});
+        PipelineBuilder *defaultBuilder = new PipelineBuilder(&nn);
+        return defaultBuilder;
     }
 
     void loadWeights(float *weights)
@@ -275,8 +374,15 @@ struct LearnableOptimizer : GRSOptimizer
         memcpy(this->weights, weights, sizeof(float) * weights_size);
     }
 
+    void reset()
+    {
+        record_pointer = 0;
+        learningRate = 0.1f;
+    }
+
     float getMedianFromRecord(float *record, size_t amount)
     {
+
         size_t medianIdx = amount / 2;
 
         return record[medianIdx];
@@ -284,40 +390,76 @@ struct LearnableOptimizer : GRSOptimizer
 
     float getMedianFromContextWindow(size_t amount, size_t batch)
     {
+        // printf("getMedianFromContextWindow(%zu, %zu)\n", amount, batch);
+        if (record_pointer <= 1)
+        {
+            return getMedianFromRecord(records[record_pointer], batch);
+        }
         size_t record_idx = record_pointer % max_context_window;
-        amount = max(record_pointer, amount);
+        amount = min(record_pointer, amount);
         size_t medianIdx = amount / 2;
-        size_t start_idx = record_idx + max_context_window - amount;
+        size_t start_idx = (record_idx + max_context_window - amount) % max_context_window;
         for (size_t i = 0; i < amount; i++)
         {
-            reservedCalculationSpace[i] = getMedianFromRecord(records[(start_idx + i) % max_context_window], batch);
+            float median_from_record = getMedianFromRecord(records[(start_idx + i) % max_context_window], batch);
+            reservedCalculationSpace[i] = median_from_record;
         }
         heapSort(reservedCalculationSpace, amount, fcomp);
         return reservedCalculationSpace[medianIdx];
     }
 
+    float getAverageLearningRateFromContextWindow(size_t amount)
+    {
+        if (record_pointer <= 1)
+        {
+            return learningRate;
+        }
+        size_t record_idx = record_pointer % max_context_window;
+        amount = min(record_pointer, amount);
+        size_t up_to = amount / 2;
+        size_t start_idx = (record_idx + max_context_window - amount) % max_context_window;
+        float sum = 0.0f;
+        for (size_t i = 0; i < up_to; i++)
+        {
+            sum += learningRateHistory[(start_idx + i) % max_context_window];
+        }
+        return sum / (float)up_to;
+    }
+
     void updateRewards(float *newRewards) override
     {
+
+        memcpy(tempRewards, newRewards, sizeof(float) * directions);
+        heapSort(tempRewards, directions, fcomp);
         size_t record_idx = record_pointer % max_context_window;
-        memcpy(records[record_idx], newRewards, sizeof(float) * weights_size);
-        heapSort(records[record_idx], weights_size, fcomp);
-        float values3[5]{
+        memcpy(records[record_idx], tempRewards, sizeof(float) * batch_record_size);
+
+        size_t fase = record_pointer > 31 ? 1 : 0;
+        float values3[4]{
             getMedianFromRecord(records[record_idx], 3),
             getMedianFromContextWindow(3, 3),
-            getMedianFromContextWindow(11, 3),
-            getMedianFromContextWindow(55, 3),
+            getMedianFromContextWindow(7, 3),
+            getMedianFromContextWindow(31, 3),
         };
 
         float values5[6]{
             getMedianFromRecord(records[record_idx], 5),
             getMedianFromContextWindow(3, 5),
-            getMedianFromContextWindow(11, 5),
-            getMedianFromContextWindow(55, 5),
-            getMedianFromContextWindow(199, 5),
-            getMedianFromContextWindow(399, 5)};
+            getMedianFromContextWindow(7, 5),
+            getMedianFromContextWindow(31, 5),
+            getMedianFromContextWindow(63, 5),
+            getMedianFromContextWindow(255, 5)};
 
-        float inputs[15]{
-            // new values3 against previous
+        float avg7 = getAverageLearningRateFromContextWindow(7);
+        float avg31 = getAverageLearningRateFromContextWindow(31);
+
+        float temp7 = record_pointer > 7 ? learningRate / avg7 : 1.0f;
+        float temp31 = record_pointer > 31 ? learningRate / avg31 : 1.0f;
+        temp7 = (temp7 > 1.0f ? 2.0f - 1.0f / temp7 : temp7) - 1.0f;
+
+        temp31 = (temp31 > 1.0f ? 2.0f - 1.0f / temp7 : temp7) - 1.0f;
+
+        float inputs1[10]{
             values3[0] > values3[1] ? 1.0f : 0.0f,
             values3[0] > values3[2] ? 1.0f : 0.0f,
             values3[0] > values3[3] ? 1.0f : 0.0f,
@@ -325,27 +467,104 @@ struct LearnableOptimizer : GRSOptimizer
             values5[0] > values5[1] ? 1.0f : 0.0f,
             values5[0] > values5[2] ? 1.0f : 0.0f,
             values5[0] > values5[3] ? 1.0f : 0.0f,
-            values5[0] > values5[4] ? 1.0f : 0.0f,
-            values5[0] > values5[5] ? 1.0f : 0.0f,
             // old against old +1
             values5[1] > values5[2] ? 1.0f : 0.0f,
             values5[2] > values5[3] ? 1.0f : 0.0f,
+            // old against old +2
+            values5[1] > values5[3] ? 1.0f : 0.0f,
+            temp7};
+
+        float inputs2[7]{
+            // new values3 against previous
+
+            values5[0] > values5[4] ? 1.0f : 0.0f,
+            values5[0] > values5[5] ? 1.0f : 0.0f,
+            // old against old +1
+
             values5[3] > values5[4] ? 1.0f : 0.0f,
             values5[4] > values5[5] ? 1.0f : 0.0f,
             // old against old +2
-            values5[1] > values5[3] ? 1.0f : 0.0f,
+
             values5[2] > values5[4] ? 1.0f : 0.0f,
             values5[3] > values5[5] ? 1.0f : 0.0f,
-        };
+
+            temp31};
+
+        float *dataIn[2]{inputs1, inputs2};
 
         learningRateHistory[record_idx] = learningRate;
+        builder->FeedForward(dataIn, datastream);
 
-        builder.FeedForwardSingle(inputs, datastream);
-        float *output = datastream + builder.outputLocations[0];
-        float adjustment = output[0] > 0 ? 1.0f / (1.001f - output[0]) : 1.01f + output[0];
-        learningRate *= adjustment;
-        if (output[1] >= 0.8f)
-            learningRate = 0.1f;
+        float *output1 = datastream + builder->outputLocations[0];
+        float *output2 = datastream + builder->outputLocations[1];
+
+        for (size_t i = 0; i < builder->outputSizes[0]; i++)
+        {
+            output1[i] *= 0.95f;
+        }
+        for (size_t i = 0; i < builder->outputSizes[1]; i++)
+        {
+            output2[i] *= 0.95f;
+        }
+
+        // check if output[0] is -nan
+        if (output1[0] != output1[0] || output1[0] == 1)
+        {
+            printf("output1[0] is -nan\n");
+            for (size_t i = 0; i < weights_size; i++)
+            {
+                printf("weights[%zu]: %.3f\n", i, weights[i]);
+            }
+            for (size_t i = 0; i < 17; i++)
+            {
+                printf("inputs1[%zu]: %.3f\n", i, inputs1[i]);
+            }
+            printf("record_pointer: %zu\n", record_pointer);
+            for (size_t i = 100; i < 121; i++)
+            {
+                printf("learningRateHistory[%zu]: %.5f\n", i, learningRateHistory[i]);
+            }
+            printf("learningRateHistory[(record_idx + max_context_window - 7): %.3f", avg7);
+            printf("learningRateHistory[(record_idx + max_context_window - 31): %.3f", avg31);
+            printf("learningRateHistory[(record_idx + max_context_window - 7) %% max_context_window]: %.3f\n", avg7);
+            exit(0);
+        }
+
+        if (fase == 0)
+        {
+            float adjustment = output1[0] > 0 ? 1.0f / (1.00f - output1[0]) : 1.00f + output1[0];
+            if (output1[1] > 0.0f && record_pointer > 7)
+            {
+                learningRate *= adjustment * 0.5f + 0.5f;
+                float previousLearningRate = avg7;
+                learningRate = learningRate * (1.0f - output1[1]) + previousLearningRate * output1[1];
+            }
+            else
+            {
+                learningRate *= adjustment;
+            }
+        }
+        else if (fase == 1)
+        {
+            float adjustment = output2[0] > 0 ? 1.0f / (1.00f - output2[0]) : 1.00f + output2[0];
+            if (output2[1] > 0.0f && record_pointer > 31)
+            {
+                learningRate *= adjustment * 0.5f + 0.5f;
+                float previousLearningRate = avg31;
+                learningRate = learningRate * (1.0f - output2[1]) + previousLearningRate * output2[1];
+            }
+            else
+            {
+                learningRate *= adjustment;
+            }
+        }
+
+        if (learningRate > 10.0f || learningRate == 0.0f)
+        {
+            learningRate = 10.0f;
+        }
+
+        // printf("adjustment: %f, learningRate: %f\n", adjustment, learningRate);
         record_pointer++;
     }
 };

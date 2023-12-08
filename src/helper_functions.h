@@ -1,5 +1,61 @@
 #pragma once
 #include <vector>
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+
+template <typename... Args>
+std::string string_format(const std::string &format, Args... args)
+{
+    int size_s = snprintf(nullptr, 0, format.c_str(), args...) + 1; // Extra space for '\0'
+    if (size_s <= 0)
+    {
+        throw std::runtime_error("Error during formatting.");
+    }
+    auto size = static_cast<std::size_t>(size_s);
+    std::unique_ptr<char[]> buf(new char[size]);
+    snprintf(buf.get(), size, format.c_str(), args...);
+    return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+}
+
+inline void saveParams(std::string filename, float *weights, size_t weights_size)
+{
+    std::ofstream wf(string_format("weights/%s.bin", filename.c_str()), std::ofstream::out | std::ofstream::binary);
+    if (wf.fail())
+    {
+        throw std::runtime_error("Error writing to file");
+    }
+    wf.write((char *)weights, sizeof(float) * weights_size);
+    wf.close();
+}
+
+inline void loadParams(std::string filename, float *weights, size_t weights_size)
+{
+    std::cout << string_format("weights/%s.bin", filename.c_str()) << std::endl;
+    std::ifstream rf(string_format("weights/%s.bin", filename.c_str()), std::ifstream::in | std::ifstream::ate | std::ifstream::binary);
+    if (rf.fail())
+    {
+        throw std::runtime_error("File operation failed");
+    }
+
+    std::size_t maxi = rf.tellg();
+    rf.seekg(0);
+    rf.read((char *)weights, maxi);
+    rf.close();
+}
+
+template <typename T>
+inline void reverseVector(std::vector<T> &vec)
+{
+    int n = vec.size();
+    for (int i = 0; i < n / 2; ++i)
+    {
+        T temp = vec[i];
+        vec[i] = vec[n - 1 - i];
+        vec[n - 1 - i] = temp;
+    }
+}
 
 template <typename T, typename Compare>
 void maxHeapify(T *arr, int n, int i, Compare comparison)
