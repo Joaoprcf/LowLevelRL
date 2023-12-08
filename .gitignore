@@ -3,3 +3,7 @@ build
 **.o
 **.txt
 report.*
+
+
+weights/*
+!learnable_optimizer_weights.bin

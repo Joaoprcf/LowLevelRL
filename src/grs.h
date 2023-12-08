@@ -17,7 +17,7 @@ struct WeightInfluence
 
 struct RunnerInfo
 {
-    PipelineBuilder builder;
+    PipelineBuilder *builder;
     size_t direction_idx;
     Instruction *targetInstructions;
     float *targetWeights;
@@ -34,7 +34,8 @@ struct GRS
     size_t datastream_size;
     float *currentWeights;
     float **allWeights;
-    PipelineBuilder builder;
+    PipelineBuilder *builder;
+    GRSOptimizer *optimizer;
 
     // optimization purpose only
     float *preStoredRewards;
@@ -48,7 +49,7 @@ struct GRS
     float *gpuMemory = nullptr;
     Instruction *gpuInstructions = nullptr;
     std::default_random_engine generator;
-    GRSOptimizer *optimizer;
+    PipelineBuilder *gpuBuilders = nullptr;
 
     // cpu stuff
     size_t it_pointer = 0;
@@ -57,14 +58,22 @@ struct GRS
     float *cpuDatastream = nullptr;
     float *cpuMemory = nullptr;
     Instruction *cpuInstructions = nullptr;
+    PipelineBuilder **cpuBuilders = nullptr;
 
-    GRS(NeuralNetwork *nn, size_t stairs) : stairs(stairs), builder(PipelineBuilder(nn))
+private:
+    // memory management
+    GRSOptimizer *_optimizer = nullptr;
+
+public:
+    GRS(NeuralNetwork *nn, size_t stairs) : stairs(stairs),
+                                            builder(new PipelineBuilder(nn))
     {
         directions = stairs * (stairs + 1);
         // optimizer = new LeaderboardOptimizer(stairs, directions);
-        optimizer = new IterativeOptimizer(stairs);
-        weights_size = this->builder.weights_size;
-        datastream_size = this->builder.datastream_size;
+        _optimizer = new IterativeOptimizer(stairs);
+        optimizer = _optimizer;
+        weights_size = this->builder->weights_size;
+        datastream_size = this->builder->datastream_size;
         currentWeights = new float[weights_size];
         preStoredRewards = new float[directions];
         memcpy(currentWeights, nn->weights, weights_size * sizeof(float));
@@ -78,13 +87,14 @@ struct GRS
         }
     }
 
-    GRS(PipelineBuilder builder, size_t stairs) : stairs(stairs), builder(builder)
+    GRS(PipelineBuilder *builder, size_t stairs) : stairs(stairs), builder(new PipelineBuilder(builder))
     {
         directions = stairs * (stairs + 1);
         // optimizer = new LeaderboardOptimizer(stairs, directions);
-        optimizer = new IterativeOptimizer(stairs);
-        weights_size = this->builder.weights_size;
-        datastream_size = this->builder.datastream_size;
+        _optimizer = new IterativeOptimizer(stairs);
+        optimizer = _optimizer;
+        weights_size = this->builder->weights_size;
+        datastream_size = this->builder->datastream_size;
         currentWeights = new float[weights_size];
         preStoredRewards = new float[directions];
         memset(currentWeights, 0, weights_size * sizeof(float));
@@ -95,12 +105,24 @@ struct GRS
             allWeights[i] = new float[weights_size];
             preStoredTempWeights[i] = new float[weights_size];
             memset(allWeights[i], 0, weights_size * sizeof(float));
+            memset(preStoredTempWeights[i], 0, weights_size * sizeof(float));
+        }
+    }
+
+    void resetWeights()
+    {
+        memset(currentWeights, 0, weights_size * sizeof(float));
+        for (size_t i = 0; i < directions; i++)
+        {
+            memset(allWeights[i], 0, weights_size * sizeof(float));
+            memset(preStoredTempWeights[i], 0, weights_size * sizeof(float));
         }
     }
 
     ~GRS()
     {
-        delete optimizer;
+        printf("Clearing GRS\n");
+        // delete _optimizer;
         delete[] currentWeights;
         delete[] preStoredRewards;
         for (size_t i = 0; i < directions; i++)
@@ -112,18 +134,46 @@ struct GRS
         delete[] preStoredTempWeights;
     }
 
-    void initGPU()
+    void initGPU(bool applyFirstNoise = true, size_t expansion_factor = 1)
     {
-        cudaMalloc(&gpuWeights, directions * weights_size * sizeof(float));
-        cudaMalloc(&gpuRewardArray, directions * sizeof(float));
-        cudaMemset(gpuRewardArray, 0, directions * sizeof(float));
-        cudaMalloc(&gpuDatastream, builder.datastream_size * directions * sizeof(float));
-        cudaMalloc(&gpuInstructions, builder.num_instructions * directions * sizeof(Instruction));
-        size_t buffer_size = builder.calculateMemoryRequired();
-        void *buffer = malloc(buffer_size);
-        builder.serializeMemory(buffer);
-        cudaMalloc(&gpuSerializedMemory, buffer_size);
-        cudaMemcpy(gpuSerializedMemory, buffer, buffer_size, cudaMemcpyHostToDevice);
+        size_t kernels = directions * expansion_factor;
+        cudaMalloc(&gpuWeights, kernels * weights_size * sizeof(float));
+        cudaMalloc(&gpuRewardArray, kernels * sizeof(float) * expansion_factor);
+        cudaMemset(gpuRewardArray, 0, kernels * sizeof(float) * expansion_factor);
+
+        PipelineBuilder *tempBuilder = new PipelineBuilder[kernels];
+        for (size_t i = 0; i < kernels; i++)
+        {
+            printf("Copying without problem: %d\n", tempBuilder[i].ownMemory);
+            memcpy(tempBuilder + i, builder, sizeof(PipelineBuilder));
+            tempBuilder[i].ownMemory = false;
+            tempBuilder[i].ownFastExecution = false;
+            printf("Copying without problem: %lu\n", builder->datastream_size);
+        }
+
+        cudaMalloc(&gpuBuilders, kernels * sizeof(PipelineBuilder));
+        cudaMemcpy(gpuBuilders, tempBuilder, kernels * sizeof(PipelineBuilder), cudaMemcpyHostToDevice);
+
+        delete[] tempBuilder;
+
+        cudaMalloc(&gpuDatastream, builder->datastream_size * kernels * sizeof(float));
+        cudaMalloc(&gpuInstructions, builder->num_instructions * kernels * sizeof(Instruction));
+        size_t buffer_size = builder->calculateMemoryRequired();
+        void *buffer = malloc(buffer_size * expansion_factor);
+        // for (size_t i = 0; i < kernels; i++)
+        // {
+        //    builder->serializeMemory(buffer + buffer_size * i);
+        // }
+        builder->serializeMemory(buffer);
+
+        cudaMalloc(&gpuSerializedMemory, buffer_size * expansion_factor);
+        cudaMemcpy(gpuSerializedMemory, buffer, buffer_size * expansion_factor, cudaMemcpyHostToDevice);
+        if (applyFirstNoise)
+        {
+            applyNoise(allWeights);
+            copyWeigthsToGPU();
+        }
+        free(buffer);
     }
 
     void copyWeigthsToGPU()
@@ -167,13 +217,42 @@ struct GRS
         updateWeights(preStoredRewards, influences);
     }
 
+    void applyNoise(float **originWeights)
+    {
+        std::normal_distribution<float> distribution(0.0, 1);
+        float noiseAmp = optimizer->getNextNoise();
+        float *noises = new float[weights_size];
+        for (size_t dir = 0; dir < directions / 2; dir++)
+        {
+            for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
+            {
+                noises[w_idx] = distribution(generator) * noiseAmp;
+            }
+            /* for (auto influence : influences)
+            {
+                for (size_t w_idx = influence.location; w_idx < influence.location + influence.length; w_idx++)
+                {
+                    noises[w_idx] *= influence.influence;
+                }
+            } */
+
+            for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
+            {
+                allWeights[dir * 2][w_idx] = originWeights[dir * 2][w_idx] + noises[w_idx];
+                allWeights[dir * 2 + 1][w_idx] = originWeights[dir * 2 + 1][w_idx] - noises[w_idx];
+            }
+        }
+        delete[] noises;
+    }
+
     void updateWeights(float *rewards, vector<WeightInfluence> influences = {})
     {
         // print influences
-        /*         for (auto influence : influences)
-                {
-                    cout << "influence: " << influence.location << " " << influence.length << " " << influence.influence << endl;
-                } */
+        /*
+        for (auto influence : influences)
+        {
+            cout << "influence: " << influence.location << " " << influence.length << " " << influence.influence << endl;
+        } */
         optimizer->updateRewards(rewards);
         // optimizer->updateRewards(rewards);
         vector<RewardEntry> rEntries = createEntryFromRewards(rewards, directions, 1);
@@ -196,40 +275,13 @@ struct GRS
                 memcpy(preStoredTempWeights[pointer], allWeights[idx], weights_size * sizeof(float));
                 pointer++;
             }
-            /*            for (size_t i = 0; i < weights_size; i++)
-                       {
-                           printf("allWeights[%llu]: %f\n", static_cast<unsigned long long>(i), allWeights[idx][i]);
-                       } */
         }
         // printf("\n");
 
-        std::normal_distribution<float> distribution(0.0, 1);
-        float noiseAmp = optimizer->getNextNoise();
-        float *noises = new float[weights_size];
-        for (size_t dir = 0; dir < directions / 2; dir++)
-        {
-            for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
-            {
-                noises[w_idx] = distribution(generator) * noiseAmp;
-            }
-            /* for (auto influence : influences)
-            {
-                for (size_t w_idx = influence.location; w_idx < influence.location + influence.length; w_idx++)
-                {
-                    noises[w_idx] *= influence.influence;
-                }
-            } */
-
-            for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
-            {
-                allWeights[dir * 2][w_idx] = preStoredTempWeights[dir * 2][w_idx] + noises[w_idx];
-                allWeights[dir * 2 + 1][w_idx] = preStoredTempWeights[dir * 2 + 1][w_idx] - noises[w_idx];
-            }
-        }
-        delete[] noises;
+        applyNoise(preStoredTempWeights);
     }
 
-    void initCPU()
+    void initCPU(bool applyFirstNoise = true)
     {
         // Allocate memory for CPU weights
         cpuWeights = new float[directions * weights_size];
@@ -240,19 +292,32 @@ struct GRS
         memset(cpuRewardArray, 0, directions * sizeof(float));
 
         // Allocate memory for CPU datastream
-        cpuDatastream = new float[builder.datastream_size * directions];
-        memset(cpuDatastream, 0, builder.datastream_size * directions * sizeof(float));
+        cpuDatastream = new float[builder->datastream_size * directions];
+        memset(cpuDatastream, 0, builder->datastream_size * directions * sizeof(float));
 
         // Allocate memory for CPU datastream
-        cpuMemory = new float[builder.memory_size * directions];
-        memset(cpuMemory, 0, builder.memory_size * directions * sizeof(float));
+        cpuMemory = new float[builder->memory_size * directions];
+        memset(cpuMemory, 0, builder->memory_size * directions * sizeof(float));
 
         // Allocate memory for CPU instructions
-        cpuInstructions = new Instruction[builder.num_instructions * directions];
+        cpuInstructions = new Instruction[builder->num_instructions * directions];
         // Initialize cpuInstructions if necessary, depending on how they are used in your program
+
+        cpuBuilders = new PipelineBuilder *[directions];
+        for (size_t i = 0; i < directions; i++)
+        {
+            cpuBuilders[i] = new PipelineBuilder(builder);
+            cpuBuilders[i]->init(cpuDatastream + i * builder->datastream_size, cpuWeights + i * weights_size, cpuInstructions + i * builder->num_instructions);
+        }
+        printf("cpu initialized\n");
 
         // Other CPU initialization steps
         it_pointer = 0; // Assuming it_pointer is used as an iterator or counter, initialize it as needed
+        if (applyFirstNoise)
+        {
+            applyNoise(allWeights);
+            copyWeigthsToCPU();
+        }
     }
 
     void initIterator()
@@ -262,22 +327,21 @@ struct GRS
 
     RunnerInfo getNext()
     {
-        PipelineBuilder newBuilder = builder;
-        newBuilder.init(cpuDatastream + it_pointer * builder.datastream_size, cpuWeights + it_pointer * weights_size, cpuInstructions + it_pointer * builder.num_instructions);
         size_t current_pointer = it_pointer;
         it_pointer++;
         return {
-            newBuilder,
+            cpuBuilders[current_pointer],
             current_pointer,
-            cpuInstructions + current_pointer * builder.num_instructions,
+            cpuInstructions + current_pointer * builder->num_instructions,
             cpuWeights + current_pointer * weights_size,
-            cpuMemory + current_pointer * builder.memory_size,
-            cpuDatastream + current_pointer * builder.datastream_size,
+            cpuMemory + current_pointer * builder->memory_size,
+            cpuDatastream + current_pointer * builder->datastream_size,
             cpuRewardArray + current_pointer};
     }
 
     void clearGPU()
     {
+        printf("clearing gpu\n");
         cudaFree(gpuWeights);
         cudaFree(gpuRewardArray);
         cudaFree(gpuDatastream);
@@ -291,6 +355,7 @@ struct GRS
         gpuMemory = nullptr;
         gpuInstructions = nullptr;
         gpuSerializedMemory = nullptr;
+        printf("gpu cleared\n");
     }
 
     void clearCPU()
@@ -300,11 +365,19 @@ struct GRS
         delete[] cpuDatastream;
         delete[] cpuMemory;
         delete[] cpuInstructions;
+        for (size_t i = 0; i < directions; i++)
+        {
+            delete cpuBuilders[i];
+        }
+        delete[] cpuBuilders;
 
         cpuWeights = nullptr;
         cpuRewardArray = nullptr;
         cpuDatastream = nullptr;
         cpuMemory = nullptr;
         cpuInstructions = nullptr;
+        cpuBuilders = nullptr;
     }
+
+    ;
 };

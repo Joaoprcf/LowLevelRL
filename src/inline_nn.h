@@ -267,6 +267,15 @@ struct NeuralNetwork : TrainableLayer
 
     NeuralNetwork(Input *input, Layer *output, bool usingOwnWeights = true) : NeuralNetwork(std::vector<Input *>{input}, std::vector<Layer *>{output}, usingOwnWeights) {}
 
+    ~NeuralNetwork()
+    {
+        delete[] datastream;
+        if (usingOwnWeights)
+        {
+            delete[] weights;
+        }
+    }
+
     virtual vector<Instruction> createLowLevelInstructions(InstructionsGuide guide)
     {
         // TODO
@@ -312,12 +321,42 @@ struct PipelineBuilder
     size_t *inputSizes;
     size_t *outputSizes;
     size_t *outputLocations;
-    Instruction *fastExecution; // Assuming allocation on the fly
+    Instruction *fastExecution = nullptr; // Assuming allocation on the fly
 
-    PipelineBuilder() {}
+    // memory management
+    bool ownFastExecution = false;
+    bool ownMemory = false;
+
+    PipelineBuilder()
+    {
+        // printf("Empty pipeline builder created in %p\n", this);
+    }
+
+    PipelineBuilder(PipelineBuilder *builder)
+    {
+        // printf("Deep copying pipeline builder in %p\n", this);
+        weights_size = builder->weights_size;
+        datastream_size = builder->datastream_size;
+        memory_size = builder->memory_size;
+        num_inputs = builder->num_inputs;
+        num_outputs = builder->num_outputs;
+        num_instructions = builder->num_instructions;
+
+        // Allocate buffer based on the calculated size
+        size_t buffer_size = builder->calculateMemoryRequired();
+        void *buffer = malloc(buffer_size);
+
+        // Serialize data into the buffer
+        builder->serializeMemory(buffer);
+        this->unserializeMemory(buffer, true);
+        fastExecution = nullptr; // Allocate as needed
+
+        free(buffer);
+    }
 
     PipelineBuilder(NeuralNetwork *nn)
     {
+        // printf("Regular builder created in %p\n", this);
         assert(nn->usingOwnWeights);
         weights_size = nn->weights_size;
         datastream_size = nn->datastream_size;
@@ -353,24 +392,46 @@ struct PipelineBuilder
         {
             outputLocations[i] = nn->outputLocations[i] - nn->datastream;
         }
-
+        ownMemory = true;
         fastExecution = nullptr; // Allocate as needed
     }
     ~PipelineBuilder()
     {
         // Deallocate instructions TODO
+        if (ownMemory)
+        {
+            delete[] instructions;
+            delete[] inputSizes;
+            delete[] outputSizes;
+            delete[] outputLocations;
+            // printf("Clearing pipeline builder: ownMemory (%p)\n", this);
+        }
+        if (ownFastExecution)
+        {
+            delete[] fastExecution;
+            // printf("Clearing pipeline builder: ownFastExecution (%p)\n", this);
+        }
+        if (!ownMemory && !ownFastExecution)
+        {
+            // printf("Clearing empty pipeline builder (%p)\n", this);
+        }
     }
 
     __device__ __host__ void init(float *datastream, float *weights)
     {
-        delete[] fastExecution;
+        if (ownFastExecution)
+        {
+            delete[] fastExecution;
+        }
         fastExecution = new Instruction[num_instructions];
+        ownFastExecution = true;
         ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
     }
 
     __device__ __host__ void init(float *datastream, float *weights, Instruction *revervedSpacedInstructions)
     {
         fastExecution = revervedSpacedInstructions;
+        ownFastExecution = false;
         ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
     }
 
@@ -445,7 +506,7 @@ struct PipelineBuilder
     }
 
     // Unserialize memory contents from a vector of void pointers
-    __host__ __device__ void unserializeMemory(void *buffer)
+    __host__ __device__ void unserializeMemory(void *buffer, bool copy = false)
     {
         if (!buffer)
         {
@@ -456,20 +517,46 @@ struct PipelineBuilder
         // Pointer to keep track of the current position in buffer
         char *currentPosition = static_cast<char *>(buffer);
 
-        // Point instructions to the appropriate location in buffer
-        instructions = reinterpret_cast<RecoverableInstruction *>(currentPosition);
-        currentPosition += num_instructions * sizeof(RecoverableInstruction);
+        if (copy)
+        {
+            // Point instructions to the appropriate location in buffer
+            instructions = new RecoverableInstruction[num_instructions];
+            memcpy(instructions, reinterpret_cast<RecoverableInstruction *>(currentPosition), sizeof(RecoverableInstruction) * num_instructions);
+            currentPosition += num_instructions * sizeof(RecoverableInstruction);
 
-        // Point inputSizes to the appropriate location in buffer
-        inputSizes = reinterpret_cast<size_t *>(currentPosition);
-        currentPosition += num_inputs * sizeof(size_t);
+            // Point inputSizes to the appropriate location in buffer
+            inputSizes = new size_t[num_inputs];
+            memcpy(inputSizes, reinterpret_cast<size_t *>(currentPosition), sizeof(size_t) * num_inputs);
+            currentPosition += num_inputs * sizeof(size_t);
 
-        // Point outputSizes to the appropriate location in buffer
-        outputSizes = reinterpret_cast<size_t *>(currentPosition);
-        currentPosition += num_outputs * sizeof(size_t);
+            // Point outputSizes to the appropriate location in buffer
+            outputSizes = new size_t[num_outputs];
+            memcpy(outputSizes, reinterpret_cast<size_t *>(currentPosition), sizeof(size_t) * num_outputs);
+            currentPosition += num_outputs * sizeof(size_t);
 
-        // Point outputLocations to the appropriate location in buffer
-        outputLocations = reinterpret_cast<size_t *>(currentPosition);
-        // currentPosition += num_outputs * sizeof(size_t); // Not needed if this is the last item
+            // Point outputLocations to the appropriate location in buffer
+            outputLocations = new size_t[num_outputs];
+            memcpy(outputLocations, reinterpret_cast<size_t *>(currentPosition), sizeof(size_t) * num_outputs);
+            // currentPosition += num_outputs * sizeof(size_t); // Not needed if this is the last item
+        }
+        else
+        {
+            // Point instructions to the appropriate location in buffer
+            instructions = reinterpret_cast<RecoverableInstruction *>(currentPosition);
+            currentPosition += num_instructions * sizeof(RecoverableInstruction);
+
+            // Point inputSizes to the appropriate location in buffer
+            inputSizes = reinterpret_cast<size_t *>(currentPosition);
+            currentPosition += num_inputs * sizeof(size_t);
+
+            // Point outputSizes to the appropriate location in buffer
+            outputSizes = reinterpret_cast<size_t *>(currentPosition);
+            currentPosition += num_outputs * sizeof(size_t);
+
+            // Point outputLocations to the appropriate location in buffer
+            outputLocations = reinterpret_cast<size_t *>(currentPosition);
+            // currentPosition += num_outputs * sizeof(size_t); // Not needed if this is the last item
+        }
+        ownMemory = copy;
     }
 };

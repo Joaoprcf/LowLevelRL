@@ -7,8 +7,8 @@ RUN apt-get update && apt-get install -y \
     make
 
 # Copy your project files into the Docker image
-COPY . /project
 WORKDIR /project
+COPY . .
 
 # Build and run tests
 CMD ["make", "fast_test"]

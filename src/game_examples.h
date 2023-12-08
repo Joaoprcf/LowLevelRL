@@ -48,12 +48,54 @@ struct GuessGame
         }
     }
 
-    __host__ __device__ void step(float *action, float *observation)
+    __host__ __device__ void virtual step(float *action, float *observation)
     {
-        float expected1 = values[0] - values[1] * 0.5f;
-        float expected2 = values[2] + values[3] * 2.0f;
+        float expected[2]{
+            values[0] - values[1] * 0.5f,
+            values[2] + values[3] * 2.0f};
 
-        reward += (1.0f / (abs(expected1 - action[0]) + abs(expected2 - action[1]) + 0.01f));
+        float distance = 0.01f;
+        for (int i = 0; i < action_space; ++i)
+        {
+            distance += (expected[i] - action[i]) * (expected[i] - action[i]);
+        }
+
+        reward += 1.0f / distance;
+
+        generateValues();
+        for (int i = 0; i < observation_space; ++i)
+        {
+            observation[i] = values[i];
+        }
+        missing_steps -= 1;
+    };
+};
+
+struct GuessGameV2 : GuessGame
+{
+    int action_space = 4;
+
+    __host__ __device__ GuessGameV2() : GuessGame()
+    {
+    }
+
+    __host__ __device__ GuessGameV2(uint32_t initSeed) : GuessGame(initSeed) {}
+
+    __host__ __device__ void step(float *action, float *observation) override
+    {
+        float expected[4]{
+            values[0] - values[1] * 0.5f,
+            values[2] + values[3] * 2.0f,
+            values[0] - values[1] * 0.5f - values[4] * 4.0f,
+            values[1] - values[2] * 3.5f + 0.5f};
+
+        float distance = 0.01f;
+        for (int i = 0; i < 4; ++i)
+        {
+            distance += (expected[i] - action[i]) * (expected[i] - action[i]);
+        }
+
+        reward += 1.0f / distance;
 
         generateValues();
         for (int i = 0; i < observation_space; ++i)
