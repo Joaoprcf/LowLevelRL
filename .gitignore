@@ -7,3 +7,4 @@ report.*
 
 weights/*
 !learnable_optimizer_weights.bin
+.aider*

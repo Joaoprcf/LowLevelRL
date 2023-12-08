@@ -332,6 +332,25 @@ struct PipelineBuilder
         // printf("Empty pipeline builder created in %p\n", this);
     }
 
+    PipelineBuilder(string filename)
+    {
+        // Load from models filename
+        ifstream file(filename, ios::binary);
+        if (file.fail())
+        {
+            throw std::runtime_error("Error reading from file");
+        }
+        file.seekg(0, ios::end);
+        size_t total_size = file.tellg();
+        file.seekg(0, ios::beg);
+        void *buffer = malloc(total_size);
+        file.read((char *)buffer, total_size);
+        file.close();
+        memcpy(this, buffer, sizeof(PipelineBuilder));
+        unserializeMemory((char *)buffer + sizeof(PipelineBuilder), true);
+        free(buffer);
+    }
+
     PipelineBuilder(PipelineBuilder *builder)
     {
         // printf("Deep copying pipeline builder in %p\n", this);
@@ -415,6 +434,24 @@ struct PipelineBuilder
         {
             // printf("Clearing empty pipeline builder (%p)\n", this);
         }
+    }
+
+    void save(string filename)
+    {
+        void *buffer;
+        size_t total_size = sizeof(PipelineBuilder) + calculateMemoryRequired();
+        buffer = malloc(total_size);
+        memcpy(buffer, this, sizeof(PipelineBuilder));
+        serializeMemory((char *)buffer + sizeof(PipelineBuilder));
+        // save in models filename
+        ofstream file(filename, ios::binary);
+        if (file.fail())
+        {
+            throw std::runtime_error("Error writing to file");
+        }
+        file.write((char *)buffer, total_size);
+        file.close();
+        free(buffer);
     }
 
     __device__ __host__ void init(float *datastream, float *weights)
