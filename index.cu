@@ -1,7 +1,7 @@
 #include "src/instructions.h"
 #include "src/game_examples.h"
 #include "src/inline_nn.h"
-#include "src/grs.h"
+#include "src/grs/core_gpu.h"
 #include "src/grs_optimizers/core.h"
 #include "src/helper_functions.h"
 
@@ -76,7 +76,7 @@ int main()
         cudaStreamCreate(&stream);
 
         insideGRS[idx] = new GRS(builderInside, 9);
-        insideGRS[idx]->initGPU();
+        initGPU(insideGRS[idx]);
         initGpu<<<gridSize, blockSize, 0, stream>>>(insideGRS[idx]->gpuBuilders, insideGRS[idx]->directions, insideGRS[idx]->gpuInstructions, insideGRS[idx]->gpuDatastream, insideGRS[idx]->gpuWeights, insideGRS[idx]->gpuSerializedMemory);
         // next command will destroy the stream
 
@@ -112,7 +112,7 @@ int main()
                 {
                     printf("--> Runner %zu\n", r_idx);
                 }
-                insideGRS[r_idx]->copyWeigthsToGPU();
+                copyWeigthsToGPU(insideGRS[r_idx]);
                 cudaStream_t stream;
                 cudaStreamCreate(&stream);
 
@@ -124,7 +124,7 @@ int main()
             for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
             {
                 LearnableOptimizer *current_optimizer = dynamic_cast<LearnableOptimizer *>(insideGRS[r_idx]->optimizer);
-                insideGRS[r_idx]->updateWeightsUsingGPUInfo();
+                updateWeightsUsingGPUInfo(insideGRS[r_idx]);
                 rewards[r_idx][inside_idx] = current_optimizer->tempRewards[0];
             }
         }
@@ -149,7 +149,7 @@ int main()
     }
     for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
     {
-        insideGRS[r_idx]->clearGPU();
+        clearGPU(insideGRS[r_idx]);
         delete insideGRS[r_idx];
     }
     grs.clearCPU();

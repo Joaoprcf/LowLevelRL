@@ -14,9 +14,11 @@ std::string string_format(const std::string &format, Args... args)
         throw std::runtime_error("Error during formatting.");
     }
     auto size = static_cast<std::size_t>(size_s);
-    std::unique_ptr<char[]> buf(new char[size]);
-    snprintf(buf.get(), size, format.c_str(), args...);
-    return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+    char *buf = new char[size];
+    snprintf(buf, size, format.c_str(), args...);
+    std::string result(buf, buf + size - 1); // We don't want the '\0' inside
+    delete[] buf;
+    return result;
 }
 
 inline void saveParams(std::string filename, float *weights, size_t weights_size)

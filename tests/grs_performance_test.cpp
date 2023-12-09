@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #define TEST
-#include "../src/grs.h"
+#include "../src/grs/core.h"
 #include "../src/game_examples.h"
 #include "../src/analizers.h"
 

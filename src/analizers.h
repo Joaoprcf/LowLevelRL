@@ -1,6 +1,6 @@
 #pragma once
 #include "./inline_nn.h"
-#include "./grs.h"
+#include "./grs/core.h"
 
 #include <map>
 

@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "../src/grs.h"
+#include "../src/grs/core.h"
 
 TEST_CASE("GRS Constructor Initialization")
 {
