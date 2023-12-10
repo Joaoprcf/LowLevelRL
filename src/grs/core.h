@@ -1,6 +1,6 @@
 #pragma once
 #include "helper_functions.h"
-#include "inline_nn.h"
+#include "pipeline_builder.h"
 #include "game_examples.h"
 #include "grs_optimizers/core.h"
 #include <vector>

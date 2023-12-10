@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "../src/inline_nn.h"
+#include "../src/pipeline_builder.h"
 
 TEST_CASE("PipelineBuilder Initialization")
 {

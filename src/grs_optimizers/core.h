@@ -1,6 +1,6 @@
 #pragma once
 #include <cstddef>
-#include "../inline_nn.h"
+#include "../pipeline_builder.h"
 #include "../helper_functions.h"
 
 using namespace std;
