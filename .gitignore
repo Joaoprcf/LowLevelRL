@@ -6,5 +6,8 @@ report.*
 
 
 weights/*
-!learnable_optimizer_weights.bin
+!weights/learnable_optimizer_weights.bin
 .aider*
+
+models/*
+!models/README.md

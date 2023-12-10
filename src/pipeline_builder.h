@@ -145,13 +145,32 @@ struct PipelineBuilder
         }
     }
 
-    void save(string filename)
+    virtual void save(string filename)
     {
         void *buffer;
         size_t total_size = sizeof(PipelineBuilder) + calculateMemoryRequired();
         buffer = malloc(total_size);
         memcpy(buffer, this, sizeof(PipelineBuilder));
         serializeMemory((char *)buffer + sizeof(PipelineBuilder));
+        // save in models filename
+        ofstream file(filename, ios::binary);
+        if (file.fail())
+        {
+            throw std::runtime_error("Error writing to file");
+        }
+        file.write((char *)buffer, total_size);
+        file.close();
+        free(buffer);
+    }
+
+    void saveTrained(string filename, float *weights)
+    {
+        void *buffer;
+        size_t total_size = sizeof(PipelineBuilder) + calculateMemoryRequired() + (weights_size * sizeof(float));
+        buffer = malloc(total_size);
+        memcpy(buffer, this, sizeof(PipelineBuilder));
+        serializeMemory((char *)buffer + sizeof(PipelineBuilder));
+        memcpy((char *)buffer + sizeof(PipelineBuilder) + calculateMemoryRequired(), weights, weights_size * sizeof(float));
         // save in models filename
         ofstream file(filename, ios::binary);
         if (file.fail())
@@ -174,9 +193,9 @@ struct PipelineBuilder
         ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
     }
 
-    __device__ __host__ void init(float *datastream, float *weights, Instruction *revervedSpacedInstructions)
+    __device__ __host__ void init(float *datastream, float *weights, Instruction *reversedSpacedInstructions)
     {
-        fastExecution = revervedSpacedInstructions;
+        fastExecution = reversedSpacedInstructions;
         ownFastExecution = false;
         ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
     }
@@ -304,5 +323,94 @@ struct PipelineBuilder
             // currentPosition += num_outputs * sizeof(size_t); // Not needed if this is the last item
         }
         ownMemory = copy;
+    }
+};
+
+struct TrainedPipelineBuilder : PipelineBuilder
+{
+    // Always hold own memory
+    float *weights;
+    TrainedPipelineBuilder(string filename)
+    {
+        // Load from models filename
+        ifstream file(filename, ios::binary);
+        if (file.fail())
+        {
+            throw std::runtime_error("Error reading from file");
+        }
+        file.seekg(0, ios::end);
+        size_t total_size = file.tellg();
+        file.seekg(0, ios::beg);
+        void *buffer = malloc(total_size);
+        file.read((char *)buffer, total_size);
+        file.close();
+        memcpy(this, buffer, sizeof(PipelineBuilder));
+
+        unserializeMemory((char *)buffer + sizeof(PipelineBuilder), true);
+        size_t memory_used = calculateMemoryRequired() + sizeof(PipelineBuilder);
+        // Load weights from the end of the buffer
+        weights = new float[weights_size];
+        memcpy(weights, (char *)buffer + memory_used, weights_size * sizeof(float));
+
+        free(buffer);
+    }
+    TrainedPipelineBuilder(PipelineBuilder *builder) : PipelineBuilder(builder)
+    {
+        weights = new float[weights_size];
+        memset(weights, 0, weights_size * sizeof(float));
+    }
+    TrainedPipelineBuilder(NeuralNetwork *nn) : PipelineBuilder(nn)
+    {
+        weights = new float[weights_size];
+        memset(weights, 0, weights_size * sizeof(float));
+    }
+    TrainedPipelineBuilder(PipelineBuilder *builder, float *weights) : PipelineBuilder(builder)
+    {
+        this->weights = new float[weights_size];
+        loadWeights(weights);
+    }
+    TrainedPipelineBuilder(NeuralNetwork *nn, float *weights) : PipelineBuilder(nn)
+    {
+        this->weights = new float[weights_size];
+        loadWeights(weights);
+    }
+    ~TrainedPipelineBuilder()
+    {
+        // printf("Clearing trainable pipeline builder (%p)\n", this);
+        delete[] weights;
+    }
+
+    void loadWeights(float *weights)
+    {
+        memcpy(this->weights, weights, weights_size * sizeof(float));
+    }
+
+    __device__ __host__ void init(float *datastream)
+    {
+        PipelineBuilder::init(datastream, weights);
+    }
+
+    __device__ __host__ void init(float *datastream, Instruction *reversedSpacedInstructions)
+    {
+        PipelineBuilder::init(datastream, weights, reversedSpacedInstructions);
+    }
+
+    void save(string filename) override
+    {
+        void *buffer;
+        size_t total_size = sizeof(PipelineBuilder) + calculateMemoryRequired() + (weights_size * sizeof(float));
+        buffer = malloc(total_size);
+        memcpy(buffer, this, sizeof(PipelineBuilder));
+        serializeMemory((char *)buffer + sizeof(PipelineBuilder));
+        memcpy((char *)buffer + sizeof(PipelineBuilder) + calculateMemoryRequired(), weights, weights_size * sizeof(float));
+        // save in models filename
+        ofstream file(filename, ios::binary);
+        if (file.fail())
+        {
+            throw std::runtime_error("Error writing to file");
+        }
+        file.write((char *)buffer, total_size);
+        file.close();
+        free(buffer);
     }
 };
