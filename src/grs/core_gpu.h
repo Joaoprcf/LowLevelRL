@@ -4,7 +4,8 @@
 #include <curand_kernel.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "./core.h"
+#include "grs/core.h"
+#include "grs_optimizers/core_gpu.h"
 
 #include <chrono>
 
