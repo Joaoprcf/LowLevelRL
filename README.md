@@ -3,7 +3,7 @@
 ## Run the main file
 
 ```bash
-nvcc --std c++17 index.cu -o index.o && ./index.o
+nvcc --std c++17 -I./src index.cu -o index.o && ./index.o
 ```
 
 ## Run tests sequentially

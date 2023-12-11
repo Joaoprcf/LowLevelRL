@@ -1,5 +1,5 @@
 #pragma once
-#include "helper_functions.h"
+#include "helper_functions/core.h"
 #include "pipeline_builder.h"
 #include "game_examples.h"
 #include "grs_optimizers/core.h"
@@ -15,6 +15,19 @@ struct WeightInfluence
     size_t length;
     float influence;
 };
+
+void cacheInverseStairsTable(size_t *inverseStairsTable, size_t stairs)
+{
+    size_t pointer = 0;
+    for (size_t stairIdx = 0; stairIdx < stairs; stairIdx++)
+    {
+        for (int stairsLeft = (stairs - stairIdx) * 2; stairsLeft > 0; stairsLeft--)
+        {
+            inverseStairsTable[pointer] = stairIdx;
+            pointer++;
+        }
+    }
+}
 
 struct RunnerInfo
 {
@@ -46,8 +59,11 @@ struct GRS
 
     // gpu stuff
     float *gpuWeights = nullptr;
+    float *gpuTempWeights = nullptr;
+    size_t *inverseStairsTable = nullptr;
     void *gpuSerializedMemory = nullptr;
     float *gpuRewardArray = nullptr;
+    RewardEntry *gpuRewardEntryArray = nullptr;
     float *gpuDatastream = nullptr;
     float *gpuMemory = nullptr;
     Instruction *gpuInstructions = nullptr;

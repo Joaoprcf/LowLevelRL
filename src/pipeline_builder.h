@@ -15,6 +15,7 @@
 #include <map>
 #include <set>
 #include <assert.h>
+#include <cuda_runtime.h>
 
 using namespace std;
 

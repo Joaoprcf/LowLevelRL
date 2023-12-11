@@ -1,9 +1,9 @@
-#include "src/instructions.h"
-#include "src/game_examples.h"
-#include "src/inline_nn.h"
-#include "src/grs/core_gpu.h"
-#include "src/grs_optimizers/core.h"
-#include "src/helper_functions.h"
+#include "instructions.h"
+#include "game_examples.h"
+#include "inline_nn.h"
+#include "grs/core_gpu.h"
+#include "grs_optimizers/core.h"
+#include "helper_functions/core.h"
 
 void __global__ initGpu(PipelineBuilder *tempBuilder, size_t directions, Instruction *instructions, float *datastream, float *weights, void *serializedMemory)
 {
@@ -18,7 +18,7 @@ void __global__ initGpu(PipelineBuilder *tempBuilder, size_t directions, Instruc
     tempBuilder[location].init(targetDatastream, targetWeights, targetInstructions);
 }
 
-void __global__ gpuPlay(PipelineBuilder *tempBuilder, size_t directions, float *datastream, float *gpuRewardArray)
+void __global__ gpuPlay(PipelineBuilder *tempBuilder, size_t directions, float *datastream, float *gpuRewardArray, RewardEntry *gpuEntries)
 {
     size_t location = blockIdx.x * blockDim.x + threadIdx.x;
     if (location >= directions)
@@ -43,8 +43,9 @@ void __global__ gpuPlay(PipelineBuilder *tempBuilder, size_t directions, float *
         // printf("Game %llu of %llu ended successefully: %.2f\n", static_cast<unsigned long long>(i), static_cast<unsigned long long>(location), game.reward);
         reward += game.reward;
     }
-
     gpuRewardArray[location] = reward;
+    gpuEntries[location].index = location;
+    gpuEntries[location].reward = reward;
 }
 
 int main()
@@ -116,7 +117,7 @@ int main()
                 cudaStream_t stream;
                 cudaStreamCreate(&stream);
 
-                gpuPlay<<<gridSize, blockSize, 0, stream>>>(insideGRS[r_idx]->gpuBuilders, insideGRS[r_idx]->directions, insideGRS[r_idx]->gpuDatastream, insideGRS[r_idx]->gpuRewardArray);
+                gpuPlay<<<gridSize, blockSize, 0, stream>>>(insideGRS[r_idx]->gpuBuilders, insideGRS[r_idx]->directions, insideGRS[r_idx]->gpuDatastream, insideGRS[r_idx]->gpuRewardArray, insideGRS[r_idx]->gpuRewardEntryArray);
 
                 cudaStreamDestroy(stream);
             }

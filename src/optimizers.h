@@ -1,6 +1,6 @@
 #pragma once
 #include <cstddef>
-#include "helper_functions.h"
+#include "helper_functions/core.h"
 
 struct BackpropagationOptimizer
 {

@@ -1,7 +1,7 @@
 #pragma once
 #include <cstddef>
 #include "pipeline_builder.h"
-#include "helper_functions.h"
+#include "helper_functions/core.h"
 
 using namespace std;
 

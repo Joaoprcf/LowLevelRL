@@ -161,3 +161,20 @@ TEST_CASE("GRS getNext Method")
 
     grs.clearCPU();
 }
+
+TEST_CASE("Test cacheInverseStairsTable function")
+{
+    size_t stairs = 5;
+    size_t directions = stairs * (stairs + 1);
+    size_t *tempInverseStairsTable = new size_t[directions];
+    cacheInverseStairsTable(tempInverseStairsTable, stairs);
+    size_t pointer = 0;
+    for (size_t stairIdx = 0; stairIdx < stairs; stairIdx++)
+    {
+        for (int stairsLeft = (stairs - stairIdx) * 2; stairsLeft > 0; stairsLeft--)
+        {
+            REQUIRE(tempInverseStairsTable[pointer] == stairIdx);
+            pointer++;
+        }
+    }
+}

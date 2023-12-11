@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include "../src/grs_optimizers/core.h"
-#include "helper_functions.h"
+#include "helper_functions/core.h"
 #include <vector>
 
 TEST_CASE("LearnableOptimizer works properly")

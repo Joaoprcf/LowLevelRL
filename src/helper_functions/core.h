@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <cuda_runtime.h>
 
 template <typename... Args>
 std::string string_format(const std::string &format, Args... args)
@@ -60,9 +61,10 @@ inline void reverseVector(std::vector<T> &vec)
 }
 
 template <typename T, typename Compare>
-void maxHeapify(T *arr, int n, int i, Compare comparison)
+__host__ __device__ void maxHeapify(T *arr, int n, int i, Compare comparison)
 {
     int largest;
+    T temp;
     while (true)
     {
         largest = i;
@@ -77,7 +79,9 @@ void maxHeapify(T *arr, int n, int i, Compare comparison)
 
         if (largest != i)
         {
-            std::swap(arr[i], arr[largest]);
+            temp = arr[i];
+            arr[i] = arr[largest];
+            arr[largest] = temp;
             i = largest;
         }
         else
@@ -88,20 +92,22 @@ void maxHeapify(T *arr, int n, int i, Compare comparison)
 }
 
 template <typename T, typename Compare>
-void buildMaxHeap(T *arr, int n, Compare comparison)
+__host__ __device__ void buildMaxHeap(T *arr, int n, Compare comparison)
 {
     for (int i = n / 2 - 1; i >= 0; i--)
         maxHeapify(arr, n, i, comparison);
 }
 
 template <typename T, typename Compare>
-void heapSort(T *arr, int n, Compare comparison)
+__host__ __device__ void heapSort(T *arr, int n, Compare comparison)
 {
     buildMaxHeap(arr, n, comparison);
-
+    T temp;
     for (int i = n - 1; i >= 1; i--)
     {
-        std::swap(arr[0], arr[i]);
+        temp = arr[0];
+        arr[0] = arr[i];
+        arr[i] = temp;
         maxHeapify(arr, i, 0, comparison);
     }
 }
@@ -119,6 +125,7 @@ struct RewardEntry
 {
     int index;
     float reward;
+    __host__ __device__ RewardEntry() : index(0), reward(0) {}
     RewardEntry(float *rewards, int rewardIndex)
     {
         index = rewardIndex;
@@ -126,7 +133,7 @@ struct RewardEntry
     }
 };
 
-inline bool comparison(const RewardEntry &node1, const RewardEntry &node2)
+__host__ __device__ inline bool comparison(const RewardEntry &node1, const RewardEntry &node2)
 {
     return node1.reward > node2.reward;
 }
