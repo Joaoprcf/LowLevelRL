@@ -57,9 +57,9 @@ void __global__ gpuPlay(PipelineBuilder *tempBuilder, size_t directions, float *
 int main()
 {
 
-    GRS grs(LearnableOptimizer::getBuilder(), 10);
-    LearnableOptimizer *ownOptimizer = new LearnableOptimizer(grs.directions, "learnable_w2");
-    grs.optimizer = ownOptimizer;
+    GRS grs(LearnableOptimizer::getBuilder(), 20);
+    // LearnableOptimizer *ownOptimizer = new LearnableOptimizer(grs.directions, "learnable_w2");
+    // grs.optimizer = ownOptimizer;
 
     auto [gridSize, blockSize] = getGridAndBlockSizes();
 
@@ -78,7 +78,7 @@ int main()
         cudaStream_t stream;
         cudaStreamCreate(&stream);
 
-        insideGRS[idx] = new GRS(builderInside, 10);
+        insideGRS[idx] = new GRS(builderInside, 20);
         initGPU(insideGRS[idx]);
         initGpu<<<gridSize, blockSize, 0, stream>>>(insideGRS[idx]->gpuBuilders, insideGRS[idx]->directions, insideGRS[idx]->gpuInstructions, insideGRS[idx]->gpuDatastream, insideGRS[idx]->gpuWeights, insideGRS[idx]->gpuSerializedMemory);
 
@@ -116,17 +116,17 @@ int main()
             cudaStreamCreate(&streams[r_idx]);
         }
         // printf("Initialization took %.3f milliseconds\n", duration_us.count() / 1000.0f);
+        for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
+        {
+            copyWeigthsToGPU(insideGRS[r_idx], streams[r_idx]);
+        }
         for (size_t inside_idx = 0; inside_idx < steps; inside_idx++)
         {
             for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
             {
-                copyWeigthsToGPU(insideGRS[r_idx], streams[r_idx]);
-            }
-            for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
-            {
+
                 gpuPlay<<<gridSize, blockSize, 0, streams[r_idx]>>>(insideGRS[r_idx]->gpuBuilders, insideGRS[r_idx]->directions, insideGRS[r_idx]->gpuDatastream, insideGRS[r_idx]->gpuRewardArray, insideGRS[r_idx]->gpuRewardEntryArray);
             }
-            // cudaDeviceSynchronize();
             for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
             {
                 LearnableOptimizer *current_optimizer = dynamic_cast<LearnableOptimizer *>(insideGRS[r_idx]->optimizer);

@@ -15,7 +15,6 @@
 #include <map>
 #include <set>
 #include <assert.h>
-#include <cuda_runtime.h>
 
 using namespace std;
 
@@ -35,7 +34,7 @@ struct PipelineBuilder
 
     // memory management
     bool ownFastExecution = false;
-    bool ownMemory = false;
+    bool manage_memory = false;
 
     PipelineBuilder()
     {
@@ -61,7 +60,7 @@ struct PipelineBuilder
         free(buffer);
     }
 
-    PipelineBuilder(PipelineBuilder *builder)
+    PipelineBuilder(PipelineBuilder *builder, bool manage_memory = true) : manage_memory(manage_memory)
     {
         // printf("Deep copying pipeline builder in %p\n", this);
         weights_size = builder->weights_size;
@@ -70,6 +69,11 @@ struct PipelineBuilder
         num_inputs = builder->num_inputs;
         num_outputs = builder->num_outputs;
         num_instructions = builder->num_instructions;
+
+        if (!manage_memory)
+        {
+            return;
+        }
 
         // Allocate buffer based on the calculated size
         size_t buffer_size = builder->calculateMemoryRequired();
@@ -83,10 +87,14 @@ struct PipelineBuilder
         free(buffer);
     }
 
-    PipelineBuilder(NeuralNetwork *nn)
+    PipelineBuilder(NeuralNetwork *nn, bool manage_memory = true) : manage_memory(manage_memory)
     {
-        // printf("Regular builder created in %p\n", this);
         assert(nn->usingOwnWeights);
+        if (!manage_memory)
+        {
+            return;
+        }
+        // printf("Regular builder created in %p\n", this);
         weights_size = nn->weights_size;
         datastream_size = nn->datastream_size;
         memory_size = nn->memory.size();
@@ -121,26 +129,26 @@ struct PipelineBuilder
         {
             outputLocations[i] = nn->outputLocations[i] - nn->datastream;
         }
-        ownMemory = true;
+        manage_memory = true;
         fastExecution = nullptr; // Allocate as needed
     }
+
     ~PipelineBuilder()
     {
         // Deallocate instructions TODO
-        if (ownMemory)
+        if (manage_memory)
         {
             delete[] instructions;
             delete[] inputSizes;
             delete[] outputSizes;
             delete[] outputLocations;
-            // printf("Clearing pipeline builder: ownMemory (%p)\n", this);
+            // printf("Clearing pipeline builder: manage_memory (%p)\n", this);
         }
         if (ownFastExecution)
         {
             delete[] fastExecution;
-            // printf("Clearing pipeline builder: ownFastExecution (%p)\n", this);
         }
-        if (!ownMemory && !ownFastExecution)
+        if (!manage_memory && !ownFastExecution)
         {
             // printf("Clearing empty pipeline builder (%p)\n", this);
         }
@@ -323,7 +331,7 @@ struct PipelineBuilder
             outputLocations = reinterpret_cast<size_t *>(currentPosition);
             // currentPosition += num_outputs * sizeof(size_t); // Not needed if this is the last item
         }
-        ownMemory = copy;
+        manage_memory = copy;
     }
 };
 

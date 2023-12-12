@@ -101,11 +101,11 @@ void applyNoiseInGPU(GRS *grs, cudaStream_t stream = 0)
 
 void updateWeightsInGPU(GRS *grs, cudaStream_t stream = 0)
 {
-
     // optimizerUpdateRewards(grs->optimizer, grs->gpuRewardArray, grs->directions, grs->weights_size);
-    cudaMemcpy(grs->allWeightsSerialized, grs->gpuWeights, grs->directions * grs->weights_size * sizeof(float), cudaMemcpyDeviceToHost); // TODO add stream
-    grs->optimizer->updateRewards(grs->allWeightsSerialized);
-    cudaMemcpy(grs->gpuWeights, grs->allWeightsSerialized, grs->directions * grs->weights_size * sizeof(float), cudaMemcpyHostToDevice); // TODO add stream
+    cudaMemcpy(grs->preStoredRewards, grs->gpuRewardArray, grs->directions * sizeof(float), cudaMemcpyDeviceToHost); // TODO add stream
+    grs->optimizer->updateRewards(grs->preStoredRewards);
+
+    // cudaMemcpy(grs->gpuWeights, grs->allWeightsSerialized, grs->directions * grs->weights_size * sizeof(float), cudaMemcpyHostToDevice); // TODO add stream
 
     // thrust::device_ptr<RewardEntry> dev_ptr(grs->gpuRewardEntryArray);
     // thrust::sort(thrust::cuda::par.on(stream), dev_ptr, dev_ptr + grs->directions, ComparisonFunctor());
@@ -124,7 +124,7 @@ void updateWeightsInGPU(GRS *grs, cudaStream_t stream = 0)
 
 void updateWeightsUsingGPUInfo(GRS *grs, cudaStream_t stream = 0)
 {
-    if (false && optmizerAllowGPU(grs->optimizer))
+    if (optmizerAllowGPU(grs->optimizer))
     {
         updateWeightsInGPU(grs, stream);
     }
@@ -159,7 +159,7 @@ void initGPU(GRS *grs, bool applyFirstNoise = true)
     for (size_t i = 0; i < grs->directions; i++)
     {
         memcpy(tempBuilder + i, grs->builder, sizeof(PipelineBuilder));
-        tempBuilder[i].ownMemory = false;
+        tempBuilder[i].manage_memory = false;
         tempBuilder[i].ownFastExecution = false;
         // printf("Copying without problem: %lu\n", grs->builder->datastream_size);
     }
@@ -200,6 +200,7 @@ void initGPU(GRS *grs, bool applyFirstNoise = true)
     {
         if (optmizerAllowGPU(grs->optimizer))
         {
+            // initOptimizerGPU(grs->optimizer);
             applyNoiseInGPU(grs);
         }
         else
@@ -211,6 +212,7 @@ void initGPU(GRS *grs, bool applyFirstNoise = true)
                 copyWeigthsToGPU(grs);
         }
     }
+
     free(buffer);
 }
 

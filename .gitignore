@@ -2,8 +2,7 @@ build
 .vscode
 **.o
 **.txt
-report.*
-
+report*
 
 weights/*
 !weights/learnable_optimizer_weights.bin

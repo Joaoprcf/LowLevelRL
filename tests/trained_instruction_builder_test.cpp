@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "../src/pipeline_builder.h"
+#include "../src/pipeline_builder/core.h"
 
 TEST_CASE("TrainedPipelineBuilder Save (using NN as argument) and Load")
 {

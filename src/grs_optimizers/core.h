@@ -1,6 +1,7 @@
+
 #pragma once
 #include <cstddef>
-#include "pipeline_builder.h"
+#include "pipeline_builder/core.h"
 #include "helper_functions/core.h"
 
 using namespace std;
@@ -306,6 +307,11 @@ struct LearnableOptimizer : GRSOptimizer
     PipelineBuilder *builder;
     size_t weights_size;
     size_t datastream_size;
+    size_t record_pointer = 0;
+    size_t max_context_window = 400;
+    size_t batch_record_size = 5;
+    size_t directions;
+    bool manage_memory;
     float *weights;
     float *datastream;
     float **records;
@@ -313,13 +319,12 @@ struct LearnableOptimizer : GRSOptimizer
     float *learningRateHistory;
     float *reservedCalculationSpace;
     float *tempRewards;
-    size_t record_pointer = 0;
-    size_t max_context_window = 400;
-    size_t batch_record_size = 5;
-    size_t directions;
 
-    LearnableOptimizer(size_t directions) : GRSOptimizer(0.1f), directions(directions)
+    LearnableOptimizer(size_t directions, bool manage_memory = true) : GRSOptimizer(0.1f), directions(directions), manage_memory(manage_memory)
     {
+        printf("Creating LearnableOptimizer %d\n", this->manage_memory);
+        if (!this->manage_memory)
+            return;
         builder = getBuilder();
 
         weights_size = builder->weights_size;
@@ -343,14 +348,20 @@ struct LearnableOptimizer : GRSOptimizer
         builder->init(datastream, weights);
     }
 
-    LearnableOptimizer(size_t directions, string weights_path) : LearnableOptimizer(directions)
+    LearnableOptimizer(size_t directions, string weights_path) : LearnableOptimizer(directions, true)
     {
+        printf("BEING CALLED!!\n");
         loadParams(weights_path, weights, weights_size);
+    }
+    LearnableOptimizer(size_t directions, const char *weights_path) : LearnableOptimizer(directions, string(weights_path))
+    {
     }
 
     ~LearnableOptimizer()
     {
-        printf("deleting learnable optimizer\n");
+        printf("Clearing LearnableOptimizer\n");
+        if (!manage_memory)
+            return;
         delete builder;
         delete[] weights;
         delete[] datastream;
@@ -382,14 +393,6 @@ struct LearnableOptimizer : GRSOptimizer
     {
         record_pointer = 0;
         learningRate = 0.1f;
-    }
-
-    float getMedianFromRecord(float *record, size_t amount)
-    {
-
-        size_t medianIdx = amount / 2;
-
-        return record[medianIdx];
     }
 
     float getMedianFromContextWindow(size_t amount, size_t batch)
@@ -432,6 +435,7 @@ struct LearnableOptimizer : GRSOptimizer
 
     void updateRewards(float *newRewards) override
     {
+        // printf("Calling LearnableOptimizer->updateRewards\n");
         // printf("try nr 1\n");
         // printf("records[0][0]: %.3f\n", records[0][0]);
 
@@ -525,8 +529,9 @@ struct LearnableOptimizer : GRSOptimizer
         float *dataIn[2]{inputs1, inputs2};
 
         learningRateHistory[record_idx] = learningRate;
+        // printf("Before builder\n");
         builder->FeedForward(dataIn, datastream);
-
+        // printf("After builder\n");
         float *output1 = datastream + builder->outputLocations[0];
         float *output2 = datastream + builder->outputLocations[1];
 
@@ -598,5 +603,6 @@ struct LearnableOptimizer : GRSOptimizer
 
         // printf("adjustment: %f, learningRate: %f\n", adjustment, learningRate);
         record_pointer++;
+        // printf("End of LearnableOptimizer->updateRewards\n");
     }
 };

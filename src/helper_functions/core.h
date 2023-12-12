@@ -188,3 +188,11 @@ inline std::vector<RewardEntry> createEntryFromRewards(float *splitedRewards, in
 
     return rEntries;
 }
+
+float getMedianFromRecord(float *record, size_t amount)
+{
+
+    size_t medianIdx = amount / 2;
+
+    return record[medianIdx];
+}
