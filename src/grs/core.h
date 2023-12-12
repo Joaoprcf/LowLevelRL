@@ -103,6 +103,7 @@ public:
         preStoredTempWeights = new float *[directions];
         allWeightsSerialized = new float[directions * weights_size];
         preStoredTempWeightsSerialized = new float[directions * weights_size];
+        memset(preStoredTempWeightsSerialized, 0, weights_size * directions * sizeof(float));
 
         for (size_t i = 0; i < directions; i++)
         {
@@ -127,24 +128,21 @@ public:
         preStoredTempWeights = new float *[directions];
         allWeightsSerialized = new float[directions * weights_size];
         preStoredTempWeightsSerialized = new float[directions * weights_size];
+        memset(preStoredTempWeightsSerialized, 0, weights_size * directions * sizeof(float));
 
         for (size_t i = 0; i < directions; i++)
         {
             allWeights[i] = allWeightsSerialized + i * weights_size;
             preStoredTempWeights[i] = preStoredTempWeightsSerialized + i * weights_size;
             memset(allWeightsSerialized, 0, weights_size * directions * sizeof(float));
-            memset(preStoredTempWeightsSerialized, 0, weights_size * directions * sizeof(float));
         }
     }
 
     void resetWeights()
     {
         memset(currentWeights, 0, weights_size * sizeof(float));
-        for (size_t i = 0; i < directions; i++)
-        {
-            memset(allWeightsSerialized, 0, weights_size * directions * sizeof(float));
-            memset(preStoredTempWeightsSerialized, 0, weights_size * directions * sizeof(float));
-        }
+        memset(allWeightsSerialized, 0, weights_size * directions * sizeof(float));
+        memset(preStoredTempWeightsSerialized, 0, weights_size * directions * sizeof(float));
     }
 
     ~GRS()
@@ -205,8 +203,11 @@ public:
 
     void updateWeights(float *rewards, vector<WeightInfluence> influences = {})
     {
+        // printf("Updating weights\n");
         // print influences
         optimizer->updateRewards(rewards);
+
+        // printf("Finish updating rewards\n");
         // optimizer->updateRewards(rewards);
         vector<RewardEntry> rEntries = createEntryFromRewards(rewards, directions, 1);
 

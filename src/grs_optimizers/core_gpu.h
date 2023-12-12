@@ -3,9 +3,8 @@
 
 bool optmizerAllowGPU(GRSOptimizer *optimizer)
 {
-    return false; // dynamic_cast<LearnableOptimizer *>(optimizer) != nullptr;
+    return dynamic_cast<LearnableOptimizer *>(optimizer) != nullptr;
 }
-
 void optimizerUpdateRewards(LearnableOptimizer *optimizer, float *gpuRewardArray, size_t directions, size_t weights_size)
 {
 }

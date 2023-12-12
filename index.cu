@@ -4,62 +4,64 @@
 #include "grs/core_gpu.h"
 #include "grs_optimizers/core.h"
 #include "helper_functions/core.h"
+#include <chrono>
+
+using namespace std::chrono;
 
 void __global__ initGpu(PipelineBuilder *tempBuilder, size_t directions, Instruction *instructions, float *datastream, float *weights, void *serializedMemory)
 {
-    size_t location = blockIdx.x * blockDim.x + threadIdx.x;
-    if (location >= directions)
-        return;
-
-    tempBuilder[location].unserializeMemory(serializedMemory);
-    float *targetDatastream = datastream + location * tempBuilder[location].datastream_size;
-    float *targetWeights = weights + location * tempBuilder[location].weights_size;
-    Instruction *targetInstructions = instructions + location * tempBuilder[location].num_instructions;
-    tempBuilder[location].init(targetDatastream, targetWeights, targetInstructions);
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t stride = blockDim.x * gridDim.x;
+    for (size_t location = idx; location < directions; location += stride)
+    {
+        tempBuilder[location].unserializeMemory(serializedMemory);
+        float *targetDatastream = datastream + location * tempBuilder[location].datastream_size;
+        float *targetWeights = weights + location * tempBuilder[location].weights_size;
+        Instruction *targetInstructions = instructions + location * tempBuilder[location].num_instructions;
+        tempBuilder[location].init(targetDatastream, targetWeights, targetInstructions);
+    }
 }
 
 void __global__ gpuPlay(PipelineBuilder *tempBuilder, size_t directions, float *datastream, float *gpuRewardArray, RewardEntry *gpuEntries)
 {
-    size_t location = blockIdx.x * blockDim.x + threadIdx.x;
-    if (location >= directions)
-        return;
-
-    float *targetDatastream = datastream + location * tempBuilder[location].datastream_size;
-
-    float *input = targetDatastream;
-    float *output = targetDatastream + tempBuilder[location].outputLocations[0];
-
-    GuessGameV2 game(location);
-    float reward = 0;
-    for (size_t i = 0; i < 12; i++)
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t stride = blockDim.x * gridDim.x;
+    for (size_t location = idx; location < directions; location += stride)
     {
-        game.reset(input);
 
-        while (game.missing_steps > 0)
+        float *targetDatastream = datastream + location * tempBuilder[location].datastream_size;
+
+        float *input = targetDatastream;
+        float *output = targetDatastream + tempBuilder[location].outputLocations[0];
+
+        GuessGameV2 game(location);
+        float reward = 0;
+        for (size_t i = 0; i < 12; i++)
         {
-            tempBuilder[location].FeedForwardSingle(input, targetDatastream);
-            game.step(output, input);
+            game.reset(input);
+
+            while (game.missing_steps > 0)
+            {
+                tempBuilder[location].FeedForwardSingle(input, targetDatastream);
+                game.step(output, input);
+            }
+            // printf("Game %llu of %llu ended successefully: %.2f\n", static_cast<unsigned long long>(i), static_cast<unsigned long long>(location), game.reward);
+            reward += game.reward;
         }
-        // printf("Game %llu of %llu ended successefully: %.2f\n", static_cast<unsigned long long>(i), static_cast<unsigned long long>(location), game.reward);
-        reward += game.reward;
+        gpuRewardArray[location] = reward;
+        gpuEntries[location].index = location;
+        gpuEntries[location].reward = reward;
     }
-    gpuRewardArray[location] = reward;
-    gpuEntries[location].index = location;
-    gpuEntries[location].reward = reward;
 }
 
 int main()
 {
 
-    GRS grs(LearnableOptimizer::getBuilder(), 8);
-    // LearnableOptimizer *ownOptimizer = new LearnableOptimizer(grs.directions, "learnable_optimizer_weights");
-    // grs.optimizer = ownOptimizer;
+    GRS grs(LearnableOptimizer::getBuilder(), 10);
+    LearnableOptimizer *ownOptimizer = new LearnableOptimizer(grs.directions, "learnable_w2");
+    grs.optimizer = ownOptimizer;
 
-    // Number of threads in each thread block
-    size_t gridSize = ceil(grs.directions / 32.0);
-
-    // Number of thread blocks in grid
-    size_t blockSize = 32;
+    auto [gridSize, blockSize] = getGridAndBlockSizes();
 
     Input input(5);
     Dense output1(&input, 4);
@@ -76,19 +78,20 @@ int main()
         cudaStream_t stream;
         cudaStreamCreate(&stream);
 
-        insideGRS[idx] = new GRS(builderInside, 9);
+        insideGRS[idx] = new GRS(builderInside, 10);
         initGPU(insideGRS[idx]);
         initGpu<<<gridSize, blockSize, 0, stream>>>(insideGRS[idx]->gpuBuilders, insideGRS[idx]->directions, insideGRS[idx]->gpuInstructions, insideGRS[idx]->gpuDatastream, insideGRS[idx]->gpuWeights, insideGRS[idx]->gpuSerializedMemory);
-        // next command will destroy the stream
 
         cudaStreamDestroy(stream);
-        insideGRS[idx]->optimizer = new LearnableOptimizer(grs.directions);
+        insideGRS[idx]->optimizer = new LearnableOptimizer(insideGRS[idx]->directions);
+        printf("optimizer[%lu].records[0][0]: %.3f\n", idx, dynamic_cast<LearnableOptimizer *>(insideGRS[idx]->optimizer)->records[0][0]);
     }
     cudaDeviceSynchronize();
     RunnerInfo *runnerInfoVec = new RunnerInfo[grs.directions];
     for (size_t idx = 0; idx < 800; idx++)
     {
         printf("-> Iteration %zu\n", idx);
+        auto start = high_resolution_clock::now();
         size_t steps = 151;
         float **rewards = new float *[grs.directions];
         for (size_t i = 0; i < grs.directions; i++)
@@ -104,49 +107,66 @@ int main()
             current_optimizer->loadWeights(runnerInfoVec[r_idx].targetWeights);
             current_optimizer->reset();
         }
-
+        auto stop_initializetion = high_resolution_clock::now();
+        auto duration_us = duration_cast<microseconds>(stop_initializetion - start);
+        auto start_play = high_resolution_clock::now();
+        cudaStream_t streams[grs.directions];
+        for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
+        {
+            cudaStreamCreate(&streams[r_idx]);
+        }
+        // printf("Initialization took %.3f milliseconds\n", duration_us.count() / 1000.0f);
         for (size_t inside_idx = 0; inside_idx < steps; inside_idx++)
         {
             for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
             {
-                if (inside_idx == 0)
-                {
-                    printf("--> Runner %zu\n", r_idx);
-                }
-                copyWeigthsToGPU(insideGRS[r_idx]);
-                cudaStream_t stream;
-                cudaStreamCreate(&stream);
-
-                gpuPlay<<<gridSize, blockSize, 0, stream>>>(insideGRS[r_idx]->gpuBuilders, insideGRS[r_idx]->directions, insideGRS[r_idx]->gpuDatastream, insideGRS[r_idx]->gpuRewardArray, insideGRS[r_idx]->gpuRewardEntryArray);
-
-                cudaStreamDestroy(stream);
+                copyWeigthsToGPU(insideGRS[r_idx], streams[r_idx]);
             }
-            cudaDeviceSynchronize();
+            for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
+            {
+                gpuPlay<<<gridSize, blockSize, 0, streams[r_idx]>>>(insideGRS[r_idx]->gpuBuilders, insideGRS[r_idx]->directions, insideGRS[r_idx]->gpuDatastream, insideGRS[r_idx]->gpuRewardArray, insideGRS[r_idx]->gpuRewardEntryArray);
+            }
+            // cudaDeviceSynchronize();
             for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
             {
                 LearnableOptimizer *current_optimizer = dynamic_cast<LearnableOptimizer *>(insideGRS[r_idx]->optimizer);
-                updateWeightsUsingGPUInfo(insideGRS[r_idx]);
+                updateWeightsUsingGPUInfo(insideGRS[r_idx], streams[r_idx]);
                 rewards[r_idx][inside_idx] = current_optimizer->tempRewards[0];
             }
         }
+        auto stop_play = high_resolution_clock::now();
+        auto duration_ms = duration_cast<milliseconds>(stop_play - start_play);
+        printf("Playing took %.3f seconds\n", duration_ms.count() / 1000.0f);
+        auto start_update = high_resolution_clock::now();
         for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
         {
+            cudaStreamDestroy(streams[r_idx]);
             RunnerInfo runnerInfo = runnerInfoVec[r_idx];
             heapSort(rewards[r_idx], steps, fcomp);
-            printf("finalScore: %f\n", rewards[r_idx][steps / 4]);
             (*runnerInfo.reward) = rewards[r_idx][steps / 4];
         }
-
         grs.updateWeightsUsingCPUInfo();
         heapSort(grs.cpuRewardArray, grs.directions, fcomp);
-        for (size_t i = 0; i < grs.directions; i++)
+        auto stop_update = high_resolution_clock::now();
+        duration_us = duration_cast<microseconds>(stop_update - start_update);
+        printf("Updating took %.3f milliseconds\n", duration_us.count() / 1000.0f);
+        printf("------\n");
+        for (size_t i = 0; i < 5; i++)
         {
             printf("grs.cpuRewardArray[%zu] = %.2f\n", i, grs.cpuRewardArray[i]);
         }
+        for (size_t i = grs.directions - 5; i < grs.directions; i++)
+        {
+            printf("grs.cpuRewardArray[%zu] = %.2f\n", i, grs.cpuRewardArray[i]);
+        }
+        printf("------\n");
         printf("learningRate %.4f\n", grs.optimizer->learningRate);
         // float worstReward = dynamic_cast<IterativeOptimizer *>(grs.optimizer)->movingAvgScore;
         saveParams("weights", grs.currentWeights, grs.weights_size);
         grs.copyWeigthsToCPU();
+        auto stop = high_resolution_clock::now();
+        duration_ms = duration_cast<milliseconds>(stop - start);
+        printf("Full iteration took %.3f seconds\n", duration_ms.count() / 1000.0f);
     }
     for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
     {

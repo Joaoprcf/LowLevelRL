@@ -309,6 +309,7 @@ struct LearnableOptimizer : GRSOptimizer
     float *weights;
     float *datastream;
     float **records;
+    float *serializableRecords;
     float *learningRateHistory;
     float *reservedCalculationSpace;
     float *tempRewards;
@@ -329,13 +330,16 @@ struct LearnableOptimizer : GRSOptimizer
 
         learningRateHistory = new float[max_context_window];
         reservedCalculationSpace = new float[max_context_window];
-        tempRewards = new float[max_context_window];
-        records = new float *[max_context_window];
+        tempRewards = new float[directions];
 
+        records = new float *[max_context_window];
+        serializableRecords = new float[max_context_window * batch_record_size];
+        memset(serializableRecords, 0, sizeof(float) * max_context_window * batch_record_size);
         for (size_t i = 0; i < max_context_window; i++)
         {
-            records[i] = new float[batch_record_size];
+            records[i] = serializableRecords + i * batch_record_size;
         }
+
         builder->init(datastream, weights);
     }
 
@@ -351,10 +355,7 @@ struct LearnableOptimizer : GRSOptimizer
         delete[] weights;
         delete[] datastream;
         delete[] learningRateHistory;
-        for (size_t i = 0; i < max_context_window; i++)
-        {
-            delete[] records[i];
-        }
+        delete[] serializableRecords;
         delete[] records;
     }
 
@@ -431,11 +432,39 @@ struct LearnableOptimizer : GRSOptimizer
 
     void updateRewards(float *newRewards) override
     {
+        // printf("try nr 1\n");
+        // printf("records[0][0]: %.3f\n", records[0][0]);
 
         memcpy(tempRewards, newRewards, sizeof(float) * directions);
+        // printf("try nr 2\n");
+        // printf("records[0][0]: %.3f\n", records[0][0]);
         heapSort(tempRewards, directions, fcomp);
+        // printf("try nr 3\n");
+        // printf("records[0][0]: %.3f\n", records[0][0]);
+        // exit(0);
         size_t record_idx = record_pointer % max_context_window;
-        memcpy(records[record_idx], tempRewards, sizeof(float) * batch_record_size);
+        // printf("first step of updating finished!\n");
+        size_t num_elements = min(directions, batch_record_size);
+        for (size_t i = 0; i < directions; i++)
+        {
+            // printf("tempRewards[%zu]: %.3f\n", i, tempRewards[i]);
+            // printf("newRewards[%zu]: %.3f\n", i, newRewards[i]);
+        }
+
+        for (size_t i = 0; i < num_elements; ++i)
+        {
+
+            // printf("records[%lu]:              %p\n", i, records[i]);
+            // printf("serializableRecords + %lu: %p\n", i * batch_record_size, serializableRecords + i * batch_record_size);
+            for (size_t j = 0; j < batch_record_size; ++j)
+            {
+                // printf("before failing\n");
+                // printf("records[%zu][%zu]: %.3f\n", i, j, records[i][j]);
+            }
+        }
+        // exit(0);
+        memcpy(records[record_idx], tempRewards, sizeof(float) * num_elements); // error here
+        // printf("This print does not happen\n");
 
         size_t fase = record_pointer > 31 ? 1 : 0;
         float values3[4]{
