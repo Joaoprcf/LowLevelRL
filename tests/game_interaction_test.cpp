@@ -18,7 +18,7 @@ TEST_CASE("GameHard BestCaseScenario Functionality")
     Add output = option1 + option2;
     // end BranchLayer
 
-    NeuralNetwork nn(&input, &output);
+    Model nn(&input, &output);
 
     // expected1 = values[0] > values[1] ?
     gate.weights[0] = 1.0f;

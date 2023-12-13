@@ -6,7 +6,9 @@ struct PipelineBuilderGPU : PipelineBuilder
 {
     bool ownFastExecution = false;
     bool manage_memory = false;
-    PipelineBuilderGPU(NeuralNetwork *nn) : PipelineBuilder(nn, false)
+    PipelineBuilderGPU() : PipelineBuilder() {}
+
+    PipelineBuilderGPU(Model *nn) : PipelineBuilder(nn, false)
     {
         // Determine the number of instructions and convert them to RecoverableInstruction
         num_instructions = nn->fastExecution.size();
@@ -45,7 +47,7 @@ struct PipelineBuilderGPU : PipelineBuilder
         fastExecution = nullptr; // Allocate as needed
     }
 
-    PipelineBuilderGPU(PipelineBuilderGPU *builder) : PipelineBuilder(builder, false)
+    PipelineBuilderGPU(PipelineBuilder *builder) : PipelineBuilder(builder, false)
     {
         // Calculate the required buffer size
         size_t buffer_size = builder->calculateMemoryRequired();

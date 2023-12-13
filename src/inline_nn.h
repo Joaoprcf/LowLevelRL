@@ -37,7 +37,7 @@ bool validateInputLayers(const set<Input *> &distinctInputs, const vector<Input 
     return true;
 }
 
-struct NeuralNetwork : TrainableLayer
+struct Model : TrainableLayer
 {
     size_t size_in;
     vector<Input *> inputs;
@@ -79,7 +79,7 @@ struct NeuralNetwork : TrainableLayer
 
         size_t weight_ptr = 0;
         size_t memory_ptr = 0;
-        // Append weights to NeuralNetwork's weights vector
+        // Append weights to Model's weights vector
         for (Layer *job : jobs)
         {
             if (GRU *gruLayer = dynamic_cast<GRU *>(job))
@@ -135,11 +135,11 @@ struct NeuralNetwork : TrainableLayer
         }
     }
 
-    NeuralNetwork() : TrainableLayer(nullptr, 0, 0), size_in(0), usingOwnWeights(false)
+    Model() : TrainableLayer(nullptr, 0, 0), size_in(0), usingOwnWeights(false)
     {
     }
 
-    NeuralNetwork(vector<Input *> inputs, vector<Layer *> outputs, bool applyUsingOwnWeights = true) : TrainableLayer(nullptr, 0, 0), size_in(0), usingOwnWeights(false)
+    Model(vector<Input *> inputs, vector<Layer *> outputs, bool applyUsingOwnWeights = true) : TrainableLayer(nullptr, 0, 0), size_in(0), usingOwnWeights(false)
     {
         // Ensure no duplicates or nullptrs in inputs and outputs
         assert(checkLayers(inputs));
@@ -265,9 +265,9 @@ struct NeuralNetwork : TrainableLayer
         }
     }
 
-    NeuralNetwork(Input *input, Layer *output, bool usingOwnWeights = true) : NeuralNetwork(std::vector<Input *>{input}, std::vector<Layer *>{output}, usingOwnWeights) {}
+    Model(Input *input, Layer *output, bool usingOwnWeights = true) : Model(std::vector<Input *>{input}, std::vector<Layer *>{output}, usingOwnWeights) {}
 
-    ~NeuralNetwork()
+    ~Model()
     {
         delete[] datastream;
         if (usingOwnWeights)

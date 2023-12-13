@@ -40,7 +40,7 @@ struct RunnerInfo
     float *reward;
 };
 
-struct GRS
+struct GeneticRandomSearch
 {
     size_t stairs;
     size_t directions;
@@ -68,7 +68,6 @@ struct GRS
     float *gpuMemory = nullptr;
     Instruction *gpuInstructions = nullptr;
     std::default_random_engine generator;
-    PipelineBuilder *gpuBuilders = nullptr;
 
     // gpu acceleratoers
     curandState *gpuNoiseDevStates;
@@ -87,8 +86,8 @@ private:
     GRSOptimizer *_optimizer = nullptr;
 
 public:
-    GRS(NeuralNetwork *nn, size_t stairs) : stairs(stairs),
-                                            builder(new PipelineBuilder(nn))
+    GeneticRandomSearch(Model *nn, size_t stairs) : stairs(stairs),
+                                                    builder(new PipelineBuilder(nn))
     {
         directions = stairs * (stairs + 1);
         // optimizer = new LeaderboardOptimizer(stairs, directions);
@@ -113,7 +112,7 @@ public:
         }
     }
 
-    GRS(PipelineBuilder *builder, size_t stairs) : stairs(stairs), builder(new PipelineBuilder(builder))
+    GeneticRandomSearch(PipelineBuilder *builder, size_t stairs) : stairs(stairs), builder(new PipelineBuilder(builder))
     {
         directions = stairs * (stairs + 1);
         // optimizer = new LeaderboardOptimizer(stairs, directions);
@@ -145,9 +144,9 @@ public:
         memset(preStoredTempWeightsSerialized, 0, weights_size * directions * sizeof(float));
     }
 
-    ~GRS()
+    ~GeneticRandomSearch()
     {
-        printf("Clearing GRS\n");
+        printf("Clearing GeneticRandomSearch\n");
         // delete _optimizer;
         delete[] currentWeights;
         delete[] preStoredRewards;

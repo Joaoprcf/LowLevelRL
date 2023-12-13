@@ -10,7 +10,7 @@ TEST_CASE("TrainedPipelineBuilder Save (using NN as argument) and Load")
     Dense dense1(&ct, 3);
     Dense dense2(&ct, 4);
 
-    NeuralNetwork nn({&input1, &input2}, {&dense1, &dense2});
+    Model nn({&input1, &input2}, {&dense1, &dense2});
 
     float weights[nn.weights_size];
     for (size_t i = 0; i < nn.weights_size; ++i)
@@ -55,7 +55,7 @@ TEST_CASE("TrainedPipelineBuilder Save (using PipelineBuilder as argument) and L
     Dense dense1(&ct, 3);
     Dense dense2(&ct, 4);
 
-    NeuralNetwork nn({&input1, &input2}, {&dense1, &dense2});
+    Model nn({&input1, &input2}, {&dense1, &dense2});
     PipelineBuilder inputBuilder(&nn);
 
     float weights[nn.weights_size];
@@ -101,7 +101,7 @@ TEST_CASE("PipelineBuilder SaveTrained and PipelineBuilder Load")
     Dense dense1(&ct, 3);
     Dense dense2(&ct, 4);
 
-    NeuralNetwork nn({&input1, &input2}, {&dense1, &dense2});
+    Model nn({&input1, &input2}, {&dense1, &dense2});
     PipelineBuilder builder(&nn);
 
     float weights[nn.weights_size];

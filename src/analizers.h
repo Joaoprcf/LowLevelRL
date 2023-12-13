@@ -21,8 +21,8 @@ using namespace std;
 
 struct GraphAnalizer
 {
-    NeuralNetwork *nn;
-    GraphAnalizer(NeuralNetwork *nn) : nn(nn)
+    Model *nn;
+    GraphAnalizer(Model *nn) : nn(nn)
     {
     }
 
@@ -39,7 +39,7 @@ struct WeightsInfluenceAnalizer : GraphAnalizer
     size_t weights_size;
     float *inputProximity;
 
-    WeightsInfluenceAnalizer(NeuralNetwork *nn) : GraphAnalizer(nn)
+    WeightsInfluenceAnalizer(Model *nn) : GraphAnalizer(nn)
     {
         list<Layer *> nodes;
 

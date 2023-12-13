@@ -7,7 +7,7 @@
 
 constexpr float GUESS_GAME_GOAL = 79500;
 
-/* TEST_CASE("GRS test against GuessGameHard using IterativeOptimizer using complex nn")
+/* TEST_CASE("GeneticRandomSearch test against GuessGameHard using IterativeOptimizer using complex nn")
 {
 
     Input input(5);
@@ -20,7 +20,7 @@ constexpr float GUESS_GAME_GOAL = 79500;
     Multiply option2 = dense2 * invGate;
     Add output = option1 + option2;
 
-    NeuralNetwork nn(&input, &output);
+    Model nn(&input, &output);
 
     WeightsInfluenceAnalizer analizer(&nn);
     analizer.setupInitialWeights();
@@ -29,7 +29,7 @@ constexpr float GUESS_GAME_GOAL = 79500;
 
     for (size_t stairs : {14, 17, 20})
     {
-        GRS grs(&nn, stairs);
+        GeneticRandomSearch grs(&nn, stairs);
 
         grs.initCPU();
 
@@ -100,17 +100,17 @@ constexpr float GUESS_GAME_GOAL = 79500;
     }
 } */
 
-TEST_CASE("GRS test against GuessGame using IterativeOptimizer")
+TEST_CASE("GeneticRandomSearch test against GuessGame using IterativeOptimizer")
 {
-    // Setup NeuralNetwork and GRS
+    // Setup Model and GeneticRandomSearch
     Input input(5);
     Dense output(&input, 2);
-    NeuralNetwork nn(&input, &output);
+    Model nn(&input, &output);
 
     for (size_t stairs : {8, 11, 13})
     {
 
-        GRS grs(&nn, stairs);
+        GeneticRandomSearch grs(&nn, stairs);
 
         grs.initCPU();
 
@@ -185,16 +185,16 @@ TEST_CASE("GRS test against GuessGame using IterativeOptimizer")
     }
 }
 
-TEST_CASE("GRS test against GuessGame using IterativeOptimizer using complex nn")
+TEST_CASE("GeneticRandomSearch test against GuessGame using IterativeOptimizer using complex nn")
 {
-    // Setup NeuralNetwork and GRS
+    // Setup Model and GeneticRandomSearch
     Input input1(5);
     Dense dense1(&input1, 2);
     Dense dense2(&dense1, 2);
     Dense dense3(&dense2, 2);
     Concatenate ct({&dense1, &dense3});
     Dense dense4(&ct, 2);
-    NeuralNetwork nn(&input1, &dense4);
+    Model nn(&input1, &dense4);
 
     WeightsInfluenceAnalizer analizer(&nn);
     analizer.setupInitialWeights();
@@ -203,7 +203,7 @@ TEST_CASE("GRS test against GuessGame using IterativeOptimizer using complex nn"
 
     for (size_t stairs : {8, 11, 13})
     {
-        GRS grs(&nn, stairs);
+        GeneticRandomSearch grs(&nn, stairs);
 
         grs.initCPU();
 
@@ -279,17 +279,17 @@ TEST_CASE("GRS test against GuessGame using IterativeOptimizer using complex nn"
     }
 }
 
-TEST_CASE("GRS test against GuessGame using LearnableOptimizer")
+TEST_CASE("GeneticRandomSearch test against GuessGame using LearnableOptimizer")
 {
-    // Setup NeuralNetwork and GRS
+    // Setup Model and GeneticRandomSearch
     Input input(5);
     Dense output(&input, 2);
-    NeuralNetwork nn(&input, &output);
+    Model nn(&input, &output);
 
     for (size_t stairs : {8, 11, 13})
     {
 
-        GRS grs(&nn, stairs);
+        GeneticRandomSearch grs(&nn, stairs);
         LearnableOptimizer *optimizer = new LearnableOptimizer(grs.directions, "learnable_optimizer_weights");
         grs.optimizer = optimizer;
         grs.initCPU();
@@ -366,17 +366,17 @@ TEST_CASE("GRS test against GuessGame using LearnableOptimizer")
     }
 }
 
-TEST_CASE("GRS test against GuessGameV2 using LearnableOptimizer")
+TEST_CASE("GeneticRandomSearch test against GuessGameV2 using LearnableOptimizer")
 {
-    // Setup NeuralNetwork and GRS
+    // Setup Model and GeneticRandomSearch
     Input input(5);
     Dense output(&input, 4);
-    NeuralNetwork nn(&input, &output);
+    Model nn(&input, &output);
 
     for (size_t stairs : {8, 11, 13})
     {
 
-        GRS grs(&nn, stairs);
+        GeneticRandomSearch grs(&nn, stairs);
         LearnableOptimizer *optimizer = new LearnableOptimizer(grs.directions, "learnable_optimizer_weights");
         grs.optimizer = optimizer;
         grs.initCPU();

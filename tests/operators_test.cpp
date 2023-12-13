@@ -8,7 +8,7 @@ TEST_CASE("Test Multiply with 2 inputs")
     Input input2(4);
     Multiply multiply({&input1, &input2});
 
-    NeuralNetwork nn({&input1, &input2}, {&multiply});
+    Model nn({&input1, &input2}, {&multiply});
 
     std::vector<float> data_in1 = {1.0, 2.0, 3.0, 4.0};
     std::vector<float> data_in2 = {5.0, 6.0, 7.0, 8.0};
@@ -37,7 +37,7 @@ TEST_CASE("Test Multiply with 3 inputs")
     Input input3(4);
     Multiply multiply({&input1, &input2, &input3});
 
-    NeuralNetwork nn({&input1, &input2, &input3}, {&multiply});
+    Model nn({&input1, &input2, &input3}, {&multiply});
 
     std::vector<float> data_in1 = {1.0, 2.0, 3.0, 4.0};
     std::vector<float> data_in2 = {5.0, 6.0, 7.0, 8.0};
@@ -58,7 +58,7 @@ TEST_CASE("Test Multiply operator")
     Input input2(4);
 
     Multiply multiply = input1 * input2;
-    NeuralNetwork nn({&input1, &input2}, {&multiply});
+    Model nn({&input1, &input2}, {&multiply});
 
     std::vector<float> data_in1 = {1.0, 2.0, 3.0, 4.0};
     std::vector<float> data_in2 = {5.0, 6.0, 7.0, 8.0};
@@ -87,7 +87,7 @@ TEST_CASE("Test ADD with 3 inputs")
     Input input3(4);
     Add add({&input1, &input2, &input3});
 
-    NeuralNetwork nn({&input1, &input2, &input3}, {&add});
+    Model nn({&input1, &input2, &input3}, {&add});
 
     std::vector<float> data_in1 = {1.0, 2.0, 3.0, 4.0};
     std::vector<float> data_in2 = {5.0, 6.0, 7.0, 8.0};
@@ -108,7 +108,7 @@ TEST_CASE("Test ADD operator")
     Input input2(4);
     Add add = input1 + input2;
 
-    NeuralNetwork nn({&input1, &input2}, {&add});
+    Model nn({&input1, &input2}, {&add});
 
     std::vector<float> data_in1 = {1.0, 2.0, 3.0, 4.0};
     std::vector<float> data_in2 = {5.0, 6.0, 7.0, 8.0};

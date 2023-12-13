@@ -2,11 +2,11 @@
 #include "catch.hpp"
 #include "../src/inline_nn.h"
 
-TEST_CASE("NeuralNetwork FeedForwardSingle Test")
+TEST_CASE("Model FeedForwardSingle Test")
 {
     Input input1(5);
     GRU gru1(&input1, 3);
-    NeuralNetwork nn(&input1, &gru1);
+    Model nn(&input1, &gru1);
 
     REQUIRE(nn.fastExecution[0].addr1 == nn.memory.data());
     REQUIRE(nn.fastExecution[1].addr1 == nn.datastream);

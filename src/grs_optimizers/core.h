@@ -350,7 +350,6 @@ struct LearnableOptimizer : GRSOptimizer
 
     LearnableOptimizer(size_t directions, string weights_path) : LearnableOptimizer(directions, true)
     {
-        printf("BEING CALLED!!\n");
         loadParams(weights_path, weights, weights_size);
     }
     LearnableOptimizer(size_t directions, const char *weights_path) : LearnableOptimizer(directions, string(weights_path))
@@ -379,7 +378,7 @@ struct LearnableOptimizer : GRSOptimizer
         Dense dense1(&input1, 3, ACTIVATION_TANH);
         Concatenate ct({&dense1, &input2});
         Dense dense2(&ct, 2, ACTIVATION_TANH);
-        NeuralNetwork nn({&input1, &input2}, {&dense1, &dense2});
+        Model nn({&input1, &input2}, {&dense1, &dense2});
         PipelineBuilder *defaultBuilder = new PipelineBuilder(&nn);
         return defaultBuilder;
     }

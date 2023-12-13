@@ -2,19 +2,19 @@
 #include "catch.hpp"
 #include "../src/grs/core.h"
 
-TEST_CASE("GRS Constructor Initialization")
+TEST_CASE("GeneticRandomSearch Constructor Initialization")
 {
-    // Set up NeuralNetwork
+    // Set up Model
     Input input1(5);
     Dense dense1(&input1, 2);
     Dense dense2(&dense1, 2);
     Concatenate ct({&dense1, &dense2});
     Dense dense3(&ct, 2);
-    NeuralNetwork nn(&input1, &dense3);
+    Model nn(&input1, &dense3);
 
     // Test for stairs = 4
     size_t stairs = 4;
-    GRS grs4(&nn, stairs);
+    GeneticRandomSearch grs4(&nn, stairs);
 
     REQUIRE(grs4.stairs == stairs);
     REQUIRE(grs4.directions == 20); // 4 * (4 + 1)
@@ -29,7 +29,7 @@ TEST_CASE("GRS Constructor Initialization")
 
     // Test for stairs = 5
     stairs = 5;
-    GRS grs5(&nn, stairs);
+    GeneticRandomSearch grs5(&nn, stairs);
 
     REQUIRE(grs5.stairs == stairs);
     REQUIRE(grs5.directions == 30); // 5 * (5 + 1) / 2
@@ -43,19 +43,19 @@ TEST_CASE("GRS Constructor Initialization")
     REQUIRE(grs5.optimizer != nullptr);
 }
 
-TEST_CASE("GRS updateWeights function")
+TEST_CASE("GeneticRandomSearch updateWeights function")
 {
-    // Set up NeuralNetwork
+    // Set up Model
     Input input1(5);
     Dense dense1(&input1, 2);
     Dense dense2(&dense1, 2);
     Concatenate ct({&dense1, &dense2});
     Dense dense3(&ct, 2);
-    NeuralNetwork nn(&input1, &dense3);
+    Model nn(&input1, &dense3);
 
     // Test for stairs = 2
     size_t stairs = 2;
-    GRS grs(&nn, stairs);
+    GeneticRandomSearch grs(&nn, stairs);
 
     REQUIRE(grs.stairs == stairs);
     REQUIRE(grs.directions == 6); // 4 * (4 + 1) / 2
@@ -91,17 +91,17 @@ TEST_CASE("GRS updateWeights function")
     REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[4], grs.weights_size * sizeof(float)) != 0);
 }
 
-TEST_CASE("GRS CPU Initialization and Cleanup")
+TEST_CASE("GeneticRandomSearch CPU Initialization and Cleanup")
 {
     Input input1(5);
     Dense dense1(&input1, 2);
     Dense dense2(&dense1, 2);
     Concatenate ct({&dense1, &dense2});
     Dense dense3(&ct, 2);
-    NeuralNetwork nn(&input1, &dense3);
+    Model nn(&input1, &dense3);
 
     size_t stairs = 4;
-    GRS grs(&nn, stairs);
+    GeneticRandomSearch grs(&nn, stairs);
 
     REQUIRE(grs.cpuWeights == nullptr);
     REQUIRE(grs.cpuRewardArray == nullptr);
@@ -127,18 +127,18 @@ TEST_CASE("GRS CPU Initialization and Cleanup")
     REQUIRE(grs.cpuInstructions == nullptr);
 }
 
-TEST_CASE("GRS getNext Method")
+TEST_CASE("GeneticRandomSearch getNext Method")
 {
-    // Setup NeuralNetwork and GRS
+    // Setup Model and GeneticRandomSearch
     Input input1(5);
     Dense dense1(&input1, 2);
     Dense dense2(&dense1, 2);
     Concatenate ct({&dense1, &dense2});
     Dense dense3(&ct, 2);
-    NeuralNetwork nn(&input1, &dense3);
+    Model nn(&input1, &dense3);
 
     size_t stairs = 4;
-    GRS grs(&nn, stairs);
+    GeneticRandomSearch grs(&nn, stairs);
 
     grs.initCPU();
 

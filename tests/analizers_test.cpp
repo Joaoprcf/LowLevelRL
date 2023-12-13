@@ -10,7 +10,7 @@ TEST_CASE("Analizer initialization")
     Dense dense2(&dense1, 2);
     Concatenate ct({&dense1, &dense2});
     Dense dense3(&ct, 2);
-    NeuralNetwork nn(&input1, &dense3);
+    Model nn(&input1, &dense3);
 
     WeightsInfluenceAnalizer analizer(&nn);
     analizer.setupInitialWeights();

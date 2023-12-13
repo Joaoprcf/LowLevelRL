@@ -6,7 +6,7 @@ TEST_CASE("PipelineBuilder Initialization")
 {
     Input input1(5);
     Dense dense1(&input1, 3);
-    NeuralNetwork nn(&input1, &dense1);
+    Model nn(&input1, &dense1);
 
     PipelineBuilder builder(&nn);
 
@@ -25,7 +25,7 @@ TEST_CASE("PipelineBuilder Initialization Multi Input Output")
     Dense dense1(&ct, 3);
     Dense dense2(&ct, 4);
 
-    NeuralNetwork nn({&input1, &input2}, {&dense1, &dense2});
+    Model nn({&input1, &input2}, {&dense1, &dense2});
 
     PipelineBuilder builder(&nn);
 
@@ -40,7 +40,7 @@ TEST_CASE("Instruction Conversion")
 {
     Input input1(5);
     Dense dense1(&input1, 3);
-    NeuralNetwork nn(&input1, &dense1);
+    Model nn(&input1, &dense1);
 
     PipelineBuilder builder(&nn);
 
@@ -56,21 +56,21 @@ TEST_CASE("Output Location Mapping")
 {
     Input input1(5);
     Dense dense1(&input1, 3);
-    NeuralNetwork nn(&input1, &dense1);
+    Model nn(&input1, &dense1);
 
     PipelineBuilder builder(&nn);
 
     REQUIRE(builder.outputLocations[0] == input1.size_out);
 }
 
-TEST_CASE("NeuralNetwork FeedForwardSingle Test")
+TEST_CASE("Model FeedForwardSingle Test")
 {
     Input input1(5);
     Dense dense1(&input1, 2);
     Dense dense2(&dense1, 2);
     Concatenate ct({&dense1, &dense2});
     Dense dense3(&ct, 2);
-    NeuralNetwork nn(&input1, &dense3);
+    Model nn(&input1, &dense3);
 
     dense1.weights[6] = 1;
     dense2.weights[4] = 1;
@@ -100,7 +100,7 @@ TEST_CASE("PipelineBuilder Calculate Memory Required for Neural Network")
     Dense dense2(&dense1, 2);
     Concatenate ct({&dense1, &dense2});
     Dense dense3(&ct, 2);
-    NeuralNetwork nn(&input1, &dense3);
+    Model nn(&input1, &dense3);
 
     // Create a PipelineBuilder instance
     PipelineBuilder builder(&nn);
@@ -124,7 +124,7 @@ TEST_CASE("PipelineBuilder Serialize Memory Test")
     Dense dense2(&dense1, 2);
     Concatenate ct({&dense1, &dense2});
     Dense dense3(&ct, 2);
-    NeuralNetwork nn(&input1, &dense3);
+    Model nn(&input1, &dense3);
 
     // Create a PipelineBuilder instance
     PipelineBuilder builder(&nn);
@@ -187,7 +187,7 @@ TEST_CASE("PipelineBuilder Serialize and Deserialize Test")
     Dense dense1(&ct, 3);
     Dense dense2(&ct, 4);
 
-    NeuralNetwork nn({&input1, &input2}, {&dense1, &dense2});
+    Model nn({&input1, &input2}, {&dense1, &dense2});
 
     // Create a PipelineBuilder instance
     PipelineBuilder originalBuilder(&nn);
@@ -230,7 +230,7 @@ TEST_CASE("PipelineBuilder Copy Content")
     Dense dense1(&ct, 3);
     Dense dense2(&ct, 4);
 
-    NeuralNetwork nn({&input1, &input2}, {&dense1, &dense2});
+    Model nn({&input1, &input2}, {&dense1, &dense2});
     PipelineBuilder builder(&nn);
     PipelineBuilder builderCopy = PipelineBuilder(&builder);
 
@@ -263,7 +263,7 @@ TEST_CASE("PipelineBuilder Save and Load")
     Dense dense1(&ct, 3);
     Dense dense2(&ct, 4);
 
-    NeuralNetwork nn({&input1, &input2}, {&dense1, &dense2});
+    Model nn({&input1, &input2}, {&dense1, &dense2});
     PipelineBuilder builder(&nn);
 
     builder.save("models/test_save_load.pb");

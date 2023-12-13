@@ -2,14 +2,14 @@
 #include "catch.hpp"
 #include "../src/inline_nn.h"
 
-TEST_CASE("NeuralNetwork FeedForwardSingle Test")
+TEST_CASE("Model FeedForwardSingle Test")
 {
     Input input1(5);
     Dense dense1(&input1, 2);
     Dense dense2(&dense1, 2);
     Concatenate ct({&dense1, &dense2});
     Dense dense3(&ct, 2);
-    NeuralNetwork nn(&input1, &dense3);
+    Model nn(&input1, &dense3);
 
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
@@ -29,14 +29,14 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test")
     REQUIRE(nn.fastExecution.size() == 5);
 }
 
-TEST_CASE("NeuralNetwork FeedForwardSingle Test Activations")
+TEST_CASE("Model FeedForwardSingle Test Activations")
 {
     Input input1(5);
     Dense dense1(&input1, 2);
     Dense dense2(&dense1, 2);
     Concatenate ct({&dense1, &dense2});
     Dense dense3(&ct, 2, ACTIVATION_RELU);
-    NeuralNetwork nn(&input1, &dense3);
+    Model nn(&input1, &dense3);
 
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
@@ -76,7 +76,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test Activations")
     REQUIRE(nn.fastExecution.size() == 6);
 }
 
-TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Simple Setup")
+TEST_CASE("Model initialized with usingOwnWeights as false - Simple Setup")
 {
     Input input(3);
     Dense denseLayer(&input, 2);
@@ -84,7 +84,7 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Simple Setu
     denseLayer.weights[0] = 3.0f;
     denseLayer.weights[1] = 4.0f;
 
-    NeuralNetwork nn(&input, &denseLayer, false);
+    Model nn(&input, &denseLayer, false);
 
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
@@ -94,7 +94,7 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Simple Setu
     REQUIRE(denseLayer.weights[1] == 4.0f);
 }
 
-TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Complex Setup")
+TEST_CASE("Model initialized with usingOwnWeights as false - Complex Setup")
 {
     Input input(5);
     Dense dense1(&input, 2);
@@ -107,7 +107,7 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Complex Set
     dense2.weights[1] = 2.0f;
     dense3.weights[2] = 3.0f;
 
-    NeuralNetwork nn(&input, &dense3, false);
+    Model nn(&input, &dense3, false);
 
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
@@ -118,7 +118,7 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Complex Set
     REQUIRE(dense3.weights[2] == 3.0f);
 }
 
-TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Effect on Weights")
+TEST_CASE("Model initialized with usingOwnWeights as false - Effect on Weights")
 {
     Input input(4);
     Dense denseLayer(&input, 2);
@@ -127,7 +127,7 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Effect on W
     denseLayer.weights[0] = 5.0f;
     denseLayer.weights[1] = 6.0f;
 
-    NeuralNetwork nn(&input, &denseLayer, false);
+    Model nn(&input, &denseLayer, false);
 
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
@@ -143,12 +143,12 @@ TEST_CASE("NeuralNetwork initialized with usingOwnWeights as false - Effect on W
     REQUIRE(nn.weights[1] == 6.0f);
 }
 
-TEST_CASE("NeuralNetwork FeedForwardSingle Test - Sigmoid Activation")
+TEST_CASE("Model FeedForwardSingle Test - Sigmoid Activation")
 {
     // Scenario 1: Activation within Dense Layer
     Input input(1);                             // Single input neuron
     Dense dense(&input, 2, ACTIVATION_SIGMOID); // Dense layer with 2 output neurons
-    NeuralNetwork nn(&input, &dense);
+    Model nn(&input, &dense);
 
     // Set weights for testing
     dense.weights[0] = 1.0f;  // Weight for first neuron
@@ -164,7 +164,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test - Sigmoid Activation")
     // Scenario 2: Separate Activation Layer
     Dense dense_temp(&input, 2); // Dense layer with 2 output neurons
     ActivationLayer activationLayer(&dense_temp, ACTIVATION_SIGMOID);
-    NeuralNetwork nn2(&input, &activationLayer);
+    Model nn2(&input, &activationLayer);
 
     dense_temp.weights[0] = 1.0f;  // Weight for first neuron
     dense_temp.weights[2] = -1.0f; // Weight for second neuron
@@ -176,12 +176,12 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test - Sigmoid Activation")
     REQUIRE(result[1] == Approx(0.268941f));
 }
 
-TEST_CASE("NeuralNetwork FeedForwardSingle Test - RELU Activation")
+TEST_CASE("Model FeedForwardSingle Test - RELU Activation")
 {
     // Scenario 1: Activation within Dense Layer
     Input input(1);
     Dense dense(&input, 2, ACTIVATION_RELU);
-    NeuralNetwork nn(&input, &dense);
+    Model nn(&input, &dense);
 
     // Set weights for testing
     dense.weights[0] = 1.0f;  // Weight for first neuron
@@ -197,7 +197,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test - RELU Activation")
     // Scenario 2: Separate Activation Layer
     Dense dense_temp(&input, 2);
     ActivationLayer activationLayer(&dense_temp, ACTIVATION_RELU);
-    NeuralNetwork nn2(&input, &activationLayer);
+    Model nn2(&input, &activationLayer);
 
     dense_temp.weights[0] = 1.0f;
     dense_temp.weights[2] = -1.0f;
@@ -209,12 +209,12 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test - RELU Activation")
     REQUIRE(result[1] == Approx(0.0f));
 }
 
-TEST_CASE("NeuralNetwork FeedForwardSingle Test - TANH Activation")
+TEST_CASE("Model FeedForwardSingle Test - TANH Activation")
 {
     // Scenario 1: Activation within Dense Layer
     Input input(1);
     Dense dense(&input, 2, ACTIVATION_TANH);
-    NeuralNetwork nn(&input, &dense);
+    Model nn(&input, &dense);
 
     // Set weights for testing
     dense.weights[0] = 1.0f;  // Weight for first neuron
@@ -230,7 +230,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test - TANH Activation")
     // Scenario 2: Separate Activation Layer
     Dense dense_temp(&input, 2);
     ActivationLayer activationLayer(&dense_temp, ACTIVATION_TANH);
-    NeuralNetwork nn2(&input, &activationLayer);
+    Model nn2(&input, &activationLayer);
 
     dense_temp.weights[0] = 1.0f;
     dense_temp.weights[2] = -1.0f;
@@ -242,11 +242,11 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test - TANH Activation")
     REQUIRE(result[1] == Approx(tanh(-1.0f)));
 }
 
-TEST_CASE("NeuralNetwork FeedForwardSingle Test - IF_POSITIVE Activation")
+TEST_CASE("Model FeedForwardSingle Test - IF_POSITIVE Activation")
 {
     Input input(1);
     Dense dense(&input, 2, ACTIVATION_IF_POSITIVE);
-    NeuralNetwork nn(&input, &dense);
+    Model nn(&input, &dense);
 
     dense.weights[0] = 1.0f;
     dense.weights[2] = -1.0f;
@@ -259,7 +259,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test - IF_POSITIVE Activation")
 
     Dense dense_temp(&input, 2);
     ActivationLayer activationLayer(&dense_temp, ACTIVATION_IF_POSITIVE);
-    NeuralNetwork nn2(&input, &activationLayer);
+    Model nn2(&input, &activationLayer);
 
     dense_temp.weights[0] = 1.0f;
     dense_temp.weights[2] = -1.0f;
@@ -270,11 +270,11 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test - IF_POSITIVE Activation")
     REQUIRE(result[1] == Approx(0.0f));
 }
 
-TEST_CASE("NeuralNetwork FeedForwardSingle Test - ARITHMETIC INVERSION Activation")
+TEST_CASE("Model FeedForwardSingle Test - ARITHMETIC INVERSION Activation")
 {
     Input input(1);
     Dense dense(&input, 2, ACTIVATION_ARITH_INV);
-    NeuralNetwork nn(&input, &dense);
+    Model nn(&input, &dense);
 
     dense.weights[0] = 0.2f;
     dense.weights[2] = 0.8f;
@@ -287,7 +287,7 @@ TEST_CASE("NeuralNetwork FeedForwardSingle Test - ARITHMETIC INVERSION Activatio
 
     Dense dense_temp(&input, 2);
     ActivationLayer activationLayer(&dense_temp, ACTIVATION_ARITH_INV);
-    NeuralNetwork nn2(&input, &activationLayer);
+    Model nn2(&input, &activationLayer);
 
     dense_temp.weights[0] = 0.2f;
     dense_temp.weights[2] = 0.8f;

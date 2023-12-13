@@ -36,10 +36,7 @@ struct PipelineBuilder
     bool ownFastExecution = false;
     bool manage_memory = false;
 
-    PipelineBuilder()
-    {
-        // printf("Empty pipeline builder created in %p\n", this);
-    }
+    PipelineBuilder() : ownFastExecution(false), manage_memory(false) {}
 
     PipelineBuilder(string filename)
     {
@@ -87,7 +84,7 @@ struct PipelineBuilder
         free(buffer);
     }
 
-    PipelineBuilder(NeuralNetwork *nn, bool manage_memory = true) : manage_memory(manage_memory)
+    PipelineBuilder(Model *nn, bool manage_memory = true) : manage_memory(manage_memory)
     {
         assert(nn->usingOwnWeights);
         if (!manage_memory)
@@ -368,7 +365,7 @@ struct TrainedPipelineBuilder : PipelineBuilder
         weights = new float[weights_size];
         memset(weights, 0, weights_size * sizeof(float));
     }
-    TrainedPipelineBuilder(NeuralNetwork *nn) : PipelineBuilder(nn)
+    TrainedPipelineBuilder(Model *nn) : PipelineBuilder(nn)
     {
         weights = new float[weights_size];
         memset(weights, 0, weights_size * sizeof(float));
@@ -378,7 +375,7 @@ struct TrainedPipelineBuilder : PipelineBuilder
         this->weights = new float[weights_size];
         loadWeights(weights);
     }
-    TrainedPipelineBuilder(NeuralNetwork *nn, float *weights) : PipelineBuilder(nn)
+    TrainedPipelineBuilder(Model *nn, float *weights) : PipelineBuilder(nn)
     {
         this->weights = new float[weights_size];
         loadWeights(weights);
