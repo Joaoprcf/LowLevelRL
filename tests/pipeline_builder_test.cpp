@@ -63,7 +63,7 @@ TEST_CASE("Output Location Mapping")
     REQUIRE(builder.outputLocations[0] == input1.size_out);
 }
 
-TEST_CASE("Model FeedForwardSingle Test")
+TEST_CASE("PipelineBuilder FeedForwardSingle Test")
 {
     Input input1(5);
     Dense dense1(&input1, 2);

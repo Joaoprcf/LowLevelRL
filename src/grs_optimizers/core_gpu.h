@@ -2,11 +2,6 @@
 #include <cuda_runtime.h>
 #include "grs_optimizers/core.h"
 
-bool optmizerAllowGPU(GRSOptimizer *optimizer)
-{
-    return dynamic_cast<LearnableOptimizer *>(optimizer) != nullptr;
-}
-
 // LearnableOptimizer
 
 struct LearnableOptimizerGPU : LearnableOptimizer
@@ -72,6 +67,11 @@ struct LearnableOptimizerGPU : LearnableOptimizer
     }
 };
 
+bool optmizerAllowGPU(GRSOptimizer *optimizer)
+{
+    return dynamic_cast<LearnableOptimizerGPU *>(optimizer) != nullptr;
+}
+
 void optimizerUpdateRewards(LearnableOptimizerGPU *optimizer, float *gpuRewardArray, size_t directions, size_t weights_size)
 {
 }
@@ -98,7 +98,7 @@ void optimizerUpdateRewards(GRSOptimizer *optimizer, float *gpuRewardArray, size
 
 void initOptimizerGPU(GRSOptimizer *optimizer, cudaStream_t stream = 0)
 {
-    LearnableOptimizer *learnableOptimizer = dynamic_cast<LearnableOptimizer *>(optimizer);
+    LearnableOptimizerGPU *learnableOptimizer = dynamic_cast<LearnableOptimizerGPU *>(optimizer);
     if (learnableOptimizer)
     {
         initOptimizerGPU(learnableOptimizer, stream);

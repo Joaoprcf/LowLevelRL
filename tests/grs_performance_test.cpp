@@ -187,7 +187,6 @@ TEST_CASE("GeneticRandomSearch test against GuessGame using IterativeOptimizer")
 
 TEST_CASE("GeneticRandomSearch test against GuessGame using IterativeOptimizer using complex nn")
 {
-    // Setup Model and GeneticRandomSearch
     Input input1(5);
     Dense dense1(&input1, 2);
     Dense dense2(&dense1, 2);

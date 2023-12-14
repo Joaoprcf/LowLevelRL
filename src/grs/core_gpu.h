@@ -126,7 +126,7 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
     void updateWeightsInGPU(cudaStream_t stream = 0)
     {
         // optimizerUpdateRewards(grs->optimizer, grs->gpuRewardArray, grs->directions, grs->weights_size);
-        cudaMemcpy(preStoredRewards, gpuRewardArray, directions * sizeof(float), cudaMemcpyDeviceToHost); // TODO add stream
+        cudaMemcpyAsync(preStoredRewards, gpuRewardArray, directions * sizeof(float), cudaMemcpyDeviceToHost); // TODO add stream
         optimizer->updateRewards(preStoredRewards);
 
         // cudaMemcpy(gpuWeights, allWeightsSerialized, directions * weights_size * sizeof(float), cudaMemcpyHostToDevice); // TODO add stream
@@ -230,7 +230,6 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
             }
             else
             {
-                printf("Applying noise in CPU with %.2f learning rate\n", optimizer->getNextNoise());
                 applyNoise(allWeights);
                 copyWeigthsToGPU();
             }
@@ -239,6 +238,7 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
         initGpu<<<gridSize, blockSize, 0, stream>>>(gpuBuilders, directions, gpuInstructions, gpuDatastream, gpuWeights, gpuSerializedMemory);
         cudaDeviceSynchronize();
         free(buffer);
+        printf("End of initGPU\n");
     }
 
     void clearGPU()

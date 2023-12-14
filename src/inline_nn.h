@@ -258,11 +258,13 @@ struct Model : TrainableLayer
         }
 
         BuildFastExecutionGraph(applyUsingOwnWeights);
+#ifndef TEST
         for (auto inst : fastExecution)
         {
             cout << "----\n";
             inst.debug();
         }
+#endif
     }
 
     Model(Input *input, Layer *output, bool usingOwnWeights = true) : Model(std::vector<Input *>{input}, std::vector<Layer *>{output}, usingOwnWeights) {}

@@ -37,11 +37,11 @@ TEST_CASE("GameHard BestCaseScenario Functionality")
     gate.weights[second_idx + 4] = 1.0f;
     gate.weights[second_idx + 3] = -1.0f;
 
-    // expected1(option1) = values[3] - values[2] * 0.5f
+    // expected2(option1) = values[3] - values[2] * 0.5f
     dense1.weights[second_idx + 3] = 1.0f;
     dense1.weights[second_idx + 2] = -0.5f;
 
-    // expected1(option2) = values[1] + values[0] * 2.0f;
+    // expected2(option2) = values[1] + values[0] * 2.0f;
     dense2.weights[second_idx + 1] = 1.0f;
     dense2.weights[second_idx + 0] = 2.0f;
 
