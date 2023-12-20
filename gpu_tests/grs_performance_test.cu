@@ -76,7 +76,7 @@ void __global__ gpuPlayV2(PipelineBuilder *tempBuilder, size_t directions, float
 
 void TEST_GeneticRandomSearch_test_against_GuessGame_using_IterativeOptimizer()
 {
-    printf("GeneticRandomSearch test against GuessGame using IterativeOptimizer\n");
+    printf("GeneticRandomSearch test against GuessGame using IterativeOptimizer Test:\n\n");
     auto [gridSize, blockSize] = getGridAndBlockSizes();
 
     Input input(5);
@@ -136,7 +136,7 @@ void TEST_GeneticRandomSearch_test_against_GuessGame_using_IterativeOptimizer()
 
 void TEST_GeneticRandomSearch_test_against_GuessGame_using_IterativeOptimizer_using_complex_nn()
 {
-    printf("GeneticRandomSearch test against GuessGame using IterativeOptimizer using complex nn\n");
+    printf("GeneticRandomSearch test against GuessGame using IterativeOptimizer using complex nn Test:\n\n");
     auto [gridSize, blockSize] = getGridAndBlockSizes();
 
     Input input1(5);
@@ -209,7 +209,7 @@ void TEST_GeneticRandomSearch_test_against_GuessGame_using_IterativeOptimizer_us
 
 void TEST_GeneticRandomSearch_test_against_GuessGame_using_LearnableOptimizer()
 {
-    printf("GeneticRandomSearch test against GuessGame using LearnableOptimizer\n");
+    printf("GeneticRandomSearch test against GuessGame using LearnableOptimizer Test:\n\n");
     auto [gridSize, blockSize] = getGridAndBlockSizes();
 
     Input input(5);
@@ -271,7 +271,7 @@ void TEST_GeneticRandomSearch_test_against_GuessGame_using_LearnableOptimizer()
 
 void TEST_GeneticRandomSearch_test_against_GuessGameV2_using_LearnableOptimizer()
 {
-    printf("GeneticRandomSearch test against GuessGameV2 using LearnableOptimizer\n");
+    printf("GeneticRandomSearch test against GuessGameV2 using LearnableOptimizer Test:\n\n");
     auto [gridSize, blockSize] = getGridAndBlockSizes();
     // Setup Model and GeneticRandomSearch
     Input input(5);

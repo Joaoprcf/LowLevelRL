@@ -6,6 +6,7 @@ struct PipelineBuilderGPU : PipelineBuilder
 {
     bool ownFastExecution = false;
     bool manage_memory = false;
+    PipelineBuilderGPU *gpuExecuter = nullptr;
     PipelineBuilderGPU() : PipelineBuilder() {}
 
     PipelineBuilderGPU(Model *nn) : PipelineBuilder(nn, false)
@@ -84,6 +85,7 @@ struct PipelineBuilderGPU : PipelineBuilder
         {
             // Free GPU memory
             cudaFree(fastExecution);
+            cudaFree(gpuExecuter);
         }
     }
 
@@ -118,5 +120,38 @@ struct PipelineBuilderGPU : PipelineBuilder
         memcpy(outputLocations, reinterpret_cast<size_t *>(currentPosition), num_outputs * sizeof(size_t));
 
         manage_memory = true;
+    }
+
+    __host__ pair<float *, float *> init()
+    {
+        if (ownFastExecution)
+        {
+            cudaFree(fastExecution);
+            cudaFree(gpuExecuter);
+        }
+        float *datastream;
+        float *weights;
+        cudaMallocManaged(&datastream, datastream_size * sizeof(float));
+        cudaMallocManaged(&weights, weights_size * sizeof(float));
+        cudaMallocManaged(&fastExecution, num_instructions * sizeof(Instruction));
+        ownFastExecution = true;
+        ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
+        cudaMallocManaged(&gpuExecuter, sizeof(PipelineBuilderGPU));
+        memcpy(gpuExecuter, this, sizeof(PipelineBuilderGPU));
+        return {datastream, weights};
+    }
+
+    __host__ void init(float *datastream, float *weights)
+    {
+        if (ownFastExecution)
+        {
+            cudaFree(fastExecution);
+            cudaFree(gpuExecuter);
+        }
+        cudaMallocManaged(&fastExecution, num_instructions * sizeof(Instruction));
+        ownFastExecution = true;
+        ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
+        cudaMallocManaged(&gpuExecuter, sizeof(PipelineBuilderGPU));
+        memcpy(gpuExecuter, this, sizeof(PipelineBuilderGPU));
     }
 };
