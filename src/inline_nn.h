@@ -210,7 +210,7 @@ struct Model : TrainableLayer
             if (dynamic_cast<Input *>(currentLayer) == nullptr)
             {
                 jobs.push_back(currentLayer);
-                cout << "job with size_out of " << currentLayer->size_out << " for layer of class " << typeid(*currentLayer).name() << endl;
+                // cout << "job with size_out of " << currentLayer->size_out << " for layer of class " << typeid(*currentLayer).name() << endl;
                 pointer += currentLayer->datastream_size;
             }
 
@@ -225,7 +225,6 @@ struct Model : TrainableLayer
         // Allocate the datastream array
         datastream = new float[pointer];
         datastream_size = pointer;
-        cout << "datastream size if " << pointer << endl;
 
         size_t inputPointer = 0;
         for (Layer *inputLayer : inputs)

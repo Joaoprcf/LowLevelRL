@@ -82,8 +82,8 @@ __global__ void sortEntryFromRewards(RewardEntry *rEntries, size_t *inverseStair
 
 struct GeneticRandomSearchGPU : GeneticRandomSearch
 {
-    PipelineBuilderGPU *gpuBuilders = nullptr;
-    PipelineBuilderGPU *gpuBuilder = nullptr;
+    PipelineBuilder *gpuBuilders = nullptr;
+    PipelineBuilder *gpuBuilder = nullptr;
 
     GeneticRandomSearchGPU(PipelineBuilder *builder, size_t stairs) : GeneticRandomSearch(builder, stairs)
     {
@@ -179,18 +179,18 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
         cudaMemcpy(inverseStairsTable, tempInverseStairsTable, directions * sizeof(size_t), cudaMemcpyHostToDevice);
         delete[] tempInverseStairsTable;
 
-        PipelineBuilderGPU *tempBuilder = new PipelineBuilderGPU[directions];
-        gpuBuilder = new PipelineBuilderGPU(builder);
+        PipelineBuilder *tempBuilder = new PipelineBuilder[directions];
+        gpuBuilder = new PipelineBuilder(builder);
         for (size_t i = 0; i < directions; i++)
         {
-            memcpy(tempBuilder + i, gpuBuilder, sizeof(PipelineBuilderGPU));
+            memcpy(tempBuilder + i, gpuBuilder, sizeof(PipelineBuilder));
             tempBuilder[i].manage_memory = false;
             tempBuilder[i].ownFastExecution = false;
             // printf("Copying without problem: %lu\n", builder->datastream_size);
         }
 
-        cudaMalloc(&gpuBuilders, directions * sizeof(PipelineBuilderGPU));
-        cudaMemcpy(gpuBuilders, tempBuilder, directions * sizeof(PipelineBuilderGPU), cudaMemcpyHostToDevice);
+        cudaMalloc(&gpuBuilders, directions * sizeof(PipelineBuilder));
+        cudaMemcpy(gpuBuilders, tempBuilder, directions * sizeof(PipelineBuilder), cudaMemcpyHostToDevice);
 
         delete[] tempBuilder;
 

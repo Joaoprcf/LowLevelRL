@@ -87,24 +87,24 @@ struct PipelineBuilder
     PipelineBuilder(Model *nn, bool manage_memory = true) : manage_memory(manage_memory)
     {
         assert(nn->usingOwnWeights);
+        weights_size = nn->weights_size;
+        datastream_size = nn->datastream_size;
+        memory_size = nn->memory.size();
+        num_instructions = nn->fastExecution.size();
+        num_inputs = nn->inputs.size();
+        num_outputs = nn->outputs.size();
+
+        // Allocate and initialize instructions
         if (!manage_memory)
         {
             return;
         }
-        // printf("Regular builder created in %p\n", this);
-        weights_size = nn->weights_size;
-        datastream_size = nn->datastream_size;
-        memory_size = nn->memory.size();
-
-        // Allocate and initialize instructions
-        num_instructions = nn->fastExecution.size(); // Function to calculate the size
         vector<RecoverableInstruction> instructionVec = ConvertToRecoverable(nn->fastExecution, nn->datastream, nn->weights);
         instructions = new RecoverableInstruction[num_instructions];
         memcpy(instructions, instructionVec.data(), sizeof(RecoverableInstruction) * num_instructions);
         instructionVec.clear();
 
         // Allocate and initialize inputSizes
-        num_inputs = nn->inputs.size();
         inputSizes = new size_t[num_inputs];
         for (size_t i = 0; i < num_inputs; ++i)
         {
@@ -112,7 +112,6 @@ struct PipelineBuilder
         }
 
         // Allocate and initialize outputSizes
-        num_outputs = nn->outputs.size();
         outputSizes = new size_t[num_outputs];
         for (size_t i = 0; i < num_outputs; ++i)
         {
