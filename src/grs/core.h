@@ -60,11 +60,13 @@ struct GeneticRandomSearch
 
     // cpu stuff
     size_t it_pointer = 0;
-    float *cpuWeights = nullptr;
-    float *cpuRewardArray = nullptr;
-    float *cpuDatastream = nullptr;
-    float *cpuMemory = nullptr;
-    Instruction *cpuInstructions = nullptr;
+    float *weights = nullptr;
+    float *tempWeights = nullptr;
+    float *rewardArray = nullptr;
+    float *datastream = nullptr;
+    float *memory = nullptr;
+    RewardEntry *rewardEntryArray = nullptr;
+    Instruction *instructions = nullptr;
     PipelineBuilder **cpuBuilders = nullptr;
 
 private:
@@ -146,12 +148,12 @@ public:
 
     void copyWeigthsToCPU()
     {
-        memcpy(cpuWeights, allWeightsSerialized, weights_size * directions * sizeof(float));
+        memcpy(weights, allWeightsSerialized, weights_size * directions * sizeof(float));
     }
 
     void copyRewardsFromCPU(float *rewards)
     {
-        memcpy(rewards, cpuRewardArray, directions * sizeof(float));
+        memcpy(rewards, rewardArray, directions * sizeof(float));
     }
 
     void updateWeightsUsingCPUInfo(vector<WeightInfluence> influences = {})
@@ -217,30 +219,30 @@ public:
     void initCPU(bool applyFirstNoise = true)
     {
         // Allocate memory for CPU weights
-        cpuWeights = new float[directions * weights_size];
-        memset(cpuWeights, 0, directions * weights_size * sizeof(float));
+        weights = new float[directions * weights_size];
+        memset(weights, 0, directions * weights_size * sizeof(float));
 
         // Allocate memory for CPU reward array
-        cpuRewardArray = new float[directions];
-        memset(cpuRewardArray, 0, directions * sizeof(float));
+        rewardArray = new float[directions];
+        memset(rewardArray, 0, directions * sizeof(float));
 
         // Allocate memory for CPU datastream
-        cpuDatastream = new float[builder->datastream_size * directions];
-        memset(cpuDatastream, 0, builder->datastream_size * directions * sizeof(float));
+        datastream = new float[builder->datastream_size * directions];
+        memset(datastream, 0, builder->datastream_size * directions * sizeof(float));
 
         // Allocate memory for CPU datastream
-        cpuMemory = new float[builder->memory_size * directions];
-        memset(cpuMemory, 0, builder->memory_size * directions * sizeof(float));
+        memory = new float[builder->memory_size * directions];
+        memset(memory, 0, builder->memory_size * directions * sizeof(float));
 
         // Allocate memory for CPU instructions
-        cpuInstructions = new Instruction[builder->num_instructions * directions];
-        // Initialize cpuInstructions if necessary, depending on how they are used in your program
+        instructions = new Instruction[builder->num_instructions * directions];
+        // Initialize instructions if necessary, depending on how they are used in your program
 
         cpuBuilders = new PipelineBuilder *[directions];
         for (size_t i = 0; i < directions; i++)
         {
             cpuBuilders[i] = new PipelineBuilder(builder);
-            cpuBuilders[i]->init(cpuDatastream + i * builder->datastream_size, cpuWeights + i * weights_size, cpuInstructions + i * builder->num_instructions);
+            cpuBuilders[i]->init(datastream + i * builder->datastream_size, weights + i * weights_size, instructions + i * builder->num_instructions);
         }
         printf("cpu initialized\n");
 
@@ -265,31 +267,31 @@ public:
         return {
             cpuBuilders[current_pointer],
             current_pointer,
-            cpuInstructions + current_pointer * builder->num_instructions,
-            cpuWeights + current_pointer * weights_size,
-            cpuMemory + current_pointer * builder->memory_size,
-            cpuDatastream + current_pointer * builder->datastream_size,
-            cpuRewardArray + current_pointer};
+            instructions + current_pointer * builder->num_instructions,
+            weights + current_pointer * weights_size,
+            memory + current_pointer * builder->memory_size,
+            datastream + current_pointer * builder->datastream_size,
+            rewardArray + current_pointer};
     }
 
     void clearCPU()
     {
-        delete[] cpuWeights;
-        delete[] cpuRewardArray;
-        delete[] cpuDatastream;
-        delete[] cpuMemory;
-        delete[] cpuInstructions;
+        delete[] weights;
+        delete[] rewardArray;
+        delete[] datastream;
+        delete[] memory;
+        delete[] instructions;
         for (size_t i = 0; i < directions; i++)
         {
             delete cpuBuilders[i];
         }
         delete[] cpuBuilders;
 
-        cpuWeights = nullptr;
-        cpuRewardArray = nullptr;
-        cpuDatastream = nullptr;
-        cpuMemory = nullptr;
-        cpuInstructions = nullptr;
+        weights = nullptr;
+        rewardArray = nullptr;
+        datastream = nullptr;
+        memory = nullptr;
+        instructions = nullptr;
         cpuBuilders = nullptr;
     }
 

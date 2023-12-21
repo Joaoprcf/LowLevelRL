@@ -9,7 +9,7 @@
 
 using namespace std::chrono;
 
-void __global__ gpuPlay(curandState *state, PipelineBuilder *tempBuilder, size_t directions, float *datastream, float *gpuRewardArray, RewardEntry *gpuEntries)
+void __global__ gpuPlay(curandState *state, PipelineBuilder *tempBuilder, size_t directions, float *datastream, float *rewardArray, RewardEntry *entries)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;
@@ -36,9 +36,9 @@ void __global__ gpuPlay(curandState *state, PipelineBuilder *tempBuilder, size_t
             // printf("Game %llu of %llu ended successefully: %.2f\n", static_cast<unsigned long long>(i), static_cast<unsigned long long>(location), game.reward);
             reward += game.reward;
         }
-        gpuRewardArray[location] = reward;
-        gpuEntries[location].index = location;
-        gpuEntries[location].reward = reward;
+        rewardArray[location] = reward;
+        entries[location].index = location;
+        entries[location].reward = reward;
     }
 }
 
@@ -103,7 +103,7 @@ int main()
         {
             for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
             {
-                gpuPlay<<<gridSize, blockSize, 0, streams[r_idx]>>>(insideGRS[r_idx]->gpuNoiseDevStates, insideGRS[r_idx]->builderBatch->gpuBuilders, insideGRS[r_idx]->directions, insideGRS[r_idx]->gpuDatastream, insideGRS[r_idx]->gpuRewardArray, insideGRS[r_idx]->gpuRewardEntryArray);
+                gpuPlay<<<gridSize, blockSize, 0, streams[r_idx]>>>(insideGRS[r_idx]->gpuNoiseDevStates, insideGRS[r_idx]->builderBatch->gpuBuilders, insideGRS[r_idx]->directions, insideGRS[r_idx]->datastream, insideGRS[r_idx]->rewardArray, insideGRS[r_idx]->rewardEntryArray);
             }
             for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
             {
@@ -128,18 +128,18 @@ int main()
             (*runnerInfo.reward) = min(rewards[r_idx][steps - steps / 4 - 1], rewards[r_idx][steps - 1]);
         }
         grs.updateWeightsUsingCPUInfo();
-        heapSort(grs.cpuRewardArray, grs.directions, fcomp);
+        heapSort(grs.rewardArray, grs.directions, fcomp);
         auto stop_update = high_resolution_clock::now();
         duration_us = duration_cast<microseconds>(stop_update - start_update);
         printf("Updating took %.3f milliseconds\n", duration_us.count() / 1000.0f);
         printf("------\n");
         for (size_t i = 0; i < 5; i++)
         {
-            printf("grs.cpuRewardArray[%zu] = %.2f\n", i, grs.cpuRewardArray[i]);
+            printf("grs.rewardArray[%zu] = %.2f\n", i, grs.rewardArray[i]);
         }
         for (size_t i = grs.directions - 5; i < grs.directions; i++)
         {
-            printf("grs.cpuRewardArray[%zu] = %.2f\n", i, grs.cpuRewardArray[i]);
+            printf("grs.rewardArray[%zu] = %.2f\n", i, grs.rewardArray[i]);
         }
         printf("------\n");
         printf("learningRate %.4f\n", grs.optimizer->learningRate);

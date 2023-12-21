@@ -72,7 +72,7 @@ bool optmizerAllowGPU(GRSOptimizer *optimizer)
     return dynamic_cast<LearnableOptimizerGPU *>(optimizer) != nullptr;
 }
 
-void optimizerUpdateRewards(LearnableOptimizerGPU *optimizer, float *gpuRewardArray, size_t directions, size_t weights_size)
+void optimizerUpdateRewards(LearnableOptimizerGPU *optimizer, float *rewardArray, size_t directions, size_t weights_size)
 {
 }
 
@@ -82,12 +82,12 @@ void initOptimizerGPU(LearnableOptimizerGPU *optimizer, cudaStream_t stream = 0)
 
 // Optimizer
 
-void optimizerUpdateRewards(GRSOptimizer *optimizer, float *gpuRewardArray, size_t directions, size_t weights_size)
+void optimizerUpdateRewards(GRSOptimizer *optimizer, float *rewardArray, size_t directions, size_t weights_size)
 {
     LearnableOptimizerGPU *learnableOptimizer = dynamic_cast<LearnableOptimizerGPU *>(optimizer);
     if (learnableOptimizer)
     {
-        optimizerUpdateRewards(learnableOptimizer, gpuRewardArray, directions, weights_size);
+        optimizerUpdateRewards(learnableOptimizer, rewardArray, directions, weights_size);
     }
     else
     {

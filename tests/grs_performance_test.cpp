@@ -326,8 +326,8 @@ TEST_CASE("GeneticRandomSearch test against GuessGame using LearnableOptimizer")
                 (*runnerInfo.reward) = reward;
             }
             grs.updateWeightsUsingCPUInfo();
-            heapSort(grs.cpuRewardArray, grs.directions, fcomp);
-            float worstReward = grs.cpuRewardArray[stairs - 1];
+            heapSort(grs.rewardArray, grs.directions, fcomp);
+            float worstReward = grs.rewardArray[stairs - 1];
             if (worstReward >= GUESS_GAME_GOAL)
             {
                 printf("Goal reward %.f achieved at idx %zu \n", worstReward, idx);
@@ -413,8 +413,8 @@ TEST_CASE("GeneticRandomSearch test against GuessGameV2 using LearnableOptimizer
                 (*runnerInfo.reward) = reward;
             }
             grs.updateWeightsUsingCPUInfo();
-            heapSort(grs.cpuRewardArray, grs.directions, fcomp);
-            float worstReward = grs.cpuRewardArray[stairs - 1];
+            heapSort(grs.rewardArray, grs.directions, fcomp);
+            float worstReward = grs.rewardArray[stairs - 1];
             if (worstReward >= GUESS_GAME_GOAL)
             {
                 printf("Goal reward %.f achieved at idx %zu \n", worstReward, idx);

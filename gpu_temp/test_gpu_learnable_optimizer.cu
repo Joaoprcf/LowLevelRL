@@ -30,13 +30,13 @@ int main()
         rEntries[i].reward = i;
     }
 
-    cudaMemcpyAsync(grs.gpuWeights, grs.allWeightsSerialized, grs.weights_size * grs.directions * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpyAsync(grs.gpuRewardEntryArray, rEntries, grs.directions * sizeof(RewardEntry), cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(grs.weights, grs.allWeightsSerialized, grs.weights_size * grs.directions * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(grs.rewardEntryArray, rEntries, grs.directions * sizeof(RewardEntry), cudaMemcpyHostToDevice);
 
     grs.updateWeightsUsingGPUInfo();
 
-    cudaMemcpy(grs.allWeightsSerialized, grs.gpuWeights, grs.directions * grs.weights_size * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(rEntries, grs.gpuRewardEntryArray, grs.directions * sizeof(RewardEntry), cudaMemcpyDeviceToHost);
+    cudaMemcpy(grs.allWeightsSerialized, grs.weights, grs.directions * grs.weights_size * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(rEntries, grs.rewardEntryArray, grs.directions * sizeof(RewardEntry), cudaMemcpyDeviceToHost);
     for (size_t i = 0; i < grs.directions; i++)
     {
         printf("RewardEntries[%lu]: %d %.2f\n", i, rEntries[i].index, rEntries[i].reward);

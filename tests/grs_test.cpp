@@ -103,28 +103,28 @@ TEST_CASE("GeneticRandomSearch CPU Initialization and Cleanup")
     size_t stairs = 4;
     GeneticRandomSearch grs(&nn, stairs);
 
-    REQUIRE(grs.cpuWeights == nullptr);
-    REQUIRE(grs.cpuRewardArray == nullptr);
-    REQUIRE(grs.cpuDatastream == nullptr);
-    REQUIRE(grs.cpuMemory == nullptr);
-    REQUIRE(grs.cpuInstructions == nullptr);
+    REQUIRE(grs.weights == nullptr);
+    REQUIRE(grs.rewardArray == nullptr);
+    REQUIRE(grs.datastream == nullptr);
+    REQUIRE(grs.memory == nullptr);
+    REQUIRE(grs.instructions == nullptr);
 
     grs.initCPU();
 
-    REQUIRE(grs.cpuWeights != nullptr);
-    REQUIRE(grs.cpuRewardArray != nullptr);
-    REQUIRE(grs.cpuDatastream != nullptr);
-    REQUIRE(grs.cpuMemory != nullptr);
-    REQUIRE(grs.cpuInstructions != nullptr);
+    REQUIRE(grs.weights != nullptr);
+    REQUIRE(grs.rewardArray != nullptr);
+    REQUIRE(grs.datastream != nullptr);
+    REQUIRE(grs.memory != nullptr);
+    REQUIRE(grs.instructions != nullptr);
     REQUIRE(grs.it_pointer == 0); // Check initial value of iterator
 
     grs.clearCPU();
 
-    REQUIRE(grs.cpuWeights == nullptr);
-    REQUIRE(grs.cpuRewardArray == nullptr);
-    REQUIRE(grs.cpuDatastream == nullptr);
-    REQUIRE(grs.cpuMemory == nullptr);
-    REQUIRE(grs.cpuInstructions == nullptr);
+    REQUIRE(grs.weights == nullptr);
+    REQUIRE(grs.rewardArray == nullptr);
+    REQUIRE(grs.datastream == nullptr);
+    REQUIRE(grs.memory == nullptr);
+    REQUIRE(grs.instructions == nullptr);
 }
 
 TEST_CASE("GeneticRandomSearch getNext Method")
@@ -149,11 +149,11 @@ TEST_CASE("GeneticRandomSearch getNext Method")
 
         // Validate the runnerInfo contents
         REQUIRE(runnerInfo.direction_idx == i); // Check current index
-        REQUIRE(runnerInfo.targetInstructions == grs.cpuInstructions + i * grs.builder->num_instructions);
-        REQUIRE(runnerInfo.targetWeights == grs.cpuWeights + i * grs.weights_size);
-        REQUIRE(runnerInfo.targetMemory == grs.cpuMemory + i * grs.builder->memory_size);
-        REQUIRE(runnerInfo.targetDatastream == grs.cpuDatastream + i * grs.builder->datastream_size);
-        REQUIRE(runnerInfo.reward == grs.cpuRewardArray + i);
+        REQUIRE(runnerInfo.targetInstructions == grs.instructions + i * grs.builder->num_instructions);
+        REQUIRE(runnerInfo.targetWeights == grs.weights + i * grs.weights_size);
+        REQUIRE(runnerInfo.targetMemory == grs.memory + i * grs.builder->memory_size);
+        REQUIRE(runnerInfo.targetDatastream == grs.datastream + i * grs.builder->datastream_size);
+        REQUIRE(runnerInfo.reward == grs.rewardArray + i);
 
         // Check iterator advancement
         REQUIRE(grs.it_pointer == i + 1);

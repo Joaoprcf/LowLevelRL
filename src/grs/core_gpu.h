@@ -23,7 +23,7 @@ void __global__ initRandomKernel(curandState *state, int seed, size_t weights_si
     }
 }
 
-void __global__ applyNoiseKernel(curandState *state, float *gpuWeights, size_t directions_half, size_t weights_size, float noiseAmp)
+void __global__ applyNoiseKernel(curandState *state, float *weights, size_t directions_half, size_t weights_size, float noiseAmp)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;
@@ -33,12 +33,12 @@ void __global__ applyNoiseKernel(curandState *state, float *gpuWeights, size_t d
         int direction_half = location / weights_size;
         int w_idx = location % weights_size;
         float noise = curand_normal(&state[direction_half * weights_size + w_idx]) * noiseAmp;
-        gpuWeights[direction_half * 2 * weights_size + w_idx] += noise;
-        gpuWeights[(direction_half * 2 + 1) * weights_size + w_idx] -= noise;
+        weights[direction_half * 2 * weights_size + w_idx] += noise;
+        weights[(direction_half * 2 + 1) * weights_size + w_idx] -= noise;
     }
 }
 
-__global__ void sortEntryFromRewards(RewardEntry *rEntries, size_t *inverseStairsTable, float *gpuWeights, float *tempWeights, size_t weights_size, size_t directions)
+__global__ void sortEntryFromRewards(RewardEntry *rEntries, size_t *inverseStairsTable, float *weights, float *tempWeights, size_t weights_size, size_t directions)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;
@@ -54,13 +54,13 @@ __global__ void sortEntryFromRewards(RewardEntry *rEntries, size_t *inverseStair
         size_t stairIdx = inverseStairsTable[location];
         size_t w_idx = rEntries[stairIdx].index;
 
-        memcpy(tempWeights + location * weights_size, gpuWeights + w_idx * weights_size, weights_size * sizeof(float));
+        memcpy(tempWeights + location * weights_size, weights + w_idx * weights_size, weights_size * sizeof(float));
     }
 
     __syncthreads();
     for (size_t location = idx; location < directions; location += stride)
     {
-        memcpy(gpuWeights + location * weights_size, tempWeights + location * weights_size, weights_size * sizeof(float));
+        memcpy(weights + location * weights_size, tempWeights + location * weights_size, weights_size * sizeof(float));
     }
 }
 
@@ -69,15 +69,7 @@ __global__ void sortEntryFromRewards(RewardEntry *rEntries, size_t *inverseStair
 struct GeneticRandomSearchGPU : GeneticRandomSearch
 {
     // gpu variables
-    float *gpuWeights = nullptr;
-    float *gpuTempWeights = nullptr;
     size_t *inverseStairsTable = nullptr;
-    float *gpuRewardArray = nullptr;
-    RewardEntry *gpuRewardEntryArray = nullptr;
-    float *gpuDatastream = nullptr;
-    float *gpuMemory = nullptr;
-    Instruction *gpuInstructions = nullptr;
-    std::default_random_engine generator;
     curandState *gpuNoiseDevStates;
     PipelineBuilderBatchGPU *builderBatch;
 
@@ -93,11 +85,11 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
 
     void copyWeigthsToGPU(cudaStream_t stream = 0)
     {
-        cudaMemcpyAsync(gpuWeights, allWeightsSerialized, directions * weights_size * sizeof(float), cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(weights, allWeightsSerialized, directions * weights_size * sizeof(float), cudaMemcpyHostToDevice, stream);
     }
     void copyRewardsFromGPU(float *rewards, cudaStream_t stream = 0)
     {
-        cudaMemcpyAsync(rewards, gpuRewardArray, directions * sizeof(float), cudaMemcpyDeviceToHost, stream);
+        cudaMemcpyAsync(rewards, rewardArray, directions * sizeof(float), cudaMemcpyDeviceToHost, stream);
     }
 
     void applyNoiseInGPU(cudaStream_t stream = 0)
@@ -106,37 +98,37 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
         size_t ws = weights_size;
 
         // The weights should already be in the gpu
-        // cudaMemcpyAsync(gpuWeights, originWeights, directions * ws * sizeof(float), cudaMemcpyHostToDevice);
+        // cudaMemcpyAsync(weights, originWeights, directions * ws * sizeof(float), cudaMemcpyHostToDevice);
 
         // check SM amount
         auto [blocks_per_grid, block_size] = getGridAndBlockSizes();
         int max_blocks = min(blocks_per_grid, (int)(weights_size * directions / 2 + block_size - 1) / block_size);
 
-        applyNoiseKernel<<<max_blocks, block_size, 0, stream>>>(gpuNoiseDevStates, gpuWeights, directions / 2, ws, noiseAmp);
+        applyNoiseKernel<<<max_blocks, block_size, 0, stream>>>(gpuNoiseDevStates, weights, directions / 2, ws, noiseAmp);
 
         // cudaDeviceSynchronize();
 
-        // cudaMemcpyAsync(allWeightsSerialized, gpuWeights, directions * ws * sizeof(float), cudaMemcpyDeviceToHost);
+        // cudaMemcpyAsync(allWeightsSerialized, weights, directions * ws * sizeof(float), cudaMemcpyDeviceToHost);
     }
 
     void updateWeightsInGPU(cudaStream_t stream = 0)
     {
-        // optimizerUpdateRewards(grs->optimizer, grs->gpuRewardArray, grs->directions, grs->weights_size);
-        cudaMemcpyAsync(preStoredRewards, gpuRewardArray, directions * sizeof(float), cudaMemcpyDeviceToHost); // TODO add stream
+        // optimizerUpdateRewards(grs->optimizer, grs->rewardArray, grs->directions, grs->weights_size);
+        cudaMemcpyAsync(preStoredRewards, rewardArray, directions * sizeof(float), cudaMemcpyDeviceToHost); // TODO add stream
         optimizer->updateRewards(preStoredRewards);
 
-        // cudaMemcpy(gpuWeights, allWeightsSerialized, directions * weights_size * sizeof(float), cudaMemcpyHostToDevice); // TODO add stream
+        // cudaMemcpy(weights, allWeightsSerialized, directions * weights_size * sizeof(float), cudaMemcpyHostToDevice); // TODO add stream
 
-        // thrust::device_ptr<RewardEntry> dev_ptr(gpuRewardEntryArray);
+        // thrust::device_ptr<RewardEntry> dev_ptr(rewardEntryArray);
         // thrust::sort(thrust::cuda::par.on(stream), dev_ptr, dev_ptr + directions, ComparisonFunctor());
         auto [blocks_per_grid, block_size] = getGridAndBlockSizes();
 
-        sortEntryFromRewards<<<blocks_per_grid, block_size, 0, stream>>>(gpuRewardEntryArray, inverseStairsTable, gpuWeights, gpuTempWeights, weights_size, directions);
+        sortEntryFromRewards<<<blocks_per_grid, block_size, 0, stream>>>(rewardEntryArray, inverseStairsTable, weights, tempWeights, weights_size, directions);
 
         auto start = high_resolution_clock::now();
 
         applyNoiseInGPU(stream);
-        // cudaMemcpyAsync(allWeightsSerialized, gpuWeights, directions * weights_size * sizeof(float), cudaMemcpyDeviceToHost, stream);
+        // cudaMemcpyAsync(allWeightsSerialized, weights, directions * weights_size * sizeof(float), cudaMemcpyDeviceToHost, stream);
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         // printf("applyNoiseInGPU took %li microseconds\n", duration.count());
@@ -157,16 +149,16 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
 
     void initGPU(cudaStream_t stream = 0, bool applyFirstNoise = true)
     {
-        cudaMalloc(&gpuWeights, directions * weights_size * sizeof(float));
-        cudaMemset(gpuWeights, 0, directions * weights_size * sizeof(float));
+        cudaMalloc(&weights, directions * weights_size * sizeof(float));
+        cudaMemset(weights, 0, directions * weights_size * sizeof(float));
 
-        cudaMalloc(&gpuRewardEntryArray, directions * sizeof(RewardEntry));
-        cudaMemset(gpuRewardEntryArray, 0, directions * sizeof(RewardEntry));
+        cudaMalloc(&rewardEntryArray, directions * sizeof(RewardEntry));
+        cudaMemset(rewardEntryArray, 0, directions * sizeof(RewardEntry));
 
-        cudaMalloc(&gpuRewardArray, directions * sizeof(float));
-        cudaMemset(gpuRewardArray, 0, directions * sizeof(float));
+        cudaMalloc(&rewardArray, directions * sizeof(float));
+        cudaMemset(rewardArray, 0, directions * sizeof(float));
 
-        cudaMalloc(&gpuTempWeights, directions * weights_size * sizeof(float));
+        cudaMalloc(&tempWeights, directions * weights_size * sizeof(float));
 
         cudaMalloc(&inverseStairsTable, directions * sizeof(size_t));
 
@@ -175,8 +167,8 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
         cudaMemcpy(inverseStairsTable, tempInverseStairsTable, directions * sizeof(size_t), cudaMemcpyHostToDevice);
         delete[] tempInverseStairsTable;
 
-        cudaMalloc(&gpuDatastream, builder->datastream_size * directions * sizeof(float));
-        cudaMalloc(&gpuInstructions, builder->num_instructions * directions * sizeof(Instruction));
+        cudaMalloc(&datastream, builder->datastream_size * directions * sizeof(float));
+        cudaMalloc(&instructions, builder->num_instructions * directions * sizeof(Instruction));
 
         builderBatch = new PipelineBuilderBatchGPU(builder, directions);
 
@@ -212,7 +204,7 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
             }
         }
 
-        builderBatch->initGPU(gpuInstructions, gpuDatastream, gpuWeights, stream);
+        builderBatch->initGPU(instructions, datastream, weights, stream);
         cudaStreamSynchronize(stream);
         printf("End of initGPU\n");
     }
@@ -220,24 +212,24 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
     void clearGPU()
     {
         printf("clearing gpu\n");
-        cudaFree(gpuWeights);
-        cudaFree(gpuRewardArray);
-        cudaFree(gpuDatastream);
-        cudaFree(gpuMemory);
-        cudaFree(gpuInstructions);
+        cudaFree(weights);
+        cudaFree(rewardArray);
+        cudaFree(datastream);
+        cudaFree(memory);
+        cudaFree(instructions);
         cudaFree(gpuNoiseDevStates);
-        cudaFree(gpuRewardEntryArray);
-        cudaFree(gpuTempWeights);
+        cudaFree(rewardEntryArray);
+        cudaFree(tempWeights);
         cudaFree(inverseStairsTable);
         delete builderBatch;
 
-        gpuWeights = nullptr;
-        gpuRewardArray = nullptr;
-        gpuDatastream = nullptr;
-        gpuMemory = nullptr;
-        gpuInstructions = nullptr;
+        weights = nullptr;
+        rewardArray = nullptr;
+        datastream = nullptr;
+        memory = nullptr;
+        instructions = nullptr;
         gpuNoiseDevStates = nullptr;
-        gpuRewardEntryArray = nullptr;
+        rewardEntryArray = nullptr;
         printf("gpu cleared\n");
     }
 };
