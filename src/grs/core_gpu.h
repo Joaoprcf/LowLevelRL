@@ -13,20 +13,6 @@
 
 using namespace chrono;
 
-void __global__ initGpu(PipelineBuilder *tempBuilder, size_t directions, Instruction *instructions, float *datastream, float *weights, void *serializedMemory)
-{
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    size_t stride = blockDim.x * gridDim.x;
-    for (size_t location = idx; location < directions; location += stride)
-    {
-        tempBuilder[location].unserializeMemory(serializedMemory);
-        float *targetDatastream = datastream + location * tempBuilder[location].datastream_size;
-        float *targetWeights = weights + location * tempBuilder[location].weights_size;
-        Instruction *targetInstructions = instructions + location * tempBuilder[location].num_instructions;
-        tempBuilder[location].init(targetDatastream, targetWeights, targetInstructions);
-    }
-}
-
 void __global__ initRandomKernel(curandState *state, int seed, size_t weights_size)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -82,8 +68,18 @@ __global__ void sortEntryFromRewards(RewardEntry *rEntries, size_t *inverseStair
 
 struct GeneticRandomSearchGPU : GeneticRandomSearch
 {
-    PipelineBuilder *gpuBuilders = nullptr;
-    PipelineBuilder *gpuBuilder = nullptr;
+    // gpu variables
+    float *gpuWeights = nullptr;
+    float *gpuTempWeights = nullptr;
+    size_t *inverseStairsTable = nullptr;
+    float *gpuRewardArray = nullptr;
+    RewardEntry *gpuRewardEntryArray = nullptr;
+    float *gpuDatastream = nullptr;
+    float *gpuMemory = nullptr;
+    Instruction *gpuInstructions = nullptr;
+    std::default_random_engine generator;
+    curandState *gpuNoiseDevStates;
+    PipelineBuilderBatchGPU *builderBatch;
 
     GeneticRandomSearchGPU(PipelineBuilder *builder, size_t stairs) : GeneticRandomSearch(builder, stairs)
     {
@@ -179,27 +175,10 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
         cudaMemcpy(inverseStairsTable, tempInverseStairsTable, directions * sizeof(size_t), cudaMemcpyHostToDevice);
         delete[] tempInverseStairsTable;
 
-        PipelineBuilder *tempBuilder = new PipelineBuilder[directions];
-        gpuBuilder = new PipelineBuilder(builder);
-        for (size_t i = 0; i < directions; i++)
-        {
-            memcpy(tempBuilder + i, gpuBuilder, sizeof(PipelineBuilder));
-            tempBuilder[i].manage_memory = false;
-            tempBuilder[i].ownFastExecution = false;
-            // printf("Copying without problem: %lu\n", builder->datastream_size);
-        }
-
-        cudaMalloc(&gpuBuilders, directions * sizeof(PipelineBuilder));
-        cudaMemcpy(gpuBuilders, tempBuilder, directions * sizeof(PipelineBuilder), cudaMemcpyHostToDevice);
-
-        delete[] tempBuilder;
-
         cudaMalloc(&gpuDatastream, builder->datastream_size * directions * sizeof(float));
         cudaMalloc(&gpuInstructions, builder->num_instructions * directions * sizeof(Instruction));
-        size_t buffer_size = builder->calculateMemoryRequired();
-        void *buffer = malloc(buffer_size);
 
-        builder->serializeMemory(buffer);
+        builderBatch = new PipelineBuilderBatchGPU(builder, directions);
 
         size_t rnd_kernels = directions / 2 * weights_size;
         cudaError_t err = cudaMalloc((void **)&gpuNoiseDevStates, rnd_kernels * sizeof(curandState));
@@ -219,8 +198,6 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
         }
         printf("All good so far\n");
 
-        cudaMalloc(&gpuSerializedMemory, buffer_size);
-        cudaMemcpy(gpuSerializedMemory, buffer, buffer_size, cudaMemcpyHostToDevice);
         if (applyFirstNoise)
         {
             if (optmizerAllowGPU(optimizer))
@@ -234,10 +211,9 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
                 copyWeigthsToGPU();
             }
         }
-        auto [gridSize, blockSize] = getGridAndBlockSizes();
-        initGpu<<<gridSize, blockSize, 0, stream>>>(gpuBuilders, directions, gpuInstructions, gpuDatastream, gpuWeights, gpuSerializedMemory);
-        cudaDeviceSynchronize();
-        free(buffer);
+
+        builderBatch->initGPU(gpuInstructions, gpuDatastream, gpuWeights, stream);
+        cudaStreamSynchronize(stream);
         printf("End of initGPU\n");
     }
 
@@ -249,18 +225,17 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
         cudaFree(gpuDatastream);
         cudaFree(gpuMemory);
         cudaFree(gpuInstructions);
-        cudaFree(gpuSerializedMemory);
         cudaFree(gpuNoiseDevStates);
         cudaFree(gpuRewardEntryArray);
         cudaFree(gpuTempWeights);
         cudaFree(inverseStairsTable);
+        delete builderBatch;
 
         gpuWeights = nullptr;
         gpuRewardArray = nullptr;
         gpuDatastream = nullptr;
         gpuMemory = nullptr;
         gpuInstructions = nullptr;
-        gpuSerializedMemory = nullptr;
         gpuNoiseDevStates = nullptr;
         gpuRewardEntryArray = nullptr;
         printf("gpu cleared\n");

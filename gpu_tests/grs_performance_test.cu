@@ -94,7 +94,7 @@ void TEST_GeneticRandomSearch_test_against_GuessGame_using_IterativeOptimizer()
         {
             grs.copyWeigthsToGPU();
 
-            gpuPlay<<<gridSize, blockSize>>>(grs.gpuBuilders, grs.directions, grs.gpuDatastream, grs.gpuRewardArray, grs.gpuRewardEntryArray);
+            gpuPlay<<<gridSize, blockSize>>>(grs.builderBatch->gpuBuilders, grs.directions, grs.gpuDatastream, grs.gpuRewardArray, grs.gpuRewardEntryArray);
             cudaDeviceSynchronize();
             grs.updateWeightsUsingGPUInfo();
             float worstReward = dynamic_cast<IterativeOptimizer *>(grs.optimizer)->movingAvgScore;
@@ -163,7 +163,7 @@ void TEST_GeneticRandomSearch_test_against_GuessGame_using_IterativeOptimizer_us
         {
             grs.copyWeigthsToGPU();
 
-            gpuPlay<<<gridSize, blockSize>>>(grs.gpuBuilders, grs.directions, grs.gpuDatastream, grs.gpuRewardArray, grs.gpuRewardEntryArray);
+            gpuPlay<<<gridSize, blockSize>>>(grs.builderBatch->gpuBuilders, grs.directions, grs.gpuDatastream, grs.gpuRewardArray, grs.gpuRewardEntryArray);
             cudaDeviceSynchronize();
             grs.updateWeightsUsingGPUInfo();
             float worstReward = dynamic_cast<IterativeOptimizer *>(grs.optimizer)->movingAvgScore;
@@ -229,7 +229,7 @@ void TEST_GeneticRandomSearch_test_against_GuessGame_using_LearnableOptimizer()
         {
             grs.copyWeigthsToGPU();
 
-            gpuPlay<<<gridSize, blockSize>>>(grs.gpuBuilders, grs.directions, grs.gpuDatastream, grs.gpuRewardArray, grs.gpuRewardEntryArray);
+            gpuPlay<<<gridSize, blockSize>>>(grs.builderBatch->gpuBuilders, grs.directions, grs.gpuDatastream, grs.gpuRewardArray, grs.gpuRewardEntryArray);
             cudaDeviceSynchronize();
             grs.updateWeightsUsingGPUInfo();
             heapSort(grs.preStoredRewards, grs.directions, fcomp);
@@ -290,7 +290,7 @@ void TEST_GeneticRandomSearch_test_against_GuessGameV2_using_LearnableOptimizer(
         {
             grs.copyWeigthsToGPU();
 
-            gpuPlayV2<<<gridSize, blockSize>>>(grs.gpuBuilders, grs.directions, grs.gpuDatastream, grs.gpuRewardArray, grs.gpuRewardEntryArray);
+            gpuPlayV2<<<gridSize, blockSize>>>(grs.builderBatch->gpuBuilders, grs.directions, grs.gpuDatastream, grs.gpuRewardArray, grs.gpuRewardEntryArray);
             cudaDeviceSynchronize();
             grs.updateWeightsUsingGPUInfo();
             heapSort(grs.preStoredRewards, grs.directions, fcomp);

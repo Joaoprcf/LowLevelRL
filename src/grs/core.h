@@ -56,21 +56,7 @@ struct GeneticRandomSearch
     float *preStoredRewards;
     float **preStoredTempWeights;
     float *preStoredTempWeightsSerialized;
-
-    // gpu stuff
-    float *gpuWeights = nullptr;
-    float *gpuTempWeights = nullptr;
-    size_t *inverseStairsTable = nullptr;
-    void *gpuSerializedMemory = nullptr;
-    float *gpuRewardArray = nullptr;
-    RewardEntry *gpuRewardEntryArray = nullptr;
-    float *gpuDatastream = nullptr;
-    float *gpuMemory = nullptr;
-    Instruction *gpuInstructions = nullptr;
     std::default_random_engine generator;
-
-    // gpu acceleratoers
-    curandState *gpuNoiseDevStates;
 
     // cpu stuff
     size_t it_pointer = 0;

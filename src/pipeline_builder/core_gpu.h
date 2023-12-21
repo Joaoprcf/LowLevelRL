@@ -1,6 +1,21 @@
 #pragma once
 #include "pipeline_builder/core.h"
+#include "helper_functions/core_gpu.h"
 #include <cuda_runtime.h>
+
+void __global__ initGpu(PipelineBuilder *tempBuilder, size_t directions, Instruction *instructions, float *datastream, float *weights, void *serializedMemory)
+{
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t stride = blockDim.x * gridDim.x;
+    for (size_t location = idx; location < directions; location += stride)
+    {
+        tempBuilder[location].unserializeMemory(serializedMemory);
+        float *targetDatastream = datastream + location * tempBuilder[location].datastream_size;
+        float *targetWeights = weights + location * tempBuilder[location].weights_size;
+        Instruction *targetInstructions = instructions + location * tempBuilder[location].num_instructions;
+        tempBuilder[location].init(targetDatastream, targetWeights, targetInstructions);
+    }
+}
 
 struct PipelineBuilderGPU : PipelineBuilder
 {
@@ -153,5 +168,46 @@ struct PipelineBuilderGPU : PipelineBuilder
         ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
         cudaMallocManaged(&gpuExecuter, sizeof(PipelineBuilderGPU));
         memcpy(gpuExecuter, this, sizeof(PipelineBuilderGPU));
+    }
+};
+
+struct PipelineBuilderBatchGPU
+{
+    PipelineBuilder *gpuBuilders = nullptr;
+    void *gpuSerializedMemory = nullptr;
+    size_t batch_size = 1;
+    PipelineBuilderBatchGPU(PipelineBuilder *builder, size_t batch_size) : batch_size(batch_size)
+    {
+        assert(batch_size > 0);
+        PipelineBuilder *tempBuilder = new PipelineBuilder[batch_size];
+        for (size_t i = 0; i < batch_size; i++)
+        {
+            memcpy(tempBuilder + i, builder, sizeof(PipelineBuilder));
+            tempBuilder[i].manage_memory = false;
+            tempBuilder[i].ownFastExecution = false;
+        }
+
+        cudaMalloc(&gpuBuilders, batch_size * sizeof(PipelineBuilder));
+        cudaMemcpy(gpuBuilders, tempBuilder, batch_size * sizeof(PipelineBuilder), cudaMemcpyHostToDevice);
+
+        delete[] tempBuilder;
+
+        size_t buffer_size = builder->calculateMemoryRequired();
+        void *buffer = malloc(buffer_size);
+        builder->serializeMemory(buffer);
+        cudaMalloc(&gpuSerializedMemory, buffer_size);
+        cudaMemcpy(gpuSerializedMemory, buffer, buffer_size, cudaMemcpyHostToDevice);
+        free(buffer);
+    }
+    ~PipelineBuilderBatchGPU()
+    {
+        cudaFree(gpuBuilders);
+        cudaFree(gpuSerializedMemory);
+    }
+
+    void initGPU(Instruction *instructions, float *datastream, float *weights, cudaStream_t stream = 0)
+    {
+        auto [gridSize, blockSize] = getGridAndBlockSizes();
+        initGpu<<<gridSize, blockSize, 0, stream>>>(gpuBuilders, batch_size, instructions, datastream, weights, gpuSerializedMemory);
     }
 };
