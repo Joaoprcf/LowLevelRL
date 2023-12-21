@@ -1,4 +1,4 @@
-# Experimental optimized c++ neuralnetowrk graph
+# Experimental optimized c++ neuralnetwork graph
 
 ## Run the main file
 

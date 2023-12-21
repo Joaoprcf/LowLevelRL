@@ -36,9 +36,9 @@ void calculateForces(float *forces, float *weights, size_t weights_size, size_t 
 {
     size_t half_weights_size = weights_size * dual_directions;
     size_t full_weights_size = half_weights_size * 2;
-    memset(forces, 0, sizeof(float) * full_weights_size);
+    memset(forces, 0, sizeof(float) * half_weights_size);
     float *weights_force = new float[weights_size];
-    float step = 0.01f;
+
     for (size_t i = 0; i < dual_directions; i++)
     {
         memset(weights_force, 0, sizeof(float) * weights_size);
@@ -57,7 +57,7 @@ void calculateForces(float *forces, float *weights, size_t weights_size, size_t 
             }
             for (size_t k = 0; k < weights_size; ++k)
             {
-                forces[i * weights_size + k] += weights_force[k] * step / (strength > 0.0f ? strength : 1.0f);
+                forces[i * weights_size + k] += weights_force[k] / (strength > 0.0f ? strength : 1.0f);
             }
         }
     }
@@ -77,6 +77,8 @@ void generateEvenlyDistributedWeights(float *allWeights, size_t weights_size, si
     {
         inverseWeights(allWeights + half_weights_size + i * weights_size, allWeights + i * weights_size, weights_size);
     }
+    std::default_random_engine generator;
+    std::normal_distribution<float> distribution(0.0f, 0.01f);
     float *forces = new float[half_weights_size];
     for (size_t _ = 0; _ < iterations; ++_)
     {
@@ -84,9 +86,27 @@ void generateEvenlyDistributedWeights(float *allWeights, size_t weights_size, si
         for (size_t i = 0; i < dual_directions; i++)
         {
             float *wi = allWeights + i * weights_size;
+            normalize(forces + i * weights_size, weights_size);
+
             for (size_t k = 0; k < weights_size; ++k)
             {
-                wi[k] += forces[i * weights_size + k];
+                wi[k] += forces[i * weights_size + k] * 0.1f + distribution(generator);
+            }
+            normalize(wi, weights_size);
+            inverseWeights(allWeights + half_weights_size + i * weights_size, wi, weights_size);
+        }
+    }
+    for (size_t _ = 0; _ < iterations; ++_)
+    {
+        calculateForces(forces, allWeights, weights_size, dual_directions);
+        for (size_t i = 0; i < dual_directions; i++)
+        {
+            float *wi = allWeights + i * weights_size;
+            normalize(forces + i * weights_size, weights_size);
+
+            for (size_t k = 0; k < weights_size; ++k)
+            {
+                wi[k] += forces[i * weights_size + k] * 0.1f;
             }
             normalize(wi, weights_size);
             inverseWeights(allWeights + half_weights_size + i * weights_size, wi, weights_size);
