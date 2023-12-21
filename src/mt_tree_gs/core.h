@@ -1,0 +1,8 @@
+
+
+struct MonteCarloTreeGeneticSearch
+{
+    MonteCarloTreeGeneticSearch()
+    {
+    }
+};
