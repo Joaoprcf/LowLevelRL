@@ -138,10 +138,10 @@ void TEST_calculateForcesGPU_With_2Dimentions_4Points()
     cudaFree(gpuNoiseDevStates);
 }
 
-void TEST_calculateForcesGPU_With_500Dimentions_2000Points()
+void TEST_calculateForcesGPU_With_300Dimentions_2000Points()
 {
     printf("calculateForcesGPU With 500 Dimentions 2000 Points Test:\n\n");
-    size_t weights_size = 500;
+    size_t weights_size = 300;
     size_t dual_directions = 1000;
     size_t half_weights_size = weights_size * dual_directions;
     float *weights;
@@ -240,11 +240,11 @@ void TEST_applyForcesGPU_With_500Dimentions_2000Points()
     cudaFree(gpuNoiseDevStates);
 }
 
-void TEST_generateEvenlyDistributedWeightsGPU_With_300Dimentions_100Points()
+void TEST_generateEvenlyDistributedWeightsGPU_With_1000Dimentions_200Points()
 {
-    printf("generateEvenlyDistributedWeightsGPU With 300 Dimentions 100 Points Test:\n\n");
-    size_t weights_size = 300;
-    size_t dual_directions = 50;
+    printf("generateEvenlyDistributedWeightsGPU With 1000 Dimentions 200 Points Test:\n\n");
+    size_t weights_size = 1000;
+    size_t dual_directions = 100;
     size_t half_weights_size = weights_size * dual_directions;
     float *weights;
 
@@ -276,8 +276,8 @@ int main()
     TEST_generateNormalizedRandomWeightsGPU_With_2Dimentions_50Points();
     TEST_generateNormalizedRandomWeightsGPU_With_1000Dimentions_5000Points();
     TEST_calculateForcesGPU_With_2Dimentions_4Points();
-    TEST_calculateForcesGPU_With_500Dimentions_2000Points();
+    TEST_calculateForcesGPU_With_300Dimentions_2000Points();
     TEST_applyForcesGPU_With_500Dimentions_2000Points();
-    TEST_generateEvenlyDistributedWeightsGPU_With_300Dimentions_100Points();
+    TEST_generateEvenlyDistributedWeightsGPU_With_1000Dimentions_200Points();
     return 0;
 }

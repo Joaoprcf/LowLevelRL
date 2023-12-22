@@ -1,7 +1,14 @@
+#pragma once
 #include <cstddef>
 #include <random>
 
-void normalize(float *input, size_t size)
+#ifdef __CUDACC__
+#define CUDA_CALLABLE_MEMBER __host__ __device__
+#else
+#define CUDA_CALLABLE_MEMBER
+#endif
+
+CUDA_CALLABLE_MEMBER void normalize(float *input, size_t size)
 {
     float sum = 0.0f;
     for (size_t i = 0; i < size; ++i)
@@ -104,11 +111,9 @@ void calculateForces(float *forces, float *weights, size_t weights_size, size_t 
     size_t half_weights_size = weights_size * dual_directions;
     // size_t full_weights_size = half_weights_size * 2;
     memset(forces, 0, sizeof(float) * half_weights_size);
-    float *weights_force = new float[weights_size];
 
     for (size_t i = 0; i < dual_directions; i++)
     {
-        memset(weights_force, 0, sizeof(float) * weights_size);
         float *wi = weights + i * weights_size;
         float *fi = forces + i * weights_size;
         for (size_t j = 0; j < dual_directions * 2; j++)
@@ -121,13 +126,12 @@ void calculateForces(float *forces, float *weights, size_t weights_size, size_t 
             for (size_t k = 0; k < weights_size; ++k)
             {
                 float dist = wi[k] - wj[k];
-                weights_force[k] = dist;
                 strength += dist * dist;
             }
             strength = 1.0f / (strength > 0.0f ? strength : 1.0f);
             for (size_t k = 0; k < weights_size; ++k)
             {
-                float final_force = weights_force[k] * strength;
+                float final_force = (wi[k] - wj[k]) * strength;
                 fi[k] += final_force;
                 if (j < dual_directions)
                 {
@@ -136,7 +140,6 @@ void calculateForces(float *forces, float *weights, size_t weights_size, size_t 
             }
         }
     }
-    delete[] weights_force;
 }
 
 void applyForces(float *allWeights, float *forces, size_t weights_size, size_t dual_directions, std::default_random_engine &generator, bool use_noise = false)

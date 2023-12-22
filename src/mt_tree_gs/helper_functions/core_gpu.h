@@ -1,3 +1,4 @@
+#pragma once
 #include <curand.h>
 #include <curand_kernel.h>
 #include "mt_tree_gs/helper_functions/core.h"
@@ -11,20 +12,11 @@ void __device__ normalize_bidirectional(float *weights, float *inv_weights, size
         sum_of_squares += weights[i] * weights[i];
     }
     float dist = sqrtf(sum_of_squares);
-    if (inv_weights != nullptr)
+
+    for (size_t i = 0; i < weights_size; ++i)
     {
-        for (size_t i = 0; i < weights_size; ++i)
-        {
-            weights[i] /= dist;
-            inv_weights[i] = -weights[i];
-        }
-    }
-    else
-    {
-        for (size_t i = 0; i < weights_size; ++i)
-        {
-            weights[i] /= dist;
-        }
+        weights[i] /= dist;
+        inv_weights[i] = -weights[i];
     }
 }
 
@@ -57,6 +49,41 @@ void __global__ generateNormalizedRandomWeights(curandState *state, float *weigh
 }
 
 void __global__ calculateForces(float *forces, float *tempforces, float *weights, size_t weights_size, size_t dual_directions)
+{
+    size_t squared_dual_directions = dual_directions * dual_directions * 2;
+    int t_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (int idx = t_idx; idx < squared_dual_directions; idx += stride)
+    {
+        int i = idx / (dual_directions * 2);
+        int j = idx % (dual_directions * 2);
+        float *wi = weights + i * weights_size;
+        float *fi = forces + i * weights_size;
+        float *fj = forces + j * weights_size;
+        float *wj = weights + j * weights_size;
+
+        float strength = 0.0f;
+        if (j <= i || i + dual_directions == j)
+            continue;
+        for (size_t k = 0; k < weights_size; ++k)
+        {
+            float dist = wi[k] - wj[k];
+            strength += dist * dist;
+        }
+        strength = (strength > 0.0f ? strength : 1.0f);
+
+        for (size_t k = 0; k < weights_size; ++k)
+        {
+            atomicAdd(&fi[k], (wi[k] - wj[k]) / strength);
+            if (j < dual_directions)
+            {
+                atomicAdd(&fj[k], (wj[k] - wi[k]) / strength);
+            }
+        }
+    }
+}
+
+void __global__ calculateForcesOld(float *forces, float *tempforces, float *weights, size_t weights_size, size_t dual_directions)
 {
 
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -99,7 +126,7 @@ void __global__ applyForces(curandState *state, float *allWeights, float *forces
     {
         float *wi = allWeights + location * weights_size;
         float *fi = forces + location * weights_size;
-        normalize_bidirectional(forces + location * weights_size, nullptr, weights_size); // no invert
+        normalize(forces + location * weights_size, weights_size);
         if (use_noise)
         {
             for (size_t k = 0; k < weights_size; ++k)
@@ -120,28 +147,27 @@ void __global__ applyForces(curandState *state, float *allWeights, float *forces
     }
 }
 
-void generateNormalizedRandomWeightsGPU(curandState *gpuNoiseDevStates, float *allWeights, size_t weights_size, size_t dual_directions, cudaStream_t stream = 0, size_t iterations = 1000)
+void generateNormalizedRandomWeightsGPU(curandState *gpuNoiseDevStates, float *allWeights, size_t weights_size, size_t dual_directions, size_t iterations = 1000, cudaStream_t stream = 0)
 {
     auto [gridSize, blockSize] = getGridAndBlockSizes();
     generateNormalizedRandomWeights<<<gridSize, blockSize, 0, stream>>>(gpuNoiseDevStates, allWeights, weights_size, dual_directions);
 }
 
-void generateEvenlyDistributedWeightsGPU(curandState *gpuNoiseDevStates, float *allWeights, size_t weights_size, size_t dual_directions, cudaStream_t stream = 0, size_t iterations = 1000)
+void generateEvenlyDistributedWeightsGPU(curandState *gpuNoiseDevStates, float *allWeights, size_t weights_size, size_t dual_directions, size_t iterations = 1000, cudaStream_t stream = 0)
 {
     // size_t half_weights_size = weights_size * dual_directions;
     auto [gridSize, blockSize] = getGridAndBlockSizes();
     float *forces;
     float *tempforces;
     cudaMallocManaged(&forces, sizeof(float) * weights_size * dual_directions);
-    cudaMallocManaged(&tempforces, sizeof(float) * weights_size * dual_directions);
     generateNormalizedRandomWeights<<<gridSize, blockSize, 0, stream>>>(gpuNoiseDevStates, allWeights, weights_size, dual_directions);
     for (size_t it = 0; it < iterations * 2; ++it)
     {
+        cudaMemsetAsync(forces, 0, sizeof(float) * weights_size * dual_directions, stream);
         calculateForces<<<gridSize, blockSize, 0, stream>>>(forces, tempforces, allWeights, weights_size, dual_directions);
         applyForces<<<gridSize, blockSize, 0, stream>>>(gpuNoiseDevStates, allWeights, forces, weights_size, dual_directions, it < iterations);
     }
     cudaFree(forces);
-    cudaFree(tempforces);
 }
 
 void calculateForcesGPU(float *forces, float *tempforces, float *weights, size_t weights_size, size_t dual_directions, cudaStream_t stream = 0)
