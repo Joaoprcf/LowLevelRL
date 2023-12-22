@@ -13,16 +13,6 @@
 
 using namespace chrono;
 
-void __global__ initRandomKernel(curandState *state, int seed, size_t weights_size)
-{
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    size_t stride = blockDim.x * gridDim.x;
-    for (size_t i = idx; i < weights_size; i += stride)
-    {
-        curand_init(seed + i, 0, 0, &state[i]);
-    }
-}
-
 void __global__ applyNoiseKernel(curandState *state, float *weights, size_t directions_half, size_t weights_size, float noiseAmp)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
