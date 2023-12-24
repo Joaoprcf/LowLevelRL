@@ -1,9 +1,15 @@
 #pragma once
 #include <stdlib.h>
-#include <cuda_runtime.h> // For cudaMemcpy, cudaMemcpyHostToDevice
 #include <cstdint>
 
-__host__ __device__ uint32_t fastRand(uint32_t &seed, uint32_t mod)
+#ifdef __CUDACC__
+#define CUDA_CALLABLE_MEMBER __host__ __device__
+#include <cuda_runtime.h>
+#else
+#define CUDA_CALLABLE_MEMBER
+#endif
+
+CUDA_CALLABLE_MEMBER uint32_t fastRand(uint32_t &seed, uint32_t mod)
 {
     seed = (214013 * seed + 2531011);
     return ((seed >> 16) % mod);
@@ -23,11 +29,11 @@ struct GuessGame
 
     float values[5];
 
-    __host__ __device__ GuessGame() : reward(0), seed(12345) {}
+    CUDA_CALLABLE_MEMBER GuessGame() : reward(0), seed(12345) {}
 
-    __host__ __device__ GuessGame(uint32_t initSeed) : reward(0), seed(initSeed) {}
+    CUDA_CALLABLE_MEMBER GuessGame(uint32_t initSeed) : reward(0), seed(initSeed) {}
 
-    __host__ __device__ void generateValues()
+    CUDA_CALLABLE_MEMBER void generateValues()
     {
         for (int i = 0; i < 5; ++i)
         {
@@ -37,7 +43,7 @@ struct GuessGame
         }
     }
 
-    __host__ __device__ void reset(float *observation)
+    CUDA_CALLABLE_MEMBER void reset(float *observation)
     {
         reward = 0;
         missing_steps = 20;
@@ -48,7 +54,7 @@ struct GuessGame
         }
     }
 
-    __host__ __device__ void virtual step(float *action, float *observation)
+    CUDA_CALLABLE_MEMBER void virtual step(float *action, float *observation)
     {
         float expected[2]{
             values[0] - values[1] * 0.5f,
@@ -75,13 +81,13 @@ struct GuessGameV2 : GuessGame
 {
     int action_space = 4;
 
-    __host__ __device__ GuessGameV2() : GuessGame()
+    CUDA_CALLABLE_MEMBER GuessGameV2() : GuessGame()
     {
     }
 
-    __host__ __device__ GuessGameV2(uint32_t initSeed) : GuessGame(initSeed) {}
+    CUDA_CALLABLE_MEMBER GuessGameV2(uint32_t initSeed) : GuessGame(initSeed) {}
 
-    __host__ __device__ void step(float *action, float *observation) override
+    CUDA_CALLABLE_MEMBER void step(float *action, float *observation) override
     {
         float expected[4]{
             values[0] - values[1] * 0.5f,
@@ -120,11 +126,11 @@ struct GuessGameHard
 
     float values[5];
 
-    __host__ __device__ GuessGameHard() : reward(0), seed(12345) {}
+    CUDA_CALLABLE_MEMBER GuessGameHard() : reward(0), seed(12345) {}
 
-    __host__ __device__ GuessGameHard(uint32_t initSeed) : reward(0), seed(initSeed) {}
+    CUDA_CALLABLE_MEMBER GuessGameHard(uint32_t initSeed) : reward(0), seed(initSeed) {}
 
-    __host__ __device__ void generateValues()
+    CUDA_CALLABLE_MEMBER void generateValues()
     {
         for (int i = 0; i < 5; ++i)
         {
@@ -134,7 +140,7 @@ struct GuessGameHard
         }
     }
 
-    __host__ __device__ void reset(float *observation)
+    CUDA_CALLABLE_MEMBER void reset(float *observation)
     {
         reward = 0;
         missing_steps = 20;
@@ -145,7 +151,7 @@ struct GuessGameHard
         }
     }
 
-    __host__ __device__ void step(float *action, float *observation)
+    CUDA_CALLABLE_MEMBER void step(float *action, float *observation)
     {
         float expected1 = values[0] > values[1] ? values[0] - values[1] * 0.5f : values[2] + values[3] * 2.0f;
         float expected2 = values[4] > values[3] ? values[3] - values[2] * 0.5f : values[1] + values[0] * 2.0f;

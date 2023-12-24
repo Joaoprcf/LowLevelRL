@@ -4,7 +4,13 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+
+#ifdef __CUDACC__
+#define CUDA_CALLABLE_MEMBER __host__ __device__
 #include <cuda_runtime.h>
+#else
+#define CUDA_CALLABLE_MEMBER
+#endif
 
 template <typename... Args>
 std::string string_format(const std::string &format, Args... args)
@@ -61,7 +67,7 @@ inline void reverseVector(std::vector<T> &vec)
 }
 
 template <typename T, typename Compare>
-__host__ __device__ void maxHeapify(T *arr, int n, int i, Compare comparison)
+CUDA_CALLABLE_MEMBER void maxHeapify(T *arr, int n, int i, Compare comparison)
 {
     int largest;
     T temp;
@@ -92,14 +98,14 @@ __host__ __device__ void maxHeapify(T *arr, int n, int i, Compare comparison)
 }
 
 template <typename T, typename Compare>
-__host__ __device__ void buildMaxHeap(T *arr, int n, Compare comparison)
+CUDA_CALLABLE_MEMBER void buildMaxHeap(T *arr, int n, Compare comparison)
 {
     for (int i = n / 2 - 1; i >= 0; i--)
         maxHeapify(arr, n, i, comparison);
 }
 
 template <typename T, typename Compare>
-__host__ __device__ void heapSort(T *arr, int n, Compare comparison)
+CUDA_CALLABLE_MEMBER void heapSort(T *arr, int n, Compare comparison)
 {
     buildMaxHeap(arr, n, comparison);
     T temp;
@@ -125,7 +131,7 @@ struct RewardEntry
 {
     int index;
     float reward;
-    __host__ __device__ RewardEntry() : index(0), reward(0) {}
+    CUDA_CALLABLE_MEMBER RewardEntry() : index(0), reward(0) {}
     RewardEntry(float *rewards, int rewardIndex)
     {
         index = rewardIndex;
@@ -133,7 +139,7 @@ struct RewardEntry
     }
 };
 
-__host__ __device__ inline bool comparison(const RewardEntry &node1, const RewardEntry &node2)
+CUDA_CALLABLE_MEMBER inline bool comparison(const RewardEntry &node1, const RewardEntry &node2)
 {
     return node1.reward > node2.reward;
 }

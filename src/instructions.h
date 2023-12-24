@@ -1,14 +1,20 @@
 #pragma once
-#include <cstring>        // Add this line to include the definition of memcpy
-#include <iostream>       // For std::cout, std::endl
-#include <string>         // For std::string
-#include <cuda_runtime.h> // For cudaMemcpy, cudaMemcpyHostToDevice
-#include <cstdio>         // For printf
+#include <cstring>  // Add this line to include the definition of memcpy
+#include <iostream> // For std::cout, std::endl
+#include <string>   // For std::string
+#include <cstdio>   // For printf
 #include <vector>
 
 using namespace std;
 
-__host__ __device__ void fillLayer(float *input, float *output, float *weights, int inputSize, int layerSize)
+#ifdef __CUDACC__
+#define CUDA_CALLABLE_MEMBER __host__ __device__
+#include <cuda_runtime.h>
+#else
+#define CUDA_CALLABLE_MEMBER
+#endif
+
+CUDA_CALLABLE_MEMBER void fillLayer(float *input, float *output, float *weights, int inputSize, int layerSize)
 {
     // For each neuron in the layer
     for (int neuron = 0; neuron < layerSize; neuron++)
@@ -53,12 +59,12 @@ struct Instruction
     float *addr3;
 
     // Revised constructor with additional parameters for size_in and size_out
-    __device__ __host__ Instruction(type_inst op, uint32_t size_in, uint32_t size_out, float *addr1, float *addr2, float *addr3 = nullptr)
+    CUDA_CALLABLE_MEMBER Instruction(type_inst op, uint32_t size_in, uint32_t size_out, float *addr1, float *addr2, float *addr3 = nullptr)
         : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3) {}
 
-    __device__ __host__ Instruction() {}
+    CUDA_CALLABLE_MEMBER Instruction() {}
 
-    __device__ __host__ void execute()
+    CUDA_CALLABLE_MEMBER void execute()
     {
         switch (op)
         {
@@ -230,7 +236,7 @@ vector<Instruction> ConvertToPractical(vector<RecoverableInstruction> &instructi
     return practicalInstructions;
 }
 
-__host__ __device__ void ConvertToPractical(RecoverableInstruction *recInstructions, size_t num_instructions, float *datastreamAddr, float *weightsAddr, Instruction *practicalInstructions)
+CUDA_CALLABLE_MEMBER void ConvertToPractical(RecoverableInstruction *recInstructions, size_t num_instructions, float *datastreamAddr, float *weightsAddr, Instruction *practicalInstructions)
 {
     for (size_t i = 0; i < num_instructions; ++i)
     {

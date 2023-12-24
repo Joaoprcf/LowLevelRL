@@ -18,6 +18,12 @@
 
 using namespace std;
 
+#ifdef __CUDACC__
+#define CUDA_CALLABLE_MEMBER __host__ __device__
+#else
+#define CUDA_CALLABLE_MEMBER
+#endif
+
 struct PipelineBuilder
 {
     size_t weights_size;
@@ -187,7 +193,7 @@ struct PipelineBuilder
         free(buffer);
     }
 
-    __device__ __host__ void init(float *datastream, float *weights)
+    CUDA_CALLABLE_MEMBER void init(float *datastream, float *weights)
     {
         if (ownFastExecution)
         {
@@ -198,14 +204,14 @@ struct PipelineBuilder
         ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
     }
 
-    __device__ __host__ void init(float *datastream, float *weights, Instruction *reversedSpacedInstructions)
+    CUDA_CALLABLE_MEMBER void init(float *datastream, float *weights, Instruction *reversedSpacedInstructions)
     {
         fastExecution = reversedSpacedInstructions;
         ownFastExecution = false;
         ConvertToPractical(instructions, num_instructions, datastream, weights, fastExecution);
     }
 
-    __device__ __host__ void FeedForward(float **dataIn, float *datastream)
+    CUDA_CALLABLE_MEMBER void FeedForward(float **dataIn, float *datastream)
     {
         size_t pointer = 0;
         for (size_t i = 0; i < num_inputs; i++)
@@ -219,7 +225,7 @@ struct PipelineBuilder
         }
     }
 
-    __device__ __host__ void FeedForwardSingle(float *dataIn, float *datastream)
+    CUDA_CALLABLE_MEMBER void FeedForwardSingle(float *dataIn, float *datastream)
     {
         assert(num_inputs == 1);
         assert(num_outputs == 1);
@@ -227,7 +233,7 @@ struct PipelineBuilder
         this->FeedForward(dataInArray, datastream);
     }
 
-    __host__ __device__ size_t calculateMemoryRequired() const
+    CUDA_CALLABLE_MEMBER size_t calculateMemoryRequired() const
     {
         size_t totalSize = 0;
 
@@ -243,7 +249,7 @@ struct PipelineBuilder
     }
 
     // Serialize memory contents into a vector of void pointers
-    __host__ __device__ void serializeMemory(void *buffer)
+    CUDA_CALLABLE_MEMBER void serializeMemory(void *buffer)
     {
         if (!buffer)
         {
@@ -276,7 +282,7 @@ struct PipelineBuilder
     }
 
     // Unserialize memory contents from a vector of void pointers
-    __host__ __device__ void unserializeMemory(void *buffer, bool copy = false)
+    CUDA_CALLABLE_MEMBER void unserializeMemory(void *buffer, bool copy = false)
     {
         if (!buffer)
         {
@@ -390,12 +396,12 @@ struct TrainedPipelineBuilder : PipelineBuilder
         memcpy(this->weights, weights, weights_size * sizeof(float));
     }
 
-    __device__ __host__ void init(float *datastream)
+    CUDA_CALLABLE_MEMBER void init(float *datastream)
     {
         PipelineBuilder::init(datastream, weights);
     }
 
-    __device__ __host__ void init(float *datastream, Instruction *reversedSpacedInstructions)
+    CUDA_CALLABLE_MEMBER void init(float *datastream, Instruction *reversedSpacedInstructions)
     {
         PipelineBuilder::init(datastream, weights, reversedSpacedInstructions);
     }

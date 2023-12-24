@@ -23,6 +23,10 @@ struct GRSOptimizer
         return learningRate;
     }
 
+    virtual void reset()
+    {
+    }
+
     virtual void updateRewards(float *newRewards)
     {
     }
@@ -74,6 +78,14 @@ struct GRSAdamOptimizer : GRSOptimizer
             // printf("learningRate: %f\n", learningRate);
         }
         previous_reward = reward;
+    }
+
+    void reset() override
+    {
+        v = 0.0f;
+        m = 0.0f;
+        t = 0.0f;
+        previous_reward = -INFINITY;
     }
 };
 
@@ -212,6 +224,18 @@ struct IterativeOptimizer : GRSOptimizer
     {
         return learningRate;
     }
+
+    void reset() override
+    {
+        offset = 0;
+        positive = 0;
+        step = mid_step;
+        lastScore = -INFINITY;
+        movingAvgScore = -INFINITY;
+        memset(analitics, 0, sizeof(int) * (mid_step * 2 + 1));
+        memset(avgRecords, 0, sizeof(float) * num_records);
+        memset(offsetRecords, 0, sizeof(int) * num_records);
+    }
 };
 
 struct LeaderboardOptimizer : GRSOptimizer
@@ -299,6 +323,18 @@ struct LeaderboardOptimizer : GRSOptimizer
     virtual float getNextNoise()
     {
         return learningRate;
+    }
+
+    void reset() override
+    {
+        pointer = 0;
+        total = 0;
+        limit = leaderboardSize;
+        learningRate = 0.2f;
+        for (size_t i = 0; i < leaderboardSize; i++)
+        {
+            rewards[i] = -INFINITY;
+        }
     }
 };
 
@@ -388,7 +424,7 @@ struct LearnableOptimizer : GRSOptimizer
         memcpy(this->weights, weights, sizeof(float) * weights_size);
     }
 
-    void reset()
+    void reset() override
     {
         record_pointer = 0;
         learningRate = 0.1f;

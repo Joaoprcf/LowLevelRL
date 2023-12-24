@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Check if a test name was provided
-if [ "$#" -ne 1 ]; then
-    echo "Usage: $0 <test_name>"
+# Check if at least a test name was provided
+if [ "$#" -lt 1 ]; then
+    echo "Usage: $0 <test_name> [debug]"
     exit 1
 fi
 
@@ -11,6 +11,12 @@ BUILD_DIR=./build
 TEST_DIR=./tests
 CXX=g++
 CXXFLAGS="-pthread -lstdc++ -std=gnu++17 -lrt -ldl -lm -I./src -I./tests -I/usr/local/cuda/include"
+
+# Check for the debug flag
+if [ "$#" -eq 2 ] && [ "$2" = "debug" ]; then
+    CXXFLAGS="$CXXFLAGS -O0 -g"
+    echo "Debug mode enabled"
+fi
 
 # Create the build folder
 mkdir -p build
