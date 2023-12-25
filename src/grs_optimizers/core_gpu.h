@@ -63,7 +63,6 @@ struct LearnableOptimizerGPU : LearnableOptimizer
         cudaFree(serializableRecords);
         cudaFree(records);
         cudaFree(gpuMirror);
-        printf("Clearing GPU memory\n");
     }
 };
 

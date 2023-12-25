@@ -213,7 +213,6 @@ struct IterativeOptimizer : GRSOptimizer
 
     ~IterativeOptimizer()
     {
-        printf("Clearing IterativeOptimizer");
         delete[] tempRewards;
         delete[] analitics;
         delete[] avgRecords;
@@ -394,7 +393,6 @@ struct LearnableOptimizer : GRSOptimizer
 
     ~LearnableOptimizer()
     {
-        printf("Clearing LearnableOptimizer\n");
         if (!manage_memory)
             return;
         delete builder;

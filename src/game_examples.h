@@ -9,10 +9,13 @@
 #define CUDA_CALLABLE_MEMBER
 #endif
 
-CUDA_CALLABLE_MEMBER uint32_t fastRand(uint32_t &seed, uint32_t mod)
+namespace game
 {
-    seed = (214013 * seed + 2531011);
-    return ((seed >> 16) % mod);
+    CUDA_CALLABLE_MEMBER uint32_t fastRand(uint32_t &seed, uint32_t mod)
+    {
+        seed = (214013 * seed + 2531011);
+        return ((seed >> 16) % mod);
+    }
 }
 
 struct GuessGame
@@ -38,7 +41,7 @@ struct GuessGame
         for (int i = 0; i < 5; ++i)
         {
             // Generate a value between 0 and 1, then scale to [-1, 1]
-            float randVal = static_cast<float>(fastRand(seed, 500)) / 500;
+            float randVal = static_cast<float>(game::fastRand(seed, 500)) / 500;
             values[i] = randVal * 2 - 1; // Scale and shift to [-1, 1]
         }
     }
@@ -135,7 +138,7 @@ struct GuessGameHard
         for (int i = 0; i < 5; ++i)
         {
             // Generate a value between 0 and 1, then scale to [-1, 1]
-            float randVal = static_cast<float>(fastRand(seed, 500)) / 500;
+            float randVal = static_cast<float>(game::fastRand(seed, 500)) / 500;
             values[i] = randVal * 2 - 1; // Scale and shift to [-1, 1]
         }
     }

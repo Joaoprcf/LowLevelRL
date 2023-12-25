@@ -1,38 +1,39 @@
 #pragma once
 #include <cuda_runtime.h>
+#include <curand_kernel.h>
+#include "environment/core.h"
 #include "pipeline_builder/core_gpu.h"
 #include "instructions.h"
 #include "helper_functions/core_gpu.h"
 
-struct BatchEnvironmentGPU
+struct BatchEnvironmentGPU : BatchEnvironment
 {
-    size_t batch_size;
-    size_t weights_size;
-    size_t datastream_size;
-    float *weights;
-    float *datastream;
-    float *rewardArray;
-    Instruction *instructions = nullptr;
-    RewardEntry *rewardEntryArray;
     PipelineBuilderBatchGPU *builderBatch;
-    BatchEnvironmentGPU(PipelineBuilder *builder, size_t batch_size) : builderBatch(new PipelineBuilderBatchGPU(builder, batch_size)), batch_size(batch_size)
+    curandState *randomStates;
+
+    BatchEnvironmentGPU(PipelineBuilder *builder, size_t batch_size) : BatchEnvironment(builder, batch_size, false)
     {
-        weights_size = builder->weights_size;
-        datastream_size = builder->datastream_size;
+        builderBatch = new PipelineBuilderBatchGPU(builder, batch_size);
         cudaMallocManaged(&weights, sizeof(float) * batch_size * weights_size);
         cudaMallocManaged(&datastream, sizeof(float) * batch_size * datastream_size);
+        cudaMallocManaged(&memory, sizeof(float) * batch_size * memory_size);
         cudaMallocManaged(&rewardArray, sizeof(float) * batch_size);
-        cudaMallocManaged(&rewardEntryArray, sizeof(RewardEntry) * batch_size * weights_size);
-        cudaMallocManaged(&instructions, sizeof(Instruction) * batch_size * builder->num_instructions);
+        cudaMallocManaged(&rewardEntryArray, sizeof(RewardEntry) * batch_size);
+        cudaMallocManaged(&instructions, sizeof(Instruction) * batch_size * num_instructions);
         builderBatch->initGPU(instructions, datastream, weights);
+        cudaMalloc((void **)&randomStates, batch_size * sizeof(curandState));
+        auto [gridSize, blockSize] = getGridAndBlockSizes();
+        initRandomKernel<<<gridSize, blockSize>>>(randomStates, 12345, batch_size);
     }
     ~BatchEnvironmentGPU()
     {
         delete builderBatch;
         cudaFree(weights);
         cudaFree(datastream);
+        cudaFree(memory);
         cudaFree(rewardArray);
         cudaFree(rewardEntryArray);
         cudaFree(instructions);
+        cudaFree(randomStates);
     }
 };

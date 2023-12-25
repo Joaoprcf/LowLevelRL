@@ -3,6 +3,7 @@
 #include "pipeline_builder/core.h"
 #include "game_examples.h"
 #include "grs_optimizers/core.h"
+#include "environment/core.h"
 #include <vector>
 #include <random>
 #include <curand.h>
@@ -28,17 +29,6 @@ void cacheInverseStairsTable(size_t *inverseStairsTable, size_t stairs)
         }
     }
 }
-
-struct RunnerInfo
-{
-    PipelineBuilder *builder;
-    size_t direction_idx;
-    Instruction *targetInstructions;
-    float *targetWeights;
-    float *targetMemory;
-    float *targetDatastream;
-    float *reward;
-};
 
 struct GeneticRandomSearch
 {
@@ -134,7 +124,6 @@ public:
 
     ~GeneticRandomSearch()
     {
-        printf("Clearing GeneticRandomSearch\n");
         // delete _optimizer;
         delete[] currentWeights;
         delete[] preStoredRewards;

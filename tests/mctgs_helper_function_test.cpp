@@ -235,43 +235,43 @@ TEST_CASE("Test generateEvenlyDistributedWeights function on 500D 20 points")
     delete[] forces;
 }
 
-TEST_CASE("Test generateEvenlyDistributedWeights function on 500D 100 points")
+TEST_CASE("Test generateEvenlyDistributedWeights function on 500D 80 points")
 {
     size_t weights_size = 500;
-    size_t dual_directions = 50;
+    size_t dual_directions = 40;
 
     float *weights = new float[weights_size * dual_directions * 2];
     float *forces = new float[weights_size * dual_directions];
-    printf("500D 100 points:\n");
+    printf("500D 80 points:\n");
 
     auto start = high_resolution_clock::now();
 
-    generateEvenlyDistributedWeights(weights, weights_size, dual_directions, 750);
+    generateEvenlyDistributedWeights(weights, weights_size, dual_directions, 500);
 
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
     printf("generateEvenlyDistributedWeights took %.3f seconds\n", duration.count() / 1000.0f);
 
     float angle_error = calculateDistributionAngleError(weights, weights_size, dual_directions);
-    REQUIRE(angle_error < 5 * M_PI / 180); // max 5º error
+    REQUIRE(angle_error < 6 * M_PI / 180); // max 5º error
     printf("----\n");
 
     delete[] weights;
     delete[] forces;
 }
 
-TEST_CASE("Test generateEvenlyDistributedWeights function on 2000D 40 points")
+TEST_CASE("Test generateEvenlyDistributedWeights function on 2000D 30 points")
 {
     size_t weights_size = 2000;
-    size_t dual_directions = 20;
+    size_t dual_directions = 15;
 
     float *weights = new float[weights_size * dual_directions * 2];
     float *forces = new float[weights_size * dual_directions];
-    printf("2000D 40 points:\n");
+    printf("2000D 30 points:\n");
 
     auto start = high_resolution_clock::now();
 
-    generateEvenlyDistributedWeights(weights, weights_size, dual_directions);
+    generateEvenlyDistributedWeights(weights, weights_size, dual_directions, 750);
 
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);

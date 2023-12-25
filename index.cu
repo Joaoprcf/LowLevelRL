@@ -103,7 +103,7 @@ int main()
         {
             for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
             {
-                gpuPlay<<<gridSize, blockSize, 0, streams[r_idx]>>>(insideGRS[r_idx]->gpuNoiseDevStates, insideGRS[r_idx]->builderBatch->gpuBuilders, insideGRS[r_idx]->directions, insideGRS[r_idx]->datastream, insideGRS[r_idx]->rewardArray, insideGRS[r_idx]->rewardEntryArray);
+                gpuPlay<<<gridSize, blockSize, 0, streams[r_idx]>>>(insideGRS[r_idx]->gpuNoiseDevStates, insideGRS[r_idx]->builderBatch->builders, insideGRS[r_idx]->directions, insideGRS[r_idx]->datastream, insideGRS[r_idx]->rewardArray, insideGRS[r_idx]->rewardEntryArray);
             }
             for (size_t r_idx = 0; r_idx < grs.directions; r_idx++)
             {

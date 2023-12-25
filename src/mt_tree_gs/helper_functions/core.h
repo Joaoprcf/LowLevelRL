@@ -3,10 +3,21 @@
 #include <random>
 
 #ifdef __CUDACC__
+#include <cuda_runtime.h>
 #define CUDA_CALLABLE_MEMBER __host__ __device__
 #else
 #define CUDA_CALLABLE_MEMBER
 #endif
+
+namespace mctgs
+{
+    uint32_t seed = 12345;
+    uint32_t fastRand(uint32_t mod)
+    {
+        seed = (214013 * seed + 2531011);
+        return ((seed >> 16) % mod);
+    }
+}
 
 CUDA_CALLABLE_MEMBER void normalize(float *input, size_t size)
 {
@@ -27,7 +38,7 @@ void generateNormalizedRandomWeights(float *weights, size_t size)
 {
 
     std::random_device rd;                           // Random number engine (seed)
-    std::mt19937 gen(rd());                          // Mersenne Twister generator
+    std::mt19937 gen(mctgs::fastRand(50000));        // Mersenne Twister generator
     std::uniform_real_distribution<> dis(-1.0, 1.0); // Distribution between -1 and 1
 
     for (size_t i = 0; i < size; ++i)

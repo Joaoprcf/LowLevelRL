@@ -1,6 +1,7 @@
 #pragma once
 #include "pipeline_builder/core.h"
 #include "helper_functions/core_gpu.h"
+#include <new>
 #include <cuda_runtime.h>
 
 void __global__ initGpu(PipelineBuilder *tempBuilder, size_t directions, Instruction *instructions, float *datastream, float *weights, void *serializedMemory)
@@ -171,43 +172,35 @@ struct PipelineBuilderGPU : PipelineBuilder
     }
 };
 
-struct PipelineBuilderBatchGPU
+struct PipelineBuilderBatchGPU : PipelineBuilderBatch
 {
-    PipelineBuilder *gpuBuilders = nullptr;
-    void *gpuSerializedMemory = nullptr;
-    size_t batch_size = 1;
-    PipelineBuilderBatchGPU(PipelineBuilder *builder, size_t batch_size) : batch_size(batch_size)
+    PipelineBuilderBatchGPU(PipelineBuilder *builder, size_t batch_size) : PipelineBuilderBatch(builder, batch_size, false)
     {
         assert(batch_size > 0);
-        PipelineBuilder *tempBuilder = new PipelineBuilder[batch_size];
-        for (size_t i = 0; i < batch_size; i++)
+
+        cudaMallocManaged(&builders, batch_size * sizeof(PipelineBuilder));
+
+        for (size_t i = 0; i < batch_size; ++i)
         {
-            memcpy(tempBuilder + i, builder, sizeof(PipelineBuilder));
-            tempBuilder[i].manage_memory = false;
-            tempBuilder[i].ownFastExecution = false;
+            new (&builders[i]) PipelineBuilder(builder); // Assuming builder is a pointer
         }
-
-        cudaMalloc(&gpuBuilders, batch_size * sizeof(PipelineBuilder));
-        cudaMemcpy(gpuBuilders, tempBuilder, batch_size * sizeof(PipelineBuilder), cudaMemcpyHostToDevice);
-
-        delete[] tempBuilder;
 
         size_t buffer_size = builder->calculateMemoryRequired();
         void *buffer = malloc(buffer_size);
         builder->serializeMemory(buffer);
-        cudaMalloc(&gpuSerializedMemory, buffer_size);
-        cudaMemcpy(gpuSerializedMemory, buffer, buffer_size, cudaMemcpyHostToDevice);
+        cudaMallocManaged(&serializedMemory, buffer_size);
+        cudaMemcpy(serializedMemory, buffer, buffer_size, cudaMemcpyHostToDevice);
         free(buffer);
     }
     ~PipelineBuilderBatchGPU()
     {
-        cudaFree(gpuBuilders);
-        cudaFree(gpuSerializedMemory);
+        cudaFree(builders);
+        cudaFree(serializedMemory);
     }
 
     void initGPU(Instruction *instructions, float *datastream, float *weights, cudaStream_t stream = 0)
     {
         auto [gridSize, blockSize] = getGridAndBlockSizes();
-        initGpu<<<gridSize, blockSize, 0, stream>>>(gpuBuilders, batch_size, instructions, datastream, weights, gpuSerializedMemory);
+        initGpu<<<gridSize, blockSize, 0, stream>>>(builders, batch_size, instructions, datastream, weights, serializedMemory);
     }
 };

@@ -15,6 +15,7 @@
 #include <map>
 #include <set>
 #include <assert.h>
+#include <new>
 
 using namespace std;
 
@@ -42,7 +43,10 @@ struct PipelineBuilder
     bool ownFastExecution = false;
     bool manage_memory = false;
 
-    PipelineBuilder() : ownFastExecution(false), manage_memory(false) {}
+    PipelineBuilder() : ownFastExecution(false), manage_memory(false)
+    {
+        printf("Created shitty pipeline builder\n");
+    }
 
     PipelineBuilder(string filename)
     {
@@ -65,7 +69,7 @@ struct PipelineBuilder
 
     PipelineBuilder(PipelineBuilder *builder, bool manage_memory = true) : manage_memory(manage_memory)
     {
-        // printf("Deep copying pipeline builder in %p\n", this);
+        // printf("Deep copying pipeline builder in %p from %p\n", this, builder);
         weights_size = builder->weights_size;
         datastream_size = builder->datastream_size;
         memory_size = builder->memory_size;
@@ -92,6 +96,7 @@ struct PipelineBuilder
 
     PipelineBuilder(Model *nn, bool manage_memory = true) : manage_memory(manage_memory)
     {
+
         assert(nn->usingOwnWeights);
         weights_size = nn->weights_size;
         datastream_size = nn->datastream_size;
@@ -423,5 +428,58 @@ struct TrainedPipelineBuilder : PipelineBuilder
         file.write((char *)buffer, total_size);
         file.close();
         free(buffer);
+    }
+};
+
+struct PipelineBuilderBatch
+{
+    PipelineBuilder *builders = nullptr;
+    void *serializedMemory = nullptr;
+    size_t batch_size = 1;
+    bool manage_memory = false;
+    PipelineBuilderBatch(PipelineBuilder *builder, size_t batch_size, bool manage_memory = true) : batch_size(batch_size), manage_memory(manage_memory)
+    {
+        // assert(batch_size > 0);
+        if (!manage_memory)
+            return;
+
+        // Allocate uninitialized memory
+        void *rawMemory = operator new[](batch_size * sizeof(PipelineBuilder));
+
+        // Cast raw memory to PipelineBuilder pointer
+        builders = static_cast<PipelineBuilder *>(rawMemory);
+
+        // Construct each object in place
+        for (size_t i = 0; i < batch_size; ++i)
+        {
+            new (&builders[i]) PipelineBuilder(builder);
+        }
+
+        size_t buffer_size = builder->calculateMemoryRequired();
+        serializedMemory = malloc(buffer_size);
+        builder->serializeMemory(serializedMemory);
+    }
+    ~PipelineBuilderBatch()
+    {
+        if (!manage_memory)
+            return;
+
+        // Call destructor for each element
+        for (size_t i = 0; i < batch_size; ++i)
+        {
+            builders[i].~PipelineBuilder();
+        }
+
+        // Free the memory
+        operator delete[](builders);
+        free(serializedMemory);
+    }
+
+    virtual void init(Instruction *instructions, float *datastream, float *weights)
+    {
+        for (size_t i = 0; i < batch_size; i++)
+        {
+            builders[i].init(datastream + i * builders[i].datastream_size, weights + i * builders[i].weights_size, instructions + i * builders[i].num_instructions);
+        }
     }
 };
