@@ -8,7 +8,7 @@
 #include "helper_functions/core_gpu.h"
 #include "mt_tree_gs/core_gpu.h"
 #include "analizers.h"
-#include "gpu_environment.h"
+#include "environment/core_gpu.h"
 #include <cuda_runtime.h>
 
 constexpr float GUESS_GAME_GOAL = 79500;
@@ -88,9 +88,9 @@ void TEST_MonteCarloTreeGeneticSearchGPU_test_against_GuessGame_using_IterativeO
 
     PipelineBuilder builder(&nn);
 
-    size_t directions = 50;
+    size_t directions = 200;
     BatchEnvironmentGPU env(&builder, directions);
-    size_t dual_selection_amount = 10;
+    size_t dual_selection_amount = 4;
 
     MonteCarloTreeGeneticSearchGPU mt_gs(&nn, dual_selection_amount);
 

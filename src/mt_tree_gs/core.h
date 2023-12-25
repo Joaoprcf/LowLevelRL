@@ -4,21 +4,70 @@
 
 using namespace std;
 
+#ifdef __CUDACC__
+#define CUDA_CALLABLE_MEMBER __host__ __device__
+#else
+#define CUDA_CALLABLE_MEMBER
+#endif
+
 struct MTNode
 {
     uint32_t visits;
     float reward;
+    float local_reward;
     uint32_t first_child;
     uint32_t childs;
     int parent;
-    MTNode() : visits(0), reward(0.0f), first_child(0), childs(0), parent(-1) {}
-    MTNode(int parent) : visits(0), reward(0.0f), first_child(0), childs(0), parent(parent) {}
+    float lr = 0.1f;
+    CUDA_CALLABLE_MEMBER MTNode() : visits(0), reward(0.0f), local_reward(0.0f), first_child(0), childs(0), parent(-1) {}
+    CUDA_CALLABLE_MEMBER MTNode(float lr) : visits(0), reward(0.0f), local_reward(0.0f), first_child(0), childs(0), parent(-1), lr(lr) {}
+    CUDA_CALLABLE_MEMBER MTNode(int parent, float lr) : visits(0), reward(0.0f), local_reward(0.0f), first_child(0), childs(0), parent(parent), lr(lr) {}
     inline float UCT(const float exploitation, const float sqrtLogVisits, float *INV_SQRT)
     {
         float invsqrt = INV_SQRT[visits];
         return (reward > 0 ? exploitation : 0.0) * 2.5f + sqrtLogVisits * invsqrt;
     }
 };
+
+void updateNodesParent(MTNode *nodes, size_t node_idx)
+{
+    MTNode *affectedNode = &nodes[node_idx];
+    for (size_t j = 0; j < affectedNode->childs; j++)
+    {
+        nodes[affectedNode->first_child + j].parent = node_idx;
+    }
+}
+
+void promoteChild(MTNode *nodes, size_t &node_idx)
+{
+    MTNode *node = &nodes[node_idx];
+    float reward = node->reward;
+    uint32_t first_child = nodes[node->parent].first_child;
+    bool swapped = false;
+    while (node_idx > first_child)
+    {
+        if (nodes[node_idx - 1].reward < reward)
+        {
+            swap(nodes[node_idx - 1], nodes[node_idx]);
+            updateNodesParent(nodes, node_idx);
+            node_idx -= 1;
+            swapped = true;
+        }
+        else
+        {
+            break;
+        }
+    }
+    if (swapped)
+    {
+        updateNodesParent(nodes, node_idx);
+    }
+}
+
+CUDA_CALLABLE_MEMBER int nodeComparison(const MTNode &a, const MTNode &b)
+{
+    return a.reward > b.reward;
+}
 
 struct MonteCarloTreeGeneticSearch
 {
@@ -27,7 +76,7 @@ struct MonteCarloTreeGeneticSearch
     float *tempWeightDirections;
     size_t selection_amount = 50;
     vector<float> weightsBuffer;
-    float distance_from_source = 0.1f;
+    float distance_from_source = 0.2f;
     vector<MTNode> nodes;
     float *SQRT_LOG;
     float *INV_SQRT;
@@ -78,13 +127,12 @@ struct MonteCarloTreeGeneticSearch
         }
 
         nodes.reserve(10000);
-        nodes.push_back(MTNode());
+        nodes.push_back(MTNode(distance_from_source));
         weightsBuffer = vector<float>(weights_size, 0.0f);
     }
 
     void rollout()
     {
-        // printf("rollout\n");
         while (nodes[current_node].childs > 0)
         {
             current_node = select();
@@ -104,7 +152,6 @@ struct MonteCarloTreeGeneticSearch
             selected[i] = current_node;
             memcpy(selectedWeights + i * weights_size, weightsBuffer.data() + current_node * weights_size, weights_size * sizeof(float));
             backpropagate(0.0f);
-            // printf("After backpropagation, visits: %u, reward: %f\n", nodes[selected[i]].visits, nodes[selected[i]].reward);
         }
     }
 
@@ -153,13 +200,23 @@ struct MonteCarloTreeGeneticSearch
             tempSelectionReward[i].index = i;
             tempSelectionReward[i].reward = nodes[node->first_child + i].reward;
         }
-        heapSort(tempSelectionReward, child_amount, comparison);
-        // printf("rewards: ");
-        for (uint32_t i = 0; i < child_amount; ++i)
+        // check if they are sorted
+        float last_reward = tempSelectionReward[0].reward;
+        bool sorted = true;
+        for (uint32_t i = 1; i < child_amount; ++i)
         {
-            // printf("%7.2f ", nodes[node->first_child + i].reward);
+            if (tempSelectionReward[i].reward > last_reward)
+            {
+                sorted = false;
+                break;
+            }
+            last_reward = tempSelectionReward[i].reward;
         }
-        // printf("\n");
+        if (!sorted)
+        {
+            printf("NOT SORTED\n");
+            exit(1);
+        }
 
         float exploitation = 1.0f;
         float exploitation_step = 1.0f / (float)(child_amount - 1);
@@ -193,33 +250,50 @@ struct MonteCarloTreeGeneticSearch
     void backpropagateNoVisits(size_t node_idx, float reward)
     {
         MTNode *node = &nodes[node_idx];
+        node->local_reward = reward;
         while (true)
         {
             if (node->reward < reward)
+            {
                 node->reward = reward;
+                if (node->parent > -1)
+                {
+                    promoteChild(nodes.data(), node_idx);
+                }
+            }
             if (node->parent == -1)
                 break;
-            node = &nodes[node->parent];
+            node_idx = node->parent;
+            node = &nodes[node_idx];
         }
         current_node = 0;
     }
 
     void backpropagate(float reward)
     {
-        backpropagate(&nodes[current_node], reward);
+        backpropagate(current_node, reward);
     }
 
-    void backpropagate(MTNode *node, float reward)
+    void backpropagate(size_t node_idx, float reward)
     {
+        MTNode *node = &nodes[node_idx];
+        node->local_reward = reward;
 
         while (true)
         {
             node->visits += 1;
             if (node->reward < reward)
+            {
                 node->reward = reward;
+                if (node->parent > -1)
+                {
+                    promoteChild(nodes.data(), node_idx);
+                }
+            }
             if (node->parent == -1)
                 break;
-            node = &nodes[node->parent];
+            node_idx = node->parent;
+            node = &nodes[node_idx];
         }
         current_node = 0;
     }
@@ -240,10 +314,10 @@ struct MonteCarloTreeGeneticSearch
 
         float *weightsOriginLocation = weightsBuffer.data() + weights_size * node_idx;
         nodes[node_idx].first_child = pointer;
-        float final_modifier = distance_from_source * sqrt(weights_size);
+        float final_modifier = nodes[node_idx].lr * sqrt(weights_size);
         for (size_t dir = 0; dir < selection_amount; dir++)
         {
-            nodes.push_back(MTNode(node_idx));
+            nodes.push_back(MTNode(node_idx, nodes[node_idx].lr * 0.95f));
             for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
             {
                 float noise = tempWeightDirections[dir * weights_size + w_idx] * final_modifier;

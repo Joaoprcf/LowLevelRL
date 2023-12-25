@@ -46,7 +46,7 @@ struct MonteCarloTreeGeneticSearchGPU : MonteCarloTreeGeneticSearch
             INV_SQRT[i] = 1.0f / sqrt(i);
         }
         nodes.reserve(10000);
-        nodes.push_back(MTNode());
+        nodes.push_back(MTNode(distance_from_source));
         weightsBuffer = vector<float>(weights_size, 0.0f);
 
         size_t rnd_kernels = selection_amount / 2 * weights_size;
@@ -73,16 +73,6 @@ struct MonteCarloTreeGeneticSearchGPU : MonteCarloTreeGeneticSearch
         }
     }
 
-    void multiBackpropagateNoVisits(size_t *selected, float *rewards, size_t amount)
-    {
-
-        for (size_t i = 0; i < amount; i++)
-        {
-            backpropagateNoVisits(selected[i], rewards[i]);
-        }
-        current_node = 0;
-    }
-
     void expand(size_t node_idx)
     {
         // printf("Expanding node %zu\n", node_idx);
@@ -94,10 +84,10 @@ struct MonteCarloTreeGeneticSearchGPU : MonteCarloTreeGeneticSearch
 
         float *weightsOriginLocation = weightsBuffer.data() + weights_size * node_idx;
         nodes[node_idx].first_child = pointer;
-        float final_modifier = distance_from_source * sqrt(weights_size);
+        float final_modifier = nodes[node_idx].lr * sqrt(weights_size);
         for (size_t dir = 0; dir < selection_amount; dir++)
         {
-            nodes.push_back(MTNode(node_idx));
+            nodes.push_back(MTNode(node_idx, nodes[node_idx].lr * 0.95f));
             for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
             {
                 float noise = tempWeightDirections[dir * weights_size + w_idx] * final_modifier;
