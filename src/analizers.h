@@ -1,5 +1,5 @@
 #pragma once
-#include "inline_nn.h"
+#include "model.h"
 #include "grs/core.h"
 
 #include <map>

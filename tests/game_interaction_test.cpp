@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include "../src/game_examples.h"
-#include "../src/inline_nn.h"
+#include "../src/model.h"
 
 TEST_CASE("GameHard BestCaseScenario Functionality")
 {

@@ -1,6 +1,6 @@
 #include "instructions.h"
 #include "game_examples.h"
-#include "inline_nn.h"
+#include "model.h"
 #include "grs/core_gpu.h"
 #include "grs_optimizers/core_gpu.h"
 #include "helper_functions/core_gpu.h"

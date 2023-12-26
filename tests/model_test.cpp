@@ -1,6 +1,98 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "../src/inline_nn.h"
+#include "../src/model.h"
+
+TEST_CASE("Model Graph Test")
+{
+    Input input1(5);
+    Dense dense1(&input1, 2);
+    Dense dense2(&input1, 3);
+    Concatenate ct({&dense1, &dense2});
+    Dense dense3(&ct, 4);
+    Model nn(&input1, &dense3);
+
+    // Is layer job order as expected?
+    REQUIRE(nn.jobs.size() == 4);
+    REQUIRE(nn.jobs[0] == &dense1);
+    REQUIRE(nn.jobs[1] == &dense2);
+    REQUIRE(nn.jobs[2] == &ct);
+    REQUIRE(nn.jobs[3] == &dense3);
+
+    // Is the dependencies count as expected?
+    REQUIRE(nn.layerDependenciesCount.size() == 4);
+    REQUIRE(nn.layerDependenciesCount[&dense1] == 1);
+    REQUIRE(nn.layerDependenciesCount[&dense2] == 1);
+    REQUIRE(nn.layerDependenciesCount[&ct] == 2);
+    REQUIRE(nn.layerDependenciesCount[&dense3] == 1);
+
+    // Is reverseDependencies as expected?
+    REQUIRE(nn.reverseDependencies.size() == 5);
+    REQUIRE(nn.reverseDependencies[&input1].size() == 2);
+    REQUIRE(nn.reverseDependencies[&input1][0] == &dense1);
+    REQUIRE(nn.reverseDependencies[&input1][1] == &dense2);
+    REQUIRE(nn.reverseDependencies[&dense1].size() == 1);
+    REQUIRE(nn.reverseDependencies[&dense1][0] == &ct);
+    REQUIRE(nn.reverseDependencies[&dense2].size() == 1);
+    REQUIRE(nn.reverseDependencies[&dense2][0] == &ct);
+    REQUIRE(nn.reverseDependencies[&ct].size() == 1);
+    REQUIRE(nn.reverseDependencies[&ct][0] == &dense3);
+    REQUIRE(nn.reverseDependencies[&dense3].size() == 0);
+
+    // Is datastream and weights as expected?
+    REQUIRE(nn.fastExecution.size() == 5);
+
+    float *datastream_ptr = nn.datastream + input1.size_out;
+    float *weights_ptr = nn.weights;
+
+    // job 0
+    REQUIRE(nn.fastExecution[0].op == DOT);
+    REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
+    REQUIRE(nn.fastExecution[0].addr2 == datastream_ptr);
+    REQUIRE(nn.fastExecution[0].addr3 == weights_ptr);
+    REQUIRE(nn.fastExecution[0].size_in == input1.size_out);
+    REQUIRE(nn.fastExecution[0].size_out == dense1.size_out);
+    datastream_ptr += dense1.size_out;
+    weights_ptr += dense1.weights_size;
+
+    // job 1
+    REQUIRE(nn.fastExecution[1].op == DOT);
+    REQUIRE(nn.fastExecution[1].addr1 == nn.datastream);
+    REQUIRE(nn.fastExecution[1].addr2 == datastream_ptr);
+    REQUIRE(nn.fastExecution[1].addr3 == weights_ptr);
+    REQUIRE(nn.fastExecution[1].size_in == input1.size_out);
+    REQUIRE(nn.fastExecution[1].size_out == dense2.size_out);
+    datastream_ptr += dense2.size_out;
+    weights_ptr += dense2.weights_size;
+
+    // job 2
+    REQUIRE(nn.fastExecution[2].op == COPY);
+    REQUIRE(nn.fastExecution[2].addr1 == nn.datastream + input1.size_out);
+    REQUIRE(nn.fastExecution[2].addr2 == datastream_ptr);
+    REQUIRE(nn.fastExecution[2].size_in == dense1.size_out);
+    REQUIRE(nn.fastExecution[2].size_out == dense1.size_out);
+    datastream_ptr += dense1.size_out;
+
+    // job 3
+    REQUIRE(nn.fastExecution[3].op == COPY);
+    REQUIRE(nn.fastExecution[3].addr1 == nn.datastream + input1.size_out + dense1.size_out);
+    REQUIRE(nn.fastExecution[3].addr2 == datastream_ptr);
+    REQUIRE(nn.fastExecution[3].size_in == dense2.size_out);
+    REQUIRE(nn.fastExecution[3].size_out == dense2.size_out);
+    datastream_ptr += dense2.size_out;
+
+    // job 4
+    REQUIRE(nn.fastExecution[4].op == DOT);
+    REQUIRE(nn.fastExecution[4].addr1 == nn.datastream + input1.size_out + dense1.size_out + dense2.size_out);
+    REQUIRE(nn.fastExecution[4].addr2 == datastream_ptr);
+    REQUIRE(nn.fastExecution[4].addr3 == weights_ptr);
+    REQUIRE(nn.fastExecution[4].size_in == ct.size_out);
+    REQUIRE(nn.fastExecution[4].size_out == dense3.size_out);
+    datastream_ptr += dense3.size_out;
+    weights_ptr += dense3.weights_size;
+
+    REQUIRE(datastream_ptr == nn.datastream + nn.datastream_size);
+    REQUIRE(weights_ptr == nn.weights + nn.weights_size);
+}
 
 TEST_CASE("Model FeedForwardSingle Test")
 {
@@ -12,6 +104,8 @@ TEST_CASE("Model FeedForwardSingle Test")
     Model nn(&input1, &dense3);
 
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
+    REQUIRE(nn.fastExecution[0].addr2 == nn.datastream + 5);
+    REQUIRE(nn.fastExecution[0].addr3 == nn.weights);
 
     dense1.weights[6] = 1;
     dense2.weights[4] = 1;
