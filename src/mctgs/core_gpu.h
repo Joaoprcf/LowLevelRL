@@ -1,7 +1,8 @@
 #pragma once
+#include <cuda_runtime.h>
 #include "grs/core.h"
-#include "mt_tree_gs/helper_functions/core_gpu.h"
-#include "mt_tree_gs/core.h"
+#include "mctgs/helper_functions/core_gpu.h"
+#include "mctgs/core.h"
 
 using namespace std;
 
@@ -16,7 +17,19 @@ struct MonteCarloTreeGeneticSearchGPU : MonteCarloTreeGeneticSearch
         datastream_size = nn->datastream_size;
         initMTSC();
     }
+    MonteCarloTreeGeneticSearchGPU(Model *nn, MonteCarloTreeSearchConfig &config) : MonteCarloTreeGeneticSearch(nn, config, false)
+    {
+        weights_size = nn->weights_size;
+        datastream_size = nn->datastream_size;
+        initMTSC();
+    }
     MonteCarloTreeGeneticSearchGPU(PipelineBuilder *builder, size_t dual_selection_amount) : MonteCarloTreeGeneticSearch(builder, dual_selection_amount, false)
+    {
+        weights_size = builder->weights_size;
+        datastream_size = builder->datastream_size;
+        initMTSC();
+    }
+    MonteCarloTreeGeneticSearchGPU(PipelineBuilder *builder, MonteCarloTreeSearchConfig &config) : MonteCarloTreeGeneticSearch(builder, config, false)
     {
         weights_size = builder->weights_size;
         datastream_size = builder->datastream_size;

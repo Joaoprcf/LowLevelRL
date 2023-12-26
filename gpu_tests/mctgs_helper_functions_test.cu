@@ -2,7 +2,7 @@
 #include <cuda_runtime.h>
 #include <cassert>
 #include "helper_functions/core_gpu.h"
-#include "mt_tree_gs/helper_functions/core_gpu.h"
+#include "mctgs/helper_functions/core_gpu.h"
 #include <chrono>
 
 using namespace std::chrono;

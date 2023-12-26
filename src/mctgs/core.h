@@ -1,6 +1,6 @@
 #pragma once
 #include "grs/core.h"
-#include "mt_tree_gs/helper_functions/core.h"
+#include "mctgs/helper_functions/core.h"
 
 using namespace std;
 

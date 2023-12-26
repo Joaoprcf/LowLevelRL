@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "../src/mt_tree_gs/core.h"
-#include "../src/mt_tree_gs/helper_functions/core.h"
+#include "../src/mctgs/core.h"
+#include "../src/mctgs/helper_functions/core.h"
 #include <chrono>
 
 constexpr float GUESS_GAME_GOAL = 79500;

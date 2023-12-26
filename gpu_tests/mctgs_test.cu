@@ -6,7 +6,7 @@
 #include "grs_optimizers/core_gpu.h"
 #include "pipeline_builder/core_gpu.h"
 #include "helper_functions/core_gpu.h"
-#include "mt_tree_gs/core_gpu.h"
+#include "mctgs/core_gpu.h"
 #include "analizers.h"
 #include "environment/core_gpu.h"
 #include <cuda_runtime.h>

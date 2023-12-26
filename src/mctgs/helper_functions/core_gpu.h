@@ -1,7 +1,8 @@
 #pragma once
+#include <cuda_runtime.h>
 #include <curand.h>
 #include <curand_kernel.h>
-#include "mt_tree_gs/helper_functions/core.h"
+#include "mctgs/helper_functions/core.h"
 #include "helper_functions/core_gpu.h"
 
 void __device__ normalize_bidirectional(float *weights, float *inv_weights, size_t weights_size)
