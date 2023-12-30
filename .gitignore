@@ -8,5 +8,11 @@ weights/*
 !weights/learnable_optimizer_weights.bin
 .aider*
 
+
+*.py
+!keras_utils/*.py
 models/*
 !models/README.md
+
+data_buffer/*
+!data_buffer/README.md

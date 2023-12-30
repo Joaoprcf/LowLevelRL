@@ -39,6 +39,17 @@ inline void saveParams(std::string filename, float *weights, size_t weights_size
     wf.close();
 }
 
+inline void saveVector(std::string filename, float *v, size_t vector_size)
+{
+    std::ofstream wf(string_format("data_buffer/%s.bin", filename.c_str()), std::ofstream::out | std::ofstream::binary);
+    if (wf.fail())
+    {
+        throw std::runtime_error("Error writing to file");
+    }
+    wf.write((char *)v, sizeof(float) * vector_size);
+    wf.close();
+}
+
 inline void loadParams(std::string filename, float *weights, size_t weights_size)
 {
     std::cout << string_format("weights/%s.bin", filename.c_str()) << std::endl;

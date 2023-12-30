@@ -135,6 +135,26 @@ struct Model : TrainableLayer
         }
     }
 
+    size_t fullInputSize()
+    {
+        size_t sum = 0;
+        for (size_t i = 0; i < inputs.size(); i++)
+        {
+            sum += inputs[i]->size_out;
+        }
+        return sum;
+    }
+
+    size_t fullOutputSize()
+    {
+        size_t sum = 0;
+        for (size_t i = 0; i < outputs.size(); i++)
+        {
+            sum += outputs[i]->size_out;
+        }
+        return sum;
+    }
+
     Model() : TrainableLayer(nullptr, 0, 0), size_in(0), usingOwnWeights(false)
     {
     }
@@ -308,4 +328,10 @@ struct Model : TrainableLayer
         assert(result.size() == 1);
         return result[0];
     }
+
+#ifdef USE_KERAS_LINK
+    bool iscompiled = false;
+    void compile(string optimizer);
+    void fit(float *dstWeights, float *originWeights, float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size = 1);
+#endif
 };

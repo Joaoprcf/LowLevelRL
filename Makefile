@@ -1,8 +1,10 @@
 CXX = g++
 NVCC = nvcc
-CXXFLAGS = -pthread -lstdc++ -std=gnu++17 -lrt -ldl -lm -I./src -I./tests -I/usr/local/cuda/include
-NVCCFLAGS = -I./src -I./tests
-LDFLAGS =
+PYTHON_INCLUDES = $(shell python3-config --includes --embed)
+PYTHON_LDFLAGS = $(shell python3-config --ldflags --embed)
+CXXFLAGS = -pthread -lstdc++ -std=gnu++17 -lrt -ldl -lm -I./src -I./tests -I/usr/local/cuda/include $(PYTHON_INCLUDES)
+NVCCFLAGS = -I./src -I./tests $(PYTHON_INCLUDES)
+LDFLAGS = $(PYTHON_LDFLAGS)
 
 SRC_DIR = src
 TESTS_DIR = tests
@@ -59,13 +61,13 @@ gpu_fast_test: clean build_dir
 	if [ $$status -ne 0 ]; then exit 1; fi;
 
 $(BUILD_DIR)/gpu_%: $(GPU_TESTS_DIR)/%.cu
-	$(NVCC) $(NVCCFLAGS) $(LDFLAGS) $< -o $@
+	$(NVCC) $(NVCCFLAGS) $< -o $@
 
 $(INDEX_EXE): $(INDEX_CU)
 	$(NVCC) $(NVCCFLAGS) $(LDFLAGS) $< -o $@
 
 $(BUILD_DIR)/%: $(TESTS_DIR)/%.cpp $(CU_OBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 	$(NVCC) $(NVCCFLAGS) -c $< -o $@

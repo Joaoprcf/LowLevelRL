@@ -4,7 +4,13 @@ FROM nvidia/cuda:12.3.0-devel-ubuntu22.04
 # Install necessary dependencies
 RUN apt-get update && apt-get install -y \
     g++ \
-    make
+    make \
+    python3 \
+    python3-dev \
+    python3-pip
+
+RUN pip install --upgrade pip
+RUN pip install tensorflow
 
 # Copy your project files into the Docker image
 WORKDIR /project
