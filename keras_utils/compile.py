@@ -1,10 +1,16 @@
-from tensorflow.keras.layers import Input, Dense, Dropout, Concatenate
+from tensorflow.keras.layers import Input, Dense, Dropout, Concatenate, Activation
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
-
-
+from keras.initializers import glorot_uniform
+from tensorflow import random as tf_random
+import random
 import numpy as np
 
+seed_value = 12345
+np.random.seed(seed_value)
+tf_random.set_seed(seed_value)
+random.seed(seed_value)
+initializer = glorot_uniform(seed=seed_value)
 
 inputs = [
   #$INPUTS_PLACEHOLDER

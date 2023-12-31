@@ -93,6 +93,7 @@ model.fit(
     data_y, 
     epochs=epochs, 
     batch_size=batch_size, 
+    verbose=0,
     callbacks=early_stopping_callback
 )
 

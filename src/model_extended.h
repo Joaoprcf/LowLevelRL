@@ -34,13 +34,8 @@ string mountInputs(std::vector<Input *> inputs)
     return result;
 }
 
-std::string activationDefinition(type_inst activation)
+std::string denseActivationDefinition(type_inst activation)
 {
-    // ACTIVATION_SIGMOID
-    // ACTIVATION_TANH
-    // ACTIVATION_RELU
-    // ACTIVATION_IF_POSITIVE
-    // ACTIVATION_ARITH_INV
     switch (activation)
     {
     case ACTIVATION_SIGMOID:
@@ -62,11 +57,15 @@ std::string layerDefinition(Layer *layer)
 {
     if (Dense *dense = dynamic_cast<Dense *>(layer))
     {
-        return "Dense(" + to_string(dense->size_out) + (dense->activation != ACTIVATION_NONE ? ", activation='" + activationDefinition(dense->activation) + "'" : "") + ")";
+        return "Dense(" + to_string(dense->size_out) + (dense->activation != ACTIVATION_NONE ? ", activation='" + denseActivationDefinition(dense->activation) + "'" : "") + ", kernel_initializer=initializer)";
     }
     else if (dynamic_cast<Concatenate *>(layer) != nullptr)
     {
         return "Concatenate()";
+    }
+    else if (ActivationLayer *activation = dynamic_cast<ActivationLayer *>(layer))
+    {
+        return "Activation('" + denseActivationDefinition(activation->activation) + "')";
     }
     return "ERROR";
 }
@@ -188,7 +187,6 @@ void Model::compile(std::string optimizer)
 
 void Model::fit(float *dstWeights, float *originWeights, float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size)
 {
-    printf("Fit called!...\n");
     float *kerasWeights = new float[this->weights_size];
     size_t weights_ptr = 0;
     for (Layer *layer : this->jobs)
@@ -196,8 +194,6 @@ void Model::fit(float *dstWeights, float *originWeights, float *data_x, float *d
 
         if (TrainableLayer *trainable_layer = dynamic_cast<TrainableLayer *>(layer))
         {
-            printf("TrainableLayer->from.size() %lu\n", trainable_layer->from.size());
-            printf("Trainabletrainable_layer on the move %lu to %lu\n", trainable_layer->from[0]->size_out, trainable_layer->size_out);
             divideWeightsAndBias(kerasWeights + weights_ptr, originWeights + weights_ptr, trainable_layer->from[0]->size_out, trainable_layer->size_out);
             weights_ptr += trainable_layer->weights_size;
         }
@@ -246,11 +242,14 @@ void Model::fit(float *dstWeights, float *originWeights, float *data_x, float *d
     {
         if (TrainableLayer *trainable_layer = dynamic_cast<TrainableLayer *>(layer))
         {
-            // printf("TrainableLayer->from.size() %lu\n", trainable_layer->from.size());
-            // printf("Trainabletrainable_layer on the move %lu to %lu\n", trainable_layer->from[0]->size_out, trainable_layer->size_out);
             mergeWeightsAndBias(dstWeights + weights_ptr, kerasWeights + weights_ptr, layer->from[0]->size_out, layer->size_out);
             weights_ptr += trainable_layer->weights_size;
         }
     }
     delete kerasWeights;
+}
+
+void Model::fit(float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size)
+{
+    this->fit(this->weights, this->weights, data_x, data_y, data_size, epochs, batch_size);
 }
