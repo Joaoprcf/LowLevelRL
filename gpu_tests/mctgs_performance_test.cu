@@ -10,6 +10,9 @@
 #include "analizers.h"
 #include "environment/core_gpu.h"
 #include <cuda_runtime.h>
+#include <chrono>
+
+using namespace std::chrono;
 
 constexpr float GUESS_GAME_GOAL = 79500;
 void __global__ gpuPlay(curandState *state, PipelineBuilder *tempBuilder, size_t directions, float *datastream, float *rewardArray, RewardEntry *entries)
@@ -144,6 +147,8 @@ void TEST_MonteCarloTreeGeneticSearchGPU_test_against_GuessGame()
 
 void TEST_MonteCarloTreeGeneticSearchGPU_test_against_GuessGameV2()
 {
+    // count time
+    auto start = high_resolution_clock::now();
     printf("GeneticRandomSearch test against GuessGameV2 Test:\n\n");
     auto [gridSize, blockSize] = getGridAndBlockSizes();
 
@@ -159,9 +164,11 @@ void TEST_MonteCarloTreeGeneticSearchGPU_test_against_GuessGameV2()
 
     MonteCarloTreeSearchConfig config;
     config.dual_selection_amount = 4;
-    config.discount_factor = 0.985f;
+    config.discount_factor = 0.98f;
+    config.reserved_noise = 50;
+    config.distribution_iterations = 50;
 
-    MonteCarloTreeGeneticSearch mctgs(&nn, config);
+    MonteCarloTreeGeneticSearchGPU mctgs(&nn, config);
 
     size_t *node_idx = new size_t[directions];
 
@@ -200,6 +207,9 @@ void TEST_MonteCarloTreeGeneticSearchGPU_test_against_GuessGameV2()
         else if (idx % 10 == 0)
             printf("idx: %lu, best_reward: %.f\n", idx, best_reward);
     }
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds>(stop - start);
+    printf("Time taken by function: %.3f seconds\n", duration.count() / 1000.0f);
 }
 
 /* void TEST_MonteCarloTreeGeneticSearchGPU_test_against_GuessGameHard()

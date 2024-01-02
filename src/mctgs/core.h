@@ -37,6 +37,8 @@ struct MonteCarloTreeSearchConfig
     size_t PRECOMPUTED_VALUES = 1000000;
     size_t distribution_iterations = 50;
     float exploration_factor = M_E;
+    size_t reserved_space = 0;
+    size_t reserved_noise = 1;
 };
 
 void initializeUCT(size_t PRECOMPUTED_VALUES, float *SQRT_LOG, float *INV_SQRT, float exploration_factor)
@@ -129,6 +131,8 @@ struct MonteCarloTreeGeneticSearch
     float discount_factor = 0.95f;
     float exploration_factor = M_E;
     size_t distribution_iterations = 50;
+    size_t reserved_space = 0;
+    size_t reserved_noise = 1;
     size_t PRECOMPUTED_VALUES = 1000000;
 
     vector<MTNode> nodes;
@@ -152,7 +156,10 @@ struct MonteCarloTreeGeneticSearch
         selection_amount = config.dual_selection_amount * 2;
         distance_from_source = config.distance_from_source;
         discount_factor = config.discount_factor;
+        distribution_iterations = config.distribution_iterations;
         exploration_factor = config.exploration_factor;
+        reserved_space = config.reserved_space;
+        reserved_noise = config.reserved_noise;
 
         PRECOMPUTED_VALUES = config.PRECOMPUTED_VALUES;
 
@@ -171,7 +178,10 @@ struct MonteCarloTreeGeneticSearch
         selection_amount = config.dual_selection_amount * 2;
         distance_from_source = config.distance_from_source;
         discount_factor = config.discount_factor;
+        distribution_iterations = config.distribution_iterations;
         exploration_factor = config.exploration_factor;
+        reserved_space = config.reserved_space;
+        reserved_noise = config.reserved_noise;
 
         PRECOMPUTED_VALUES = config.PRECOMPUTED_VALUES;
 
@@ -191,7 +201,7 @@ struct MonteCarloTreeGeneticSearch
     {
         if (!manage_memory)
             return;
-        tempWeightDirections = new float[weights_size * selection_amount];
+        tempWeightDirections = new float[weights_size * selection_amount * reserved_noise];
         tempSelectionReward = new RewardEntry[selection_amount];
         SQRT_LOG = new float[PRECOMPUTED_VALUES];
         INV_SQRT = new float[PRECOMPUTED_VALUES];
@@ -333,11 +343,6 @@ struct MonteCarloTreeGeneticSearch
                     promoteChild(nodes.data(), node_idx);
                 }
             }
-            /* else if (node->parent > -1)
-            {
-                node->reward *= 0.995f;
-                demoteChild(nodes.data(), node_idx);
-            } */
             if (node->parent == -1)
                 break;
             node_idx = node->parent;
@@ -355,7 +360,6 @@ struct MonteCarloTreeGeneticSearch
     {
         MTNode *node = &nodes[node_idx];
         node->local_reward = reward;
-
         while (true)
         {
             node->visits += 1;
@@ -392,6 +396,7 @@ struct MonteCarloTreeGeneticSearch
                 float *weightsParentLocation = weightsBuffer.data() + weights_size * nodes[node_idx].parent;
                 float *weightsOriginLocation = weightsBuffer.data() + weights_size * node_idx;
                 float dist_parent = 0.0f;
+
                 for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
                 {
                     float new_coord = weightsOriginLocation[w_idx] + weightDirections[dir * weights_size + w_idx] * final_modifier;
@@ -407,10 +412,10 @@ struct MonteCarloTreeGeneticSearch
             size_t newSize = weightsBuffer.size() + weights_size;
             weightsBuffer.resize(newSize);
             float *weightsOriginLocation = weightsBuffer.data() + weights_size * node_idx;
+            memcpy(weightsBuffer.data() + pointer * weights_size, weightsOriginLocation, weights_size * sizeof(float));
             for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
             {
-                float noise = weightDirections[dir * weights_size + w_idx] * final_modifier;
-                weightsBuffer[pointer * weights_size + w_idx] = weightsOriginLocation[w_idx] + noise;
+                weightsBuffer[pointer * weights_size + w_idx] += weightDirections[dir * weights_size + w_idx] * final_modifier;
             }
             pointer += 1;
             added_childs += 1;
@@ -420,6 +425,14 @@ struct MonteCarloTreeGeneticSearch
             // printf("added_childs: %lu of a total %lu\n", added_childs, selection_amount);
         }
         nodes[node_idx].childs = added_childs;
+        if (node_idx == 0)
+        {
+            pointer += reserved_space;
+            size_t newSize = weightsBuffer.size() + weights_size * reserved_space;
+            weightsBuffer.resize(newSize);
+            nodes.resize(nodes.size() + reserved_space);
+            // printf("Pointer is now at %lu\n", pointer);
+        }
     }
 
     void expand(size_t node_idx)

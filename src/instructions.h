@@ -4,6 +4,7 @@
 #include <string>   // For std::string
 #include <cstdio>   // For printf
 #include <vector>
+#include <cmath>
 
 using namespace std;
 

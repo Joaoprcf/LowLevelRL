@@ -3,13 +3,16 @@
 #include "grs/core.h"
 #include "mctgs/helper_functions/core_gpu.h"
 #include "mctgs/core.h"
-
+#include <chrono>
 using namespace std;
-
+using namespace chrono;
 struct MonteCarloTreeGeneticSearchGPU : MonteCarloTreeGeneticSearch
 {
 
     curandState *gpuNoiseDevStates;
+    float *reservedForces;
+    size_t noise_pointer = 1;
+    cudaStream_t *streams;
 
     MonteCarloTreeGeneticSearchGPU(Model *nn, size_t dual_selection_amount) : MonteCarloTreeGeneticSearch(nn, dual_selection_amount, false)
     {
@@ -39,28 +42,44 @@ struct MonteCarloTreeGeneticSearchGPU : MonteCarloTreeGeneticSearch
     {
         cudaFree(tempWeightDirections);
         cudaFree(tempSelectionReward);
+        for (size_t i = 0; i < reserved_noise; i++)
+        {
+            cudaStreamDestroy(streams[i]);
+        }
+        cudaFree(reservedForces);
         delete[] SQRT_LOG;
         delete[] INV_SQRT;
+        delete[] streams;
     }
 
     void initMTSC()
     {
         // all with cudaMallocManaged instead
-        cudaMallocManaged(&tempWeightDirections, weights_size * selection_amount * sizeof(float));
+        size_t rnd_kernels = reserved_noise * selection_amount / 2 * weights_size;
+        cudaMallocManaged(&tempWeightDirections, weights_size * selection_amount * reserved_noise * sizeof(float));
+        cudaMallocManaged(&reservedForces, sizeof(float) * rnd_kernels);
         cudaMallocManaged(&tempSelectionReward, selection_amount * sizeof(RewardEntry));
+
+        streams = new cudaStream_t[reserved_noise];
+        // initialize reserved_noise cudaStream_t
+        for (size_t i = 0; i < reserved_noise; i++)
+        {
+            cudaStreamCreate(&streams[i]);
+        }
 
         SQRT_LOG = new float[PRECOMPUTED_VALUES];
         INV_SQRT = new float[PRECOMPUTED_VALUES];
 
         initializeUCT(PRECOMPUTED_VALUES, SQRT_LOG, INV_SQRT, exploration_factor);
         nodes.reserve(100000);
+        weightsBuffer.reserve(100000 * weights_size);
         nodes.push_back(MTNode(distance_from_source));
         weightsBuffer = vector<float>(weights_size, 0.0f);
 
-        size_t rnd_kernels = selection_amount / 2 * weights_size;
         cudaError_t err = cudaMalloc((void **)&gpuNoiseDevStates, rnd_kernels * sizeof(curandState));
         auto [blocks_per_grid, block_size] = getGridAndBlockSizes();
-        initRandomKernel<<<blocks_per_grid, block_size>>>(gpuNoiseDevStates, 12345, rnd_kernels);
+        initRandomKernel<<<blocks_per_grid, block_size>>>(gpuNoiseDevStates, 123456, rnd_kernels);
+        noise_pointer = reserved_noise;
     }
 
     void multiRolloutAndVisit(float *selectedWeights, size_t *selected, size_t amount)
@@ -87,10 +106,24 @@ struct MonteCarloTreeGeneticSearchGPU : MonteCarloTreeGeneticSearch
 
     void expand(size_t node_idx)
     {
-        // printf("Expanding node %zu\n", node_idx);
-        generateEvenlyDistributedWeightsGPU(gpuNoiseDevStates, tempWeightDirections, weights_size, selection_amount / 2, distribution_iterations);
-        cudaDeviceSynchronize();
+        // measure time
+        size_t kernel_size = weights_size * selection_amount / 2;
+        auto start = high_resolution_clock::now();
+        if (noise_pointer >= reserved_noise)
+        {
+            for (size_t i = 0; i < reserved_noise; i++)
+            {
+                generateEvenlyDistributedWeightsGPU(reservedForces + i * kernel_size, gpuNoiseDevStates + i * kernel_size, tempWeightDirections + i * weights_size * selection_amount, weights_size, selection_amount / 2, distribution_iterations, streams[i]);
+            }
+            for (size_t i = 0; i < reserved_noise; i++)
+            {
+                cudaStreamSynchronize(streams[i]);
+            }
 
-        generateChildren(node_idx, tempWeightDirections);
+            noise_pointer = 0;
+        }
+
+        generateChildren(node_idx, tempWeightDirections + noise_pointer * weights_size * selection_amount);
+        noise_pointer++;
     }
 };

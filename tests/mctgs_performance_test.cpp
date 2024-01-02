@@ -6,7 +6,7 @@
 
 constexpr float GUESS_GAME_GOAL = 79500;
 
-TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame using IterativeOptimizer")
+TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame")
 {
     // Setup Model and MonteCarloTreeGeneticSearch
     Input input(5);
@@ -77,7 +77,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame using IterativeOpt
     delete[] node_idxs;
 }
 
-TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2 using IterativeOptimizer")
+TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2")
 {
     // Setup Model and MonteCarloTreeGeneticSearch
     Input input(5);
@@ -90,7 +90,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2 using IterativeO
 
     MonteCarloTreeSearchConfig config;
     config.dual_selection_amount = 4;
-    config.discount_factor = 0.985f;
+    config.discount_factor = 0.98f;
 
     MonteCarloTreeGeneticSearch mctgs(&builder, config);
 
@@ -167,7 +167,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2 using IterativeO
     Dense dense2(&input, 2);
 
     // BranchLayer gate(&dense1, &dense2, &input);
-    Dense gate(&input, 2, ACTIVATION_IF_POSITIVE);
+    Dense gate(&input, 2, ACTIVATION_TANH);
     ActivationLayer invGate(&gate, ACTIVATION_ARITH_INV);
 
     Multiply option1 = dense1 * gate;
@@ -177,8 +177,10 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2 using IterativeO
 
     Model nn(&input, &output);
 
-    size_t stairs = 14;
-    size_t dual_selection_amount = 20;
+    PipelineBuilder builder(&nn);
+
+    BatchEnvironment env(&builder, 300);
+    size_t dual_selection_amount = 5;
 
     MonteCarloTreeSearchConfig config;
     config.dual_selection_amount = dual_selection_amount;
@@ -186,25 +188,19 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2 using IterativeO
 
     MonteCarloTreeGeneticSearch mctgs(&nn, config);
 
-    GeneticRandomSearch grs(&nn, stairs);
-
-    grs.initCPU();
-
-    size_t *node_idxs = new size_t[grs.directions];
+    size_t *node_idxs = new size_t[env.batch_size];
 
     for (size_t it_idx = 0; it_idx < 500; it_idx++)
     {
-        mctgs.multiRolloutAndVisit(grs.allWeightsSerialized, node_idxs, grs.directions);
+        mctgs.multiRolloutAndVisit(env.weights, node_idxs, env.batch_size);
 
-        grs.copyWeigthsToCPU();
-
-        grs.initIterator();
+        env.initIterator();
         // Iterate through all directions and check RunnerInfo
-        for (size_t i = 0; i < grs.directions; i++)
+        for (size_t i = 0; i < env.batch_size; i++)
         {
-            RunnerInfo runnerInfo = grs.getNext();
+            RunnerInfo runnerInfo = env.getNext();
 
-            GuessGameHard game(123456 + i + it_idx * grs.directions); // Corrected instantiation
+            GuessGameHard game(123456 + i + it_idx * env.batch_size); // Corrected instantiation
             float reward = 0;
             float *targetDatastream = runnerInfo.targetDatastream;
 
@@ -227,32 +223,31 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2 using IterativeO
             (*runnerInfo.reward) = reward;
         }
 
-        mctgs.multiBackpropagateNoVisits(node_idxs, grs.rewardArray, grs.directions);
+        mctgs.multiBackpropagateNoVisits(node_idxs, env.rewardArray, env.batch_size);
         float best_reward = mctgs.nodes[0].reward;
-        printf("it_idx: %lu, best_reward: %.f\n", it_idx, best_reward);
-                if (best_reward >= GUESS_GAME_GOAL)
-                {
-                    printf("Goal reward %.f achieved at idx %zu \n", best_reward, it_idx);
-                    break;
-                }
-                if (it_idx == 49)
-                {
-                    printf("%.f > 2500.0\n", best_reward);
-                    REQUIRE(best_reward > 2500.0f);
-                }
-                if (it_idx == 99)
-                {
-                    printf("%.f > 15000.0\n", best_reward);
-                    REQUIRE(best_reward > 15000.0f);
-                }
-                if (it_idx == 199)
-                {
-                    printf("%.f > 35000.0\n", best_reward);
-                    REQUIRE(best_reward > 35000.0f);
-                }
+        printf("it_idx: %lu, best_reward: %.2f\n", it_idx, best_reward);
+        if (best_reward >= GUESS_GAME_GOAL)
+        {
+            printf("Goal reward %.2f achieved at idx %zu \n", best_reward, it_idx);
+            break;
+        }
+        if (it_idx == 49)
+        {
+            printf("%.f > 2500.0\n", best_reward);
+            REQUIRE(best_reward > 2500.0f);
+        }
+        if (it_idx == 99)
+        {
+            printf("%.f > 15000.0\n", best_reward);
+            REQUIRE(best_reward > 15000.0f);
+        }
+        if (it_idx == 199)
+        {
+            printf("%.f > 35000.0\n", best_reward);
+            REQUIRE(best_reward > 35000.0f);
+        }
     }
 
-    grs.clearCPU();
     delete[] node_idxs;
 }
  */

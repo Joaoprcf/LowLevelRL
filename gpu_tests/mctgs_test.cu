@@ -51,6 +51,48 @@ void TEST_MonteCarloTreeGeneticSearchGPU_expand()
     }
 }
 
+void TEST_MonteCarloTreeGeneticSearchGPU_expand_with_reserved_noise()
+{
+    printf("MonteCarloTreeGeneticSearchGPU expand with reserved noise Test:\n\n");
+    auto [gridSize, blockSize] = getGridAndBlockSizes();
+
+    Input input(5);
+    Dense output(&input, 2);
+    Model nn(&input, &output);
+    for (size_t _ = 0; _ < 10; _++)
+    {
+        MonteCarloTreeSearchConfig config;
+        config.dual_selection_amount = 25;
+        config.reserved_noise = 10;
+        MonteCarloTreeGeneticSearchGPU mctgs(&nn, config);
+
+        mctgs.rollout();
+        assert(mctgs.current_node == 0);
+
+        mctgs.expand();
+        assert(mctgs.pointer == mctgs.nodes[0].childs + 1);
+        assert(mctgs.current_node == 0);
+        assert(mctgs.nodes.size() == mctgs.nodes[0].childs + 1);
+        assert(mctgs.weightsBuffer.size() == (mctgs.nodes[0].childs + 1) * mctgs.weights_size);
+
+        for (size_t i = 1; i < mctgs.nodes[0].childs + 1; i++)
+        {
+            assert(mctgs.nodes[i].parent == 0);
+            float dist = 0.0f;
+            for (size_t j = 0; j < mctgs.weights_size; j++)
+            {
+                size_t parent = mctgs.nodes[i].parent;
+                float weight_distance = mctgs.weightsBuffer[i * mctgs.weights_size + j] - mctgs.weightsBuffer[parent * mctgs.weights_size + j];
+                dist += weight_distance * weight_distance;
+            }
+            assert(abs(sqrt(dist) - (mctgs.distance_from_source * sqrtf(mctgs.weights_size))) < 0.0001f);
+        }
+
+        assert(mctgs.nodes[0].first_child == 1);
+        assert(mctgs.nodes[0].visits == 0);
+    }
+}
+
 void TEST_MonteCarloTreeGeneticSearchGPU_backpropagation()
 {
     printf("MonteCarloTreeGeneticSearchGPU backpropagation Test:\n\n");
@@ -276,13 +318,84 @@ void TEST_MonteCarloTreeGeneticSearchGPU_multiRolloutAndVisit()
     }
 }
 
+void TEST_MonteCarloTreeGeneticSearchGPU_multiRolloutAndVisit_with_reserved_noise()
+{
+    printf("MonteCarloTreeGeneticSearchGPU multiRolloutAndVisit with reserved noise Test:\n\n");
+
+    // Setup Model and MonteCarloTreeGeneticSearchGPU
+    Input input(5);
+    Dense output(&input, 2);
+    Model nn(&input, &output);
+
+    for (size_t _ = 0; _ < 10; _++)
+    {
+        MonteCarloTreeSearchConfig config;
+        config.dual_selection_amount = 8;
+        config.reserved_noise = 20;
+        config.distribution_iterations = 100;
+        MonteCarloTreeGeneticSearchGPU mctgs(&nn, config);
+
+        size_t expansion_amount = mctgs.selection_amount + 1;
+        float *weights = new float[mctgs.weights_size * expansion_amount];
+        size_t *node_idxs = new size_t[expansion_amount];
+        float *rewards = new float[expansion_amount];
+
+        // Multi-rollout and visit
+        mctgs.multiRolloutAndVisit(weights, node_idxs, expansion_amount);
+
+        // Assertions after multiRolloutAndVisit
+        assert(node_idxs[0] == 0);
+        assert(mctgs.nodes[0].visits == expansion_amount);
+
+        for (size_t i = 1; i < expansion_amount; i++)
+        {
+            assert(node_idxs[i] > 0);
+            assert(node_idxs[i] <= mctgs.selection_amount);
+            assert(mctgs.nodes[i].visits == 1);
+        }
+
+        // Adding rewards
+        for (size_t i = 0; i < expansion_amount; i++)
+        {
+            rewards[i] = (i + 1) * 10.0f;
+        }
+
+        // Multi-backpropagate without visits
+        mctgs.multiBackpropagateNoVisits(node_idxs, rewards, expansion_amount);
+
+        // Assertions after multiBackpropagateNoVisits
+        assert(abs(mctgs.nodes[0].reward - (expansion_amount * 10.0f)) < 0.0001f);
+        assert(mctgs.nodes[0].visits == expansion_amount);
+        for (size_t i = 1; i < expansion_amount; i++)
+        {
+            assert(abs(mctgs.nodes[node_idxs[i]].reward - ((expansion_amount - i + 1) * 10.0f)) < 0.0001f);
+        }
+
+        // Second multi-rollout and visit
+        mctgs.multiRolloutAndVisit(weights, node_idxs, expansion_amount);
+
+        // New nodes have not been explored yet
+        for (size_t i = 0; i < expansion_amount; i++)
+        {
+            assert(mctgs.nodes[node_idxs[i]].reward == 0);
+        }
+
+        // Cleanup
+        delete[] weights;
+        delete[] node_idxs;
+        delete[] rewards;
+    }
+}
+
 int main()
 {
     TEST_MonteCarloTreeGeneticSearchGPU_expand();
+    TEST_MonteCarloTreeGeneticSearchGPU_expand_with_reserved_noise();
     TEST_MonteCarloTreeGeneticSearchGPU_backpropagation();
     TEST_MonteCarloTreeGeneticSearchGPU_test_rollout_after_expand_and_backpropagation();
     TEST_MonteCarloTreeGeneticSearchGPU_test_2_iterations();
     TEST_MonteCarloTreeGeneticSearchGPU_multiRolloutAndVisit();
+    TEST_MonteCarloTreeGeneticSearchGPU_multiRolloutAndVisit_with_reserved_noise();
 }
 
 /* TEST_CASE("MonteCarloTreeGeneticSearch test backpropagation")
