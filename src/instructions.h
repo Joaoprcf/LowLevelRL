@@ -46,15 +46,20 @@ enum type_inst
     ACTIVATION_RELU,
     ACTIVATION_IF_POSITIVE,
     ACTIVATION_ARITH_INV,
+    ACTIVATION_SOFTMAX,
+    ACTIVATION_SOFTPLUS,
     ELEMENTWISE_MULTIPLY,
-    ELEMENTWISE_ADD
+    ELEMENTWISE_ADD,
+    SCALER_MULTIPLY,
+    SCALER_ADD
 };
 
 struct Instruction
 {
     type_inst op;
-    uint32_t size_in;  // Assumption: size_in needs to be initialized based on context
-    uint32_t size_out; // Assumption: size_out needs to be initialized based on context
+    uint32_t size_in;
+    uint32_t size_out;
+    float scalar1;
     float *addr1;
     float *addr2;
     float *addr3;
@@ -63,10 +68,14 @@ struct Instruction
     CUDA_CALLABLE_MEMBER Instruction(type_inst op, uint32_t size_in, uint32_t size_out, float *addr1, float *addr2, float *addr3 = nullptr)
         : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3) {}
 
+    CUDA_CALLABLE_MEMBER Instruction(type_inst op, uint32_t size_in, uint32_t size_out, float *addr1, float *addr2, float scalar)
+        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(nullptr), scalar1(scalar) {}
+
     CUDA_CALLABLE_MEMBER Instruction() {}
 
     CUDA_CALLABLE_MEMBER void execute()
     {
+        float sum = 0;
         switch (op)
         {
         case COPY:
@@ -107,6 +116,27 @@ struct Instruction
                 addr2[i] = 1.0f - addr1[i];
             }
             break;
+        case ACTIVATION_SOFTMAX:
+
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr2[i] = expf(addr1[i]);
+                printf("addr1[%lu] = %f\n", i, addr1[i]);
+                printf("addr2[%lu] = %f\n", i, addr2[i]);
+                sum += addr2[i];
+            }
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr2[i] /= sum;
+                printf("addr2[%lu] = %f\n", i, addr2[i]);
+            }
+            break;
+        case ACTIVATION_SOFTPLUS:
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr2[i] = logf(1.0f + expf(addr1[i]));
+            }
+            break;
         case ELEMENTWISE_MULTIPLY:
             for (size_t i = 0; i < size_out; i++)
             {
@@ -117,6 +147,18 @@ struct Instruction
             for (size_t i = 0; i < size_out; i++)
             {
                 addr3[i] = addr1[i] + addr2[i];
+            }
+            break;
+        case SCALER_MULTIPLY:
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr2[i] = addr1[i] * scalar1;
+            }
+            break;
+        case SCALER_ADD:
+            for (size_t i = 0; i < size_out; i++)
+            {
+                addr2[i] = addr1[i] + scalar1;
             }
             break;
         default:
@@ -151,10 +193,18 @@ private:
             return "ACTIVATION_RELU";
         case ELEMENTWISE_MULTIPLY:
             return "ELEMENTWISE_MULTIPLY";
-        case ELEMENTWISE_ADD:
-            return "ELEMENTWISE_ADD";
         case ACTIVATION_ARITH_INV:
             return "ACTIVATION_ARITH_INV";
+        case ACTIVATION_SOFTMAX:
+            return "ACTIVATION_SOFTMAX";
+        case ACTIVATION_SOFTPLUS:
+            return "ACTIVATION_SOFTPLUS";
+        case ELEMENTWISE_ADD:
+            return "ELEMENTWISE_ADD";
+        case SCALER_MULTIPLY:
+            return "SCALER_MULTIPLY";
+        case SCALER_ADD:
+            return "SCALER_ADD";
         default:
             return "Unknown";
         }

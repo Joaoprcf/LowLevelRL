@@ -84,9 +84,7 @@ struct Model : TrainableLayer
         {
             if (GRU *gruLayer = dynamic_cast<GRU *>(job))
             {
-                memcpy(weights + weight_ptr, gruLayer->weights, sizeof(float) * gruLayer->weights_size);
-                delete[] gruLayer->weights;
-                gruLayer->weights = &weights[weight_ptr];
+                gruLayer->useWeights(weights + weight_ptr);
                 weight_ptr += gruLayer->weights_size;
 
                 memory.insert(memory.end(), gruLayer->memory, gruLayer->memory + gruLayer->memory_size);
@@ -96,9 +94,7 @@ struct Model : TrainableLayer
             }
             else if (TrainableLayer *layer = dynamic_cast<TrainableLayer *>(job))
             {
-                memcpy(weights + weight_ptr, layer->weights, sizeof(float) * layer->weights_size);
-                delete[] layer->weights;
-                layer->weights = &weights[weight_ptr];
+                layer->useWeights(weights + weight_ptr);
                 weight_ptr += layer->weights_size;
             }
         }

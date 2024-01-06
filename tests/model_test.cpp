@@ -391,3 +391,61 @@ TEST_CASE("Model FeedForwardSingle Test - ARITHMETIC INVERSION Activation")
     REQUIRE(result[0] == Approx(0.8f));
     REQUIRE(result[1] == Approx(0.2f));
 }
+
+TEST_CASE("Model FeedForwardSingle Test - SOFTMAX Activation")
+{
+    Input input(1);
+    Dense dense(&input, 2, ACTIVATION_SOFTMAX);
+    Model nn(&input, &dense);
+
+    dense.weights[0] = 1.0f;
+    dense.weights[2] = 2.0f;
+
+    std::vector<float> data_in = {1.0f};
+    float *result = nn.FeedForwardSingle(data_in.data());
+
+    REQUIRE(result[0] + result[1] == Approx(1.0f));
+    REQUIRE(result[0] == Approx(expf(1.0f) / (expf(1.0f) + expf(2.0f))));
+    REQUIRE(result[1] == Approx(expf(2.0f) / (expf(1.0f) + expf(2.0f))));
+
+    Dense dense_temp(&input, 2);
+    ActivationLayer activationLayer(&dense_temp, ACTIVATION_SOFTMAX);
+    Model nn2(&input, &activationLayer);
+
+    dense_temp.weights[0] = 1.0f;
+    dense_temp.weights[2] = 2.0f;
+
+    result = nn2.FeedForwardSingle(data_in.data());
+
+    REQUIRE(result[0] + result[1] == Approx(1.0f));
+    REQUIRE(result[0] == Approx(expf(1.0f) / (expf(1.0f) + expf(2.0f))));
+    REQUIRE(result[1] == Approx(expf(2.0f) / (expf(1.0f) + expf(2.0f))));
+}
+
+TEST_CASE("Model FeedForwardSingle Test - SOFTPLUS Activation")
+{
+    Input input(1);
+    Dense dense(&input, 2, ACTIVATION_SOFTPLUS);
+    Model nn(&input, &dense);
+
+    dense.weights[0] = 1.0f;
+    dense.weights[2] = 2.0f;
+
+    std::vector<float> data_in = {1.0f};
+    float *result = nn.FeedForwardSingle(data_in.data());
+
+    REQUIRE(result[0] == Approx(logf(1.0f + expf(1.0f))));
+    REQUIRE(result[1] == Approx(logf(1.0f + expf(2.0f))));
+
+    Dense dense_temp(&input, 2);
+    ActivationLayer activationLayer(&dense_temp, ACTIVATION_SOFTPLUS);
+    Model nn2(&input, &activationLayer);
+
+    dense_temp.weights[0] = 1.0f;
+    dense_temp.weights[2] = 2.0f;
+
+    result = nn2.FeedForwardSingle(data_in.data());
+
+    REQUIRE(result[0] == Approx(logf(1.0f + expf(1.0f))));
+    REQUIRE(result[1] == Approx(logf(1.0f + expf(2.0f))));
+}

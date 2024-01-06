@@ -41,8 +41,31 @@ struct TrainableLayer : Layer
 {
     size_t weights_size;
     float *weights;
-    TrainableLayer(Layer *from, size_t size_out, size_t datastream_size) : Layer(size_out, datastream_size, from)
+    bool manage_memory = true;
+    TrainableLayer(Layer *from, size_t size_out, size_t datastream_size, bool manage_memory = false) : Layer(size_out, datastream_size, from), manage_memory(manage_memory)
     {
+    }
+    void useWeights(float *weights)
+    {
+        memcpy(weights, this->weights, sizeof(float) * weights_size);
+        if (manage_memory)
+            delete[] this->weights;
+
+        this->weights = weights;
+        manage_memory = false;
+    }
+    void createEmptyWeights()
+    {
+        if (manage_memory)
+            delete[] weights;
+        weights = new float[weights_size];
+        memset(weights, 0, sizeof(float) * weights_size);
+        manage_memory = true;
+    }
+    ~TrainableLayer()
+    {
+        if (manage_memory)
+            delete[] weights;
     }
 };
 
@@ -71,9 +94,9 @@ struct Dense : TrainableLayer
     Dense(Layer *from, size_t size_out, type_inst activation = ACTIVATION_NONE) : TrainableLayer(from, size_out, activation == ACTIVATION_NONE ? size_out : size_out * 2), activation(activation)
     {
         weights_size = size_out * (from->size_out + 1);
-        weights = new float[weights_size];
-        memset(weights, 0, sizeof(float) * weights_size);
-        cout << "weights_size: " << weights_size << endl;
+        createEmptyWeights();
+        cout
+            << "weights_size: " << weights_size << endl;
     }
     vector<Instruction> createLowLevelInstructions(InstructionsGuide guide) override
     {
@@ -114,8 +137,7 @@ struct GRU : TrainableLayer
         weights_size = wz_weights_size + wr_weights_size + wh_weights_size;
 
         // Allocate memory for weights and initialize to 0
-        weights = new float[weights_size];
-        memset(weights, 0, sizeof(float) * weights_size);
+        createEmptyWeights();
 
         // Allocate memory for GRU memory (hidden state)
         memory = new float[memory_size];
@@ -273,6 +295,74 @@ Multiply operator*(Layer &lhs, Layer &rhs)
 Add operator+(Layer &lhs, Layer &rhs)
 {
     return Add({&lhs, &rhs});
+}
+
+struct ScalerLayer : Layer
+{
+    float scalar;
+    ScalerLayer(Layer *from, float scalar) : Layer(from->size_out, from->size_out, from), scalar(scalar)
+    {
+    }
+};
+
+struct MultiplyScalerLayer : ScalerLayer
+{
+
+    MultiplyScalerLayer(Layer *from, float scalar) : ScalerLayer(from, scalar)
+    {
+    }
+
+    vector<Instruction> createLowLevelInstructions(InstructionsGuide guide) override
+    {
+        assert(guide.inputs.size() == 1);
+        assert(guide.outputs.size() == 1);
+
+        float *addrOutput = guide.outputs[0];
+        float *addrInput = guide.inputs[0];
+        vector<Instruction> instructions = {Instruction(SCALER_MULTIPLY, size_out, size_out, addrInput, addrOutput, scalar)};
+
+        return instructions;
+    }
+};
+
+struct AddScalerLayer : ScalerLayer
+{
+
+    AddScalerLayer(Layer *from, float scalar) : ScalerLayer(from, scalar)
+    {
+    }
+
+    vector<Instruction> createLowLevelInstructions(InstructionsGuide guide) override
+    {
+        assert(guide.inputs.size() == 1);
+        assert(guide.outputs.size() == 1);
+
+        float *addrOutput = guide.outputs[0];
+        float *addrInput = guide.inputs[0];
+        vector<Instruction> instructions = {Instruction(SCALER_ADD, size_out, size_out, addrInput, addrOutput, scalar)};
+
+        return instructions;
+    }
+};
+
+MultiplyScalerLayer operator*(Layer &lhs, float rhs)
+{
+    return MultiplyScalerLayer(&lhs, rhs);
+}
+
+MultiplyScalerLayer operator*(float lhs, Layer &rhs)
+{
+    return MultiplyScalerLayer(&rhs, lhs);
+}
+
+AddScalerLayer operator+(Layer &lhs, float rhs)
+{
+    return AddScalerLayer(&lhs, rhs);
+}
+
+AddScalerLayer operator+(float lhs, Layer &rhs)
+{
+    return AddScalerLayer(&rhs, lhs);
 }
 
 struct Concatenate : Layer
