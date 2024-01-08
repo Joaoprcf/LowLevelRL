@@ -12,6 +12,7 @@ struct RunnerInfo
     float *targetMemory;
     float *targetDatastream;
     float *reward;
+    RewardEntry *rewardEntry;
 };
 
 struct BatchEnvironment
@@ -65,7 +66,8 @@ struct BatchEnvironment
             weights + current_pointer * weights_size,
             memory + current_pointer * memory_size,
             datastream + current_pointer * datastream_size,
-            rewardArray + current_pointer};
+            rewardArray + current_pointer,
+            rewardEntryArray + current_pointer};
     }
 
     ~BatchEnvironment()

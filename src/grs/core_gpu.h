@@ -140,31 +140,31 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
 
     void initGPU(cudaStream_t stream = 0, bool applyFirstNoise = true)
     {
-        cudaMalloc(&weights, directions * weights_size * sizeof(float));
+        cudaMallocManaged(&weights, directions * weights_size * sizeof(float));
         cudaMemset(weights, 0, directions * weights_size * sizeof(float));
 
-        cudaMalloc(&rewardEntryArray, directions * sizeof(RewardEntry));
+        cudaMallocManaged(&rewardEntryArray, directions * sizeof(RewardEntry));
         cudaMemset(rewardEntryArray, 0, directions * sizeof(RewardEntry));
 
-        cudaMalloc(&rewardArray, directions * sizeof(float));
+        cudaMallocManaged(&rewardArray, directions * sizeof(float));
         cudaMemset(rewardArray, 0, directions * sizeof(float));
 
-        cudaMalloc(&tempWeights, directions * weights_size * sizeof(float));
+        cudaMallocManaged(&tempWeights, directions * weights_size * sizeof(float));
 
-        cudaMalloc(&inverseStairsTable, directions * sizeof(size_t));
+        cudaMallocManaged(&inverseStairsTable, directions * sizeof(size_t));
 
         size_t *tempInverseStairsTable = new size_t[directions];
         cacheInverseStairsTable(tempInverseStairsTable, stairs);
         cudaMemcpy(inverseStairsTable, tempInverseStairsTable, directions * sizeof(size_t), cudaMemcpyHostToDevice);
         delete[] tempInverseStairsTable;
 
-        cudaMalloc(&datastream, builder->datastream_size * directions * sizeof(float));
-        cudaMalloc(&instructions, builder->num_instructions * directions * sizeof(Instruction));
+        cudaMallocManaged(&datastream, builder->datastream_size * directions * sizeof(float));
+        cudaMallocManaged(&instructions, builder->num_instructions * directions * sizeof(Instruction));
 
         builderBatch = new PipelineBuilderBatchGPU(builder, directions);
 
         size_t rnd_kernels = directions / 2 * weights_size;
-        cudaError_t err = cudaMalloc((void **)&gpuNoiseDevStates, rnd_kernels * sizeof(curandState));
+        cudaError_t err = cudaMallocManaged((void **)&gpuNoiseDevStates, rnd_kernels * sizeof(curandState));
         if (err != cudaSuccess)
         {
             printf("cudaMalloc failed: %s\n", cudaGetErrorString(err));

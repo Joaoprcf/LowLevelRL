@@ -46,7 +46,7 @@ struct GeneticRandomSearch
     float *preStoredRewards;
     float **preStoredTempWeights;
     float *preStoredTempWeightsSerialized;
-    std::default_random_engine generator;
+    std::shared_ptr<std::default_random_engine> generator;
 
     // cpu stuff
     size_t it_pointer = 0;
@@ -67,10 +67,12 @@ public:
     GeneticRandomSearch(Model *nn, size_t stairs) : stairs(stairs),
                                                     builder(new PipelineBuilder(nn))
     {
+        assert(nn->datastream_size == builder->datastream_size);
         directions = stairs * (stairs + 1);
-        // optimizer = new LeaderboardOptimizer(stairs, directions);
+
         _optimizer = new IterativeOptimizer(stairs);
         optimizer = _optimizer;
+
         weights_size = this->builder->weights_size;
         datastream_size = this->builder->datastream_size;
         currentWeights = new float[weights_size];
@@ -153,9 +155,11 @@ public:
 
     void applyNoise(float **originWeights)
     {
-
+        if (generator == nullptr)
+        {
+            generator = std::make_shared<std::default_random_engine>();
+        }
         float noiseAmp = optimizer->getNextNoise();
-
         std::normal_distribution<float>
             distribution(0.0, 1);
         for (size_t dir = 0; dir < directions / 2; dir++)
@@ -168,11 +172,19 @@ public:
                     noises[w_idx] *= influence.influence;
                 }
             } */
+            float sum = 0;
             for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
             {
-                float noise = distribution(generator) * noiseAmp;
-                allWeights[dir * 2][w_idx] = originWeights[dir * 2][w_idx] + noise;
-                allWeights[dir * 2 + 1][w_idx] = originWeights[dir * 2 + 1][w_idx] - noise;
+                float noise = distribution(*generator);
+                sum += noise * noise;
+                allWeights[dir * 2][w_idx] = noise;
+                // allWeights[dir * 2 + 1][w_idx] = originWeights[dir * 2 + 1][w_idx] - noise;
+            }
+            float multiplier = noiseAmp / sqrt(sum / weights_size);
+            for (size_t w_idx = 0; w_idx < weights_size; w_idx++)
+            {
+                allWeights[dir * 2 + 1][w_idx] = originWeights[dir * 2 + 1][w_idx] - allWeights[dir * 2][w_idx] * multiplier;
+                allWeights[dir * 2][w_idx] = originWeights[dir * 2][w_idx] + allWeights[dir * 2][w_idx] * multiplier;
             }
         }
     }
@@ -181,13 +193,14 @@ public:
     {
         // printf("Updating weights\n");
         // print influences
-        optimizer->updateRewards(rewards);
 
+        optimizer->updateRewards(rewards);
         // printf("Finish updating rewards\n");
         // optimizer->updateRewards(rewards);
         vector<RewardEntry> rEntries = createEntryFromRewards(rewards, directions, 1);
 
         memcpy(currentWeights, allWeights[rEntries[0].index], weights_size * sizeof(float));
+
         size_t pointer = 0;
         for (size_t stairIdx = 0; stairIdx < stairs; stairIdx++)
         {
@@ -215,6 +228,8 @@ public:
         rewardArray = new float[directions];
         memset(rewardArray, 0, directions * sizeof(float));
 
+        rewardEntryArray = new RewardEntry[directions];
+
         // Allocate memory for CPU datastream
         datastream = new float[builder->datastream_size * directions];
         memset(datastream, 0, builder->datastream_size * directions * sizeof(float));
@@ -233,7 +248,6 @@ public:
             cpuBuilders[i] = new PipelineBuilder(builder);
             cpuBuilders[i]->init(datastream + i * builder->datastream_size, weights + i * weights_size, instructions + i * builder->num_instructions);
         }
-        printf("cpu initialized\n");
 
         // Other CPU initialization steps
         it_pointer = 0; // Assuming it_pointer is used as an iterator or counter, initialize it as needed
@@ -260,13 +274,15 @@ public:
             weights + current_pointer * weights_size,
             memory + current_pointer * builder->memory_size,
             datastream + current_pointer * builder->datastream_size,
-            rewardArray + current_pointer};
+            rewardArray + current_pointer,
+            rewardEntryArray + current_pointer};
     }
 
     void clearCPU()
     {
         delete[] weights;
         delete[] rewardArray;
+        delete[] rewardEntryArray;
         delete[] datastream;
         delete[] memory;
         delete[] instructions;
@@ -278,6 +294,7 @@ public:
 
         weights = nullptr;
         rewardArray = nullptr;
+        rewardEntryArray = nullptr;
         datastream = nullptr;
         memory = nullptr;
         instructions = nullptr;

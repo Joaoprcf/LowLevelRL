@@ -113,7 +113,7 @@ struct IterativeOptimizer : GRSOptimizer
     int *offsetRecords;
     int avgPointer = 0;
 
-    IterativeOptimizer(size_t stairs, int mid_step = 5, size_t num_records = 50) : GRSOptimizer(0.2f), stairs(stairs), directions(stairs * (stairs + 1)), mid_step(mid_step), step(mid_step), num_records(num_records)
+    IterativeOptimizer(size_t stairs, int mid_step = 5, size_t num_records = 50) : GRSOptimizer(0.25f), stairs(stairs), directions(stairs * (stairs + 1)), mid_step(mid_step), step(mid_step), num_records(num_records)
     {
         tempRewards = new float[directions];
         analitics = new int[mid_step * 2 + 1];
