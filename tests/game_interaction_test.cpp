@@ -19,6 +19,7 @@ TEST_CASE("GameHard BestCaseScenario Functionality")
     // end BranchLayer
 
     Model nn(&input, &output);
+    REQUIRE(nn.datastream_size == 21);
 
     // expected1 = values[0] > values[1] ?
     gate.weights[0] = 1.0f;

@@ -2,6 +2,11 @@
 #include "catch.hpp"
 #include "../src/instructions.h"
 
+TEST_CASE("Instruction and RecoverableInstruction Size Test")
+{
+    REQUIRE(sizeof(Instruction) == sizeof(RecoverableInstruction));
+}
+
 TEST_CASE("ConvertToRecoverable Function Test")
 {
     // Create a mock datastream and weights array
@@ -25,6 +30,59 @@ TEST_CASE("ConvertToRecoverable Function Test")
         REQUIRE(recoverableInstructions[i].addr1 == (instructions[i].addr1 - datastream));
         REQUIRE(recoverableInstructions[i].addr2 == (instructions[i].addr2 - datastream));
         if (instructions[i].op == DOT)
+        {
+            REQUIRE(recoverableInstructions[i].addr3 == (instructions[i].addr3 - weights));
+        }
+        else if (recoverableInstructions[i].addr3 == 0xffffffffffff)
+        {
+            REQUIRE(instructions[i].addr3 == nullptr);
+        }
+        else
+        {
+            REQUIRE(recoverableInstructions[i].addr3 == (instructions[i].addr3 - datastream));
+        }
+    }
+}
+
+TEST_CASE("ConvertToRecoverable Complex Function Test")
+{
+    // Create a mock datastream and weights array
+    float datastream[30];
+    float weights[30];
+
+    // Create a vector of Instructions
+    vector<Instruction> instructions = {
+        Instruction(COPY, 5, 5, &datastream[0], &datastream[5]),
+        Instruction(DOT, 5, 5, &datastream[0], &datastream[5], &weights[0]),
+        Instruction(ELEMENTWISE_MULTIPLY, 5, 5, &datastream[5], &datastream[10]),
+        Instruction(ELEMENTWISE_ADD, 5, 5, &datastream[10], &datastream[15]),
+        Instruction(SCALER_ADD, 5, 5, 5.0f, &datastream[15], &datastream[20], nullptr),
+        Instruction(SCALER_MULTIPLY, 5, 5, -1.0f, &datastream[20], &datastream[25], nullptr)};
+
+    // Convert to RecoverableInstructions
+    vector<RecoverableInstruction> recoverableInstructions = ConvertToRecoverable(instructions, datastream, weights);
+
+    REQUIRE(recoverableInstructions.size() == instructions.size());
+    for (size_t i = 0; i < instructions.size(); ++i)
+    {
+        REQUIRE(recoverableInstructions[i].op == instructions[i].op);
+        REQUIRE(recoverableInstructions[i].size_in == instructions[i].size_in);
+        REQUIRE(recoverableInstructions[i].size_out == instructions[i].size_out);
+        REQUIRE(recoverableInstructions[i].addr1 == (instructions[i].addr1 - datastream));
+        REQUIRE(recoverableInstructions[i].addr2 == (instructions[i].addr2 - datastream));
+        if (instructions[i].op == SCALER_ADD)
+        {
+            REQUIRE(recoverableInstructions[i].addr3 == 0xffffffffffff);
+            REQUIRE(recoverableInstructions[i].scalar1 == instructions[i].scalar1);
+            REQUIRE(recoverableInstructions[i].scalar1 == 5.0f);
+        }
+        else if (instructions[i].op == SCALER_MULTIPLY)
+        {
+            REQUIRE(recoverableInstructions[i].addr3 == 0xffffffffffff);
+            REQUIRE(recoverableInstructions[i].scalar1 == instructions[i].scalar1);
+            REQUIRE(recoverableInstructions[i].scalar1 == -1.0f);
+        }
+        else if (instructions[i].op == DOT)
         {
             REQUIRE(recoverableInstructions[i].addr3 == (instructions[i].addr3 - weights));
         }

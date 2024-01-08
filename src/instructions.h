@@ -71,6 +71,11 @@ struct Instruction
     CUDA_CALLABLE_MEMBER Instruction(type_inst op, uint32_t size_in, uint32_t size_out, float *addr1, float *addr2, float scalar)
         : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(nullptr), scalar1(scalar) {}
 
+    CUDA_CALLABLE_MEMBER Instruction(type_inst op, uint32_t size_in, uint32_t size_out, float scalar, float *addr1, float *addr2, float *addr3) // full constructor
+        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3), scalar1(scalar)
+    {
+    }
+
     CUDA_CALLABLE_MEMBER Instruction() {}
 
     CUDA_CALLABLE_MEMBER void execute()
@@ -216,13 +221,17 @@ struct RecoverableInstruction
     type_inst op;
     uint32_t size_in;  // Assumption: size_in needs to be initialized based on context
     uint32_t size_out; // Assumption: size_out needs to be initialized based on context
+    float scalar1 = 0.0f;
     size_t addr1;
     size_t addr2;
     size_t addr3;
 
     // Revised constructor with additional parameters for size_in and size_out
-    RecoverableInstruction(type_inst op, uint32_t size_in, uint32_t size_out, size_t addr1, size_t addr2, size_t addr3 = 0)
+    RecoverableInstruction(type_inst op, uint32_t size_in, uint32_t size_out, size_t addr1, size_t addr2, size_t addr3 = 0xffffffffffff)
         : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3) {}
+
+    RecoverableInstruction(type_inst op, uint32_t size_in, uint32_t size_out, float scalar, size_t addr1, size_t addr2, size_t addr3)
+        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3), scalar1(scalar) {}
 
     RecoverableInstruction() {}
 };
@@ -249,6 +258,7 @@ vector<RecoverableInstruction> ConvertToRecoverable(vector<Instruction> &instruc
             inst.op,
             inst.size_in,
             inst.size_out,
+            inst.scalar1,
             addr1Offset,
             addr2Offset,
             addr3Offset);
@@ -279,6 +289,7 @@ vector<Instruction> ConvertToPractical(vector<RecoverableInstruction> &instructi
             inst.op,
             inst.size_in,
             inst.size_out,
+            inst.scalar1,
             addr1,
             addr2,
             addr3);
@@ -308,6 +319,7 @@ CUDA_CALLABLE_MEMBER void ConvertToPractical(RecoverableInstruction *recInstruct
             inst.op,
             inst.size_in,
             inst.size_out,
+            inst.scalar1,
             addr1,
             addr2,
             addr3);

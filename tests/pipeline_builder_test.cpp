@@ -36,7 +36,7 @@ TEST_CASE("PipelineBuilder Initialization Multi Input Output")
     REQUIRE(builder.weights_size == nn.weights_size);
 }
 
-TEST_CASE("Instruction Conversion")
+TEST_CASE("Basic Instruction Conversion")
 {
     Input input1(5);
     Dense dense1(&input1, 3);
@@ -44,11 +44,53 @@ TEST_CASE("Instruction Conversion")
 
     PipelineBuilder builder(&nn);
 
+    REQUIRE(builder.num_instructions == nn.fastExecution.size());
+    REQUIRE(builder.num_inputs == nn.inputs.size());
+    REQUIRE(builder.num_outputs == nn.outputs.size());
+    REQUIRE(builder.num_outputs == nn.outputLocations.size());
+    REQUIRE(builder.weights_size == nn.weights_size);
+
     for (size_t i = 0; i < builder.num_instructions; ++i)
     {
         REQUIRE(builder.instructions[i].op == nn.fastExecution[i].op);
         REQUIRE(builder.instructions[i].size_in == nn.fastExecution[i].size_in);
         REQUIRE(builder.instructions[i].size_out == nn.fastExecution[i].size_out);
+        REQUIRE(builder.instructions[i].addr1 == nn.fastExecution[i].addr1 - nn.datastream);
+        REQUIRE(builder.instructions[i].addr2 == nn.fastExecution[i].addr2 - nn.datastream);
+    }
+}
+
+TEST_CASE("Complex Instruction Conversion")
+{
+    Input input1(5);
+    Dense dense1(&input1, 3);
+    Dense dense2(&dense1, 3, ACTIVATION_RELU);
+    Dense dense3(&dense2, 3);
+    ActivationLayer act1(&dense3, ACTIVATION_RELU);
+    MultiplyScalerLayer scale1(&act1, 0.5);
+    AddScalerLayer add1(&scale1, 1.0);
+    Multiply add2({&dense1, &dense2});
+    Add add3({&add1, &add2});
+    Concatenate ct({&input1, &add3});
+    Dense output(&ct, 3);
+
+    Model nn(&input1, &output);
+
+    PipelineBuilder builder(&nn);
+
+    REQUIRE(builder.num_instructions == nn.fastExecution.size());
+    REQUIRE(builder.num_inputs == nn.inputs.size());
+    REQUIRE(builder.num_outputs == nn.outputs.size());
+    REQUIRE(builder.num_outputs == nn.outputLocations.size());
+    REQUIRE(builder.weights_size == nn.weights_size);
+
+    for (size_t i = 0; i < builder.num_instructions; ++i)
+    {
+        REQUIRE(builder.instructions[i].op == nn.fastExecution[i].op);
+        REQUIRE(builder.instructions[i].size_in == nn.fastExecution[i].size_in);
+        REQUIRE(builder.instructions[i].size_out == nn.fastExecution[i].size_out);
+        REQUIRE(builder.instructions[i].addr1 == nn.fastExecution[i].addr1 - nn.datastream);
+        REQUIRE(builder.instructions[i].addr2 == nn.fastExecution[i].addr2 - nn.datastream);
     }
 }
 
@@ -96,18 +138,24 @@ TEST_CASE("PipelineBuilder Calculate Memory Required for Neural Network")
 {
     // Setup the neural network structure
     Input input1(5);
-    Dense dense1(&input1, 2);
-    Dense dense2(&dense1, 2);
-    Concatenate ct({&dense1, &dense2});
-    Dense dense3(&ct, 2);
-    Model nn(&input1, &dense3);
+    Dense dense1(&input1, 3);
+    Dense dense2(&dense1, 3, ACTIVATION_RELU);
+    Dense dense3(&dense2, 3);
+    ActivationLayer act1(&dense3, ACTIVATION_RELU);
+    MultiplyScalerLayer scale1(&act1, 0.5);
+    AddScalerLayer add1(&scale1, 1.0);
+    Multiply add2({&dense1, &dense2});
+    Add add3({&add1, &add2});
+    Concatenate ct({&input1, &add3});
+    Dense output(&ct, 3);
 
-    // Create a PipelineBuilder instance
+    Model nn(&input1, &output);
+
     PipelineBuilder builder(&nn);
 
     // Manually calculate the expected size
-    size_t expectedSize = 5 * sizeof(RecoverableInstruction); // For 5 instructions
-    expectedSize += 3 * sizeof(size_t);                       // For one input size, one output size, and one output location
+    size_t expectedSize = nn.fastExecution.size() * sizeof(RecoverableInstruction); // instructions
+    expectedSize += 3 * sizeof(size_t);                                             // For one input size, one output size, and one output location
 
     // Get the calculated size from the function
     size_t calculatedSize = builder.calculateMemoryRequired();
@@ -120,13 +168,19 @@ TEST_CASE("PipelineBuilder Serialize Memory Test")
 {
     // Setup the neural network structure
     Input input1(5);
-    Dense dense1(&input1, 2);
-    Dense dense2(&dense1, 2);
-    Concatenate ct({&dense1, &dense2});
-    Dense dense3(&ct, 2);
-    Model nn(&input1, &dense3);
+    Dense dense1(&input1, 3);
+    Dense dense2(&dense1, 3, ACTIVATION_RELU);
+    Dense dense3(&dense2, 3);
+    ActivationLayer act1(&dense3, ACTIVATION_RELU);
+    MultiplyScalerLayer scale1(&act1, 0.5);
+    AddScalerLayer add1(&scale1, 1.0);
+    Multiply add2({&dense1, &dense2});
+    Add add3({&add1, &add2});
+    Concatenate ct({&input1, &add3});
+    Dense output(&ct, 3);
 
-    // Create a PipelineBuilder instance
+    Model nn(&input1, &output);
+
     PipelineBuilder builder(&nn);
 
     // Allocate buffer based on the calculated size
@@ -144,12 +198,12 @@ TEST_CASE("PipelineBuilder Serialize Memory Test")
     // Example:
     // Compare first part of the buffer with the instructions
     char *expectedInstructions = reinterpret_cast<char *>(builder.instructions);
-    for (size_t i = 0; i < 5 * sizeof(RecoverableInstruction); ++i)
+    for (size_t i = 0; i < nn.fastExecution.size() * sizeof(RecoverableInstruction); ++i)
     {
         REQUIRE(serializedData[i] == expectedInstructions[i]);
     }
 
-    size_t offset = 5 * sizeof(RecoverableInstruction); // Adjust based on actual number of instructions
+    size_t offset = nn.fastExecution.size() * sizeof(RecoverableInstruction); // Adjust based on actual number of instructions
 
     // Compare inputSizes
     char *expectedInputSizes = reinterpret_cast<char *>(builder.inputSizes);
