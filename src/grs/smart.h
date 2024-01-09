@@ -73,7 +73,7 @@ struct SmartGeneticRandomSearch
         it_pointer++;
         return {
             currentGRS->cpuBuilders[current_pointer],
-            current_pointer,
+            it_pointer - 1,
             currentGRS->instructions + current_pointer * builder->num_instructions,
             currentGRS->weights + current_pointer * weights_size,
             currentGRS->memory + current_pointer * builder->memory_size,

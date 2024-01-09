@@ -13,6 +13,16 @@ struct RunnerInfo
     float *targetDatastream;
     float *reward;
     RewardEntry *rewardEntry;
+    void setFloatReward(float reward)
+    {
+        *this->reward = reward;
+    }
+    void setReward(float reward)
+    {
+        *this->reward = reward;
+        this->rewardEntry->reward = reward;
+        this->rewardEntry->index = direction_idx;
+    }
 };
 
 struct BatchEnvironment

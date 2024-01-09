@@ -52,8 +52,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame")
                     reward += game.reward;
                 }
 
-                (*runnerInfo.rewardEntry).reward = reward;
-                (*runnerInfo.rewardEntry).index = i;
+                runnerInfo.setReward(reward);
             }
             sgrs.updateWeightsUsingCPUInfo();
             float current_reward = sgrs.last_reward;
@@ -142,8 +141,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2")
                     reward += game.reward;
                 }
 
-                (*runnerInfo.rewardEntry).reward = reward;
-                (*runnerInfo.rewardEntry).index = i;
+                runnerInfo.setReward(reward);
             }
             sgrs.updateWeightsUsingCPUInfo();
             float current_reward = sgrs.last_reward;
@@ -237,8 +235,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame using complex nn")
                     reward += game.reward;
                 }
 
-                (*runnerInfo.rewardEntry).reward = reward;
-                (*runnerInfo.rewardEntry).index = i;
+                runnerInfo.setReward(reward);
             }
             sgrs.updateWeightsUsingCPUInfo();
             float current_reward = sgrs.last_reward;

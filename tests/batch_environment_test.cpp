@@ -69,5 +69,10 @@ TEST_CASE("BatchEnvironment iterator")
 
         // Check iterator advancement
         REQUIRE(env.it_pointer == i + 1);
+        runnerInfo.setFloatReward(-1.0f);
+        REQUIRE(env.rewardArray[i] == -1.0f);
+        runnerInfo.setReward(5.0f);
+        REQUIRE(env.rewardEntryArray[i].reward == 5.0f);
+        REQUIRE(env.rewardEntryArray[i].index == i);
     }
 }

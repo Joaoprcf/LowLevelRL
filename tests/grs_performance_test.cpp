@@ -51,7 +51,7 @@ TEST_CASE("GeneticRandomSearch test against GuessGame using IterativeOptimizer")
                     reward += game.reward;
                 }
 
-                (*runnerInfo.reward) = reward;
+                runnerInfo.setFloatReward(reward);
             }
 
             grs.updateWeightsUsingCPUInfo();
@@ -144,7 +144,7 @@ TEST_CASE("GeneticRandomSearch test against GuessGame using IterativeOptimizer u
                     reward += game.reward;
                 }
 
-                (*runnerInfo.reward) = reward;
+                runnerInfo.setFloatReward(reward);
             }
             grs.updateWeightsUsingCPUInfo(weightsInfluence);
             float current_reward = dynamic_cast<IterativeOptimizer *>(grs.optimizer)->movingAvgScore;

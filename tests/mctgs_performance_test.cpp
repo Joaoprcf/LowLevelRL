@@ -53,7 +53,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame")
                 reward += game.reward;
             }
 
-            (*runnerInfo.reward) = reward * 2;
+            runnerInfo.setFloatReward(reward * 2);
         }
 
         mctgs.multiBackpropagateNoVisits(node_idxs, env.rewardArray, env.batch_size);
@@ -126,7 +126,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2")
                 reward += game.reward;
             }
 
-            (*runnerInfo.reward) = reward * 2;
+            runnerInfo.setFloatReward(reward * 2);
         }
 
         mctgs.multiBackpropagateNoVisits(node_idxs, env.rewardArray, env.batch_size);
@@ -220,7 +220,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2")
                 reward += game.reward;
             }
 
-            (*runnerInfo.reward) = reward;
+            runnerInfo.setFloatReward(reward);
         }
 
         mctgs.multiBackpropagateNoVisits(node_idxs, env.rewardArray, env.batch_size);
