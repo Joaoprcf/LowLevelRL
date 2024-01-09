@@ -327,8 +327,11 @@ struct Model : TrainableLayer
 
 #ifdef USE_KERAS_LINK
     bool iscompiled = false;
-    void compile(string optimizer);
-    void fit(float *dstWeights, float *originWeights, float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size = 1);
-    void fit(float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size = 1);
+    static int nextId;
+    int id;
+    void clear();
+    void compile_keras(string optimizer);
+    void fit_keras(float *dstWeights, float *originWeights, float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size = 1);
+    void fit_keras(float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size = 1);
 #endif
 };

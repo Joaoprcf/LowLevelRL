@@ -31,7 +31,7 @@ def preprocess_dynamic_data(data_stream, data_lengths):
     
     return separated_data
 
-
+#$MODEL_NAME_PLACEHOLDER
 
 weights = None
 #read binary fine with float32 vector
@@ -45,7 +45,7 @@ data_x = None
 with open('data_buffer/temp_data_x.bin', 'rb') as f:
   data_x = f.read()
 
-data_x = preprocess_dynamic_data(np.frombuffer(data_x, dtype=np.float32), [input_layer.shape[1] for input_layer in inputs])
+data_x = preprocess_dynamic_data(np.frombuffer(data_x, dtype=np.float32), [input_layer.shape[1] for input_layer in model.inputs])
 
 # print(data_x)
 
@@ -54,11 +54,14 @@ data_y = None
 with open('data_buffer/temp_data_y.bin', 'rb') as f:
   data_y = f.read()
 
-data_y = preprocess_dynamic_data(np.frombuffer(data_y, dtype=np.float32), [output_layer.shape[1] for output_layer in outputs])
+data_y = preprocess_dynamic_data(np.frombuffer(data_y, dtype=np.float32), [output_layer.shape[1] for output_layer in model.outputs])
 
 # print(data_y)
+
+
+
 if np.any(weights != 0):
-    for layer in all_layers:
+    for layer in model.layers:
         if hasattr(layer, 'weights') and len(layer.weights) > 0:
             weights_size = layer.weights[0].shape[0] * layer.weights[0].shape[1]
             layer_weights = weights[:weights_size]
@@ -88,6 +91,8 @@ early_stopping_callback = EarlyStopping(
     restore_best_weights=True  # restores model weights from the epoch with the best value of the monitored quantity
 )
 
+
+
 model.fit(
     data_x, 
     data_y, 
@@ -97,9 +102,11 @@ model.fit(
     callbacks=early_stopping_callback
 )
 
+
+
 # Save weights to a binary file
 weights = []
-for layer in all_layers:
+for layer in model.layers:
     if hasattr(layer, 'weights') and len(layer.weights) > 0:
         layer_weights = layer.get_weights()[0].flatten()
         weights.extend(layer_weights)

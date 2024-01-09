@@ -15,7 +15,7 @@ std::pair<int, int> getGridAndBlockSizes()
     return {blocksPerGrid, blockSize};
 }
 
-void __global__ initRandomKernel(curandState *state, int seed, size_t random_size)
+void __global__ initRandomKernel(curandState *state, uint64_t seed, size_t random_size)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t stride = blockDim.x * gridDim.x;

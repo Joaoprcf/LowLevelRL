@@ -81,7 +81,7 @@ void __global__ gpuPlayV2(curandState *state, PipelineBuilder *tempBuilder, size
 
 void TEST_MonteCarloTreeGeneticSearchGPU_test_against_GuessGame()
 {
-    printf("GeneticRandomSearch test against GuessGame using IterativeOptimizer Test:\n\n");
+    printf("MonteCarloTreeGeneticSearchGPU test against GuessGame using IterativeOptimizer Test:\n\n");
     auto [gridSize, blockSize] = getGridAndBlockSizes();
 
     Input input(5);
@@ -149,7 +149,7 @@ void TEST_MonteCarloTreeGeneticSearchGPU_test_against_GuessGameV2()
 {
     // count time
     auto start = high_resolution_clock::now();
-    printf("GeneticRandomSearch test against GuessGameV2 Test:\n\n");
+    printf("MonteCarloTreeGeneticSearchGPU test against GuessGameV2 Test:\n\n");
     auto [gridSize, blockSize] = getGridAndBlockSizes();
 
     Input input(5);
@@ -164,7 +164,7 @@ void TEST_MonteCarloTreeGeneticSearchGPU_test_against_GuessGameV2()
 
     MonteCarloTreeSearchConfig config;
     config.dual_selection_amount = 4;
-    config.discount_factor = 0.98f;
+    config.discount_factor = 0.985f;
     config.reserved_noise = 50;
     config.distribution_iterations = 50;
 
@@ -214,7 +214,7 @@ void TEST_MonteCarloTreeGeneticSearchGPU_test_against_GuessGameV2()
 
 /* void TEST_MonteCarloTreeGeneticSearchGPU_test_against_GuessGameHard()
 {
-    printf("GeneticRandomSearch test against GuessGameHard Test:\n\n");
+    printf("MonteCarloTreeGeneticSearchGPU test against GuessGameHard Test:\n\n");
     auto [gridSize, blockSize] = getGridAndBlockSizes();
 
     Input input(5);

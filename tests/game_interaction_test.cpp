@@ -46,7 +46,7 @@ TEST_CASE("GameHard BestCaseScenario Functionality")
     dense2.weights[second_idx + 1] = 1.0f;
     dense2.weights[second_idx + 0] = 2.0f;
 
-    GuessGameHard game(12345);
+    GuessGameHard game(88172645463325252ULL);
     float observation[5] = {};
 
     for (int _ = 0; _ < 20; ++_)

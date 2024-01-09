@@ -11,10 +11,21 @@
 
 namespace game
 {
-    CUDA_CALLABLE_MEMBER uint32_t fastRand(uint32_t &seed, uint32_t mod)
+    CUDA_CALLABLE_MEMBER uint64_t fastRand(uint64_t &seed, uint64_t mod)
     {
-        seed = (214013 * seed + 2531011);
-        return ((seed >> 16) % mod);
+        if (seed == 0)
+        {
+            // Avoid the all-zeros state
+            seed = 88172645463325252ULL;
+        }
+
+        uint64_t x = seed;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        seed = x;
+
+        return x % mod;
     }
 }
 
@@ -28,20 +39,20 @@ struct GuessGame
 
     int observation_space = 5;
 
-    uint32_t seed; // Seed for random number generation
+    uint64_t seed; // Seed for random number generation
 
     float values[5];
 
-    CUDA_CALLABLE_MEMBER GuessGame() : reward(0), seed(12345) {}
+    CUDA_CALLABLE_MEMBER GuessGame() : reward(0), seed(88172645463325252ULL) {}
 
-    CUDA_CALLABLE_MEMBER GuessGame(uint32_t initSeed) : reward(0), seed(initSeed) {}
+    CUDA_CALLABLE_MEMBER GuessGame(uint64_t initSeed) : reward(0), seed(initSeed) {}
 
     CUDA_CALLABLE_MEMBER void generateValues()
     {
         for (int i = 0; i < 5; ++i)
         {
             // Generate a value between 0 and 1, then scale to [-1, 1]
-            float randVal = static_cast<float>(game::fastRand(seed, 500)) / 500;
+            float randVal = static_cast<float>(game::fastRand(seed, 512)) / 512;
             values[i] = randVal * 2 - 1; // Scale and shift to [-1, 1]
         }
     }
@@ -90,7 +101,7 @@ struct GuessGameV2 : GuessGame
     {
     }
 
-    CUDA_CALLABLE_MEMBER GuessGameV2(uint32_t initSeed) : GuessGame(initSeed) {}
+    CUDA_CALLABLE_MEMBER GuessGameV2(uint64_t initSeed) : GuessGame(initSeed) {}
 
     CUDA_CALLABLE_MEMBER float step(float *action, float *observation) override
     {
@@ -99,6 +110,49 @@ struct GuessGameV2 : GuessGame
             values[2] + values[3] * 2.0f,
             values[0] - values[1] * 0.5f - values[4] * 4.0f,
             values[1] - values[2] * 3.5f + 0.5f};
+
+        float distance = 0.01f;
+        for (int i = 0; i < 4; ++i)
+        {
+            distance += (expected[i] - action[i]) * (expected[i] - action[i]);
+        }
+
+        float step_reward = 1.0f / distance;
+        reward += step_reward;
+
+        generateValues();
+        for (int i = 0; i < observation_space; ++i)
+        {
+            observation[i] = values[i];
+        }
+        missing_steps -= 1;
+        return step_reward;
+    }
+};
+
+struct GuessGameV3 : GuessGame
+{
+    int action_space = 4;
+
+    CUDA_CALLABLE_MEMBER GuessGameV3() : GuessGame()
+    {
+    }
+
+    CUDA_CALLABLE_MEMBER GuessGameV3(uint64_t initSeed) : GuessGame(initSeed) {}
+
+    CUDA_CALLABLE_MEMBER float step(float *action, float *observation) override
+    {
+        float middle[4]{
+            tanhf(values[0] - values[1] * 0.5f),
+            tanhf(values[2] + values[3] * 2.0f),
+            tanhf(values[0] - values[1] * 0.5f - values[4] * 4.0f),
+            tanhf(values[1] - values[2] * 3.5f + 0.5f)};
+
+        float expected[4]{
+            middle[0] + middle[1] * 2.0f,
+            middle[1] + middle[2] * 2.0f,
+            middle[2] + middle[3] * 2.0f,
+            middle[3] + middle[0] * 2.0f};
 
         float distance = 0.01f;
         for (int i = 0; i < 4; ++i)
@@ -129,20 +183,20 @@ struct GuessGameHard
 
     int observation_space = 5;
 
-    uint32_t seed; // Seed for random number generation
+    uint64_t seed; // Seed for random number generation
 
     float values[5];
 
-    CUDA_CALLABLE_MEMBER GuessGameHard() : reward(0), seed(12345) {}
+    CUDA_CALLABLE_MEMBER GuessGameHard() : reward(0), seed(88172645463325252ULL) {}
 
-    CUDA_CALLABLE_MEMBER GuessGameHard(uint32_t initSeed) : reward(0), seed(initSeed) {}
+    CUDA_CALLABLE_MEMBER GuessGameHard(uint64_t initSeed) : reward(0), seed(initSeed) {}
 
     CUDA_CALLABLE_MEMBER void generateValues()
     {
         for (int i = 0; i < 5; ++i)
         {
             // Generate a value between 0 and 1, then scale to [-1, 1]
-            float randVal = static_cast<float>(game::fastRand(seed, 500)) / 500;
+            float randVal = static_cast<float>(game::fastRand(seed, 512)) / 512;
             values[i] = randVal * 2 - 1; // Scale and shift to [-1, 1]
         }
     }

@@ -23,7 +23,7 @@ struct BatchEnvironmentGPU : BatchEnvironment
         builderBatch->initGPU(instructions, datastream, weights);
         cudaMalloc((void **)&randomStates, batch_size * sizeof(curandState));
         auto [gridSize, blockSize] = getGridAndBlockSizes();
-        initRandomKernel<<<gridSize, blockSize>>>(randomStates, 12345, batch_size);
+        initRandomKernel<<<gridSize, blockSize>>>(randomStates, 88172645463325252ULL, batch_size);
     }
     ~BatchEnvironmentGPU()
     {

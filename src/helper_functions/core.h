@@ -52,7 +52,6 @@ inline void saveVector(std::string filename, float *v, size_t vector_size)
 
 inline void loadParams(std::string filename, float *weights, size_t weights_size)
 {
-    std::cout << string_format("weights/%s.bin", filename.c_str()) << std::endl;
     std::ifstream rf(string_format("weights/%s.bin", filename.c_str()), std::ifstream::in | std::ifstream::ate | std::ifstream::binary);
     if (rf.fail())
     {

@@ -16,7 +16,7 @@ TEST_CASE("Generate Values Range")
 
 TEST_CASE("Game Step Functionality")
 {
-    GuessGame game(12345);
+    GuessGame game(88172645463325252ULL);
     float observation[5] = {};
     float action[2] = {0.5f, -0.5f};
     game.reset(observation);
@@ -42,7 +42,7 @@ TEST_CASE("Game Step Functionality")
 
 TEST_CASE("Game Reset Functionality")
 {
-    GuessGame game(12345);
+    GuessGame game(88172645463325252ULL);
     float observation[5] = {};
     float action[2] = {0.5f, -0.5f};
     game.reset(observation);
@@ -55,7 +55,7 @@ TEST_CASE("Game Reset Functionality")
 
 TEST_CASE("GameV2 Step Functionality")
 {
-    GuessGameV2 game(12345);
+    GuessGameV2 game(88172645463325252ULL);
     float observation[5] = {};
     float action[4] = {0.5f, -0.5f, 0.5f, -0.5f};
     game.reset(observation);
@@ -81,7 +81,7 @@ TEST_CASE("GameV2 Step Functionality")
 
 TEST_CASE("GameV2 Reset Functionality")
 {
-    GuessGameV2 game(12345);
+    GuessGameV2 game(88172645463325252ULL);
     float observation[5] = {};
     float action[4] = {0.5f, -0.5f, 0.5f, -0.5f};
     game.reset(observation);
@@ -94,7 +94,7 @@ TEST_CASE("GameV2 Reset Functionality")
 
 TEST_CASE("GameHard Reset Functionality")
 {
-    GuessGameHard game(12345);
+    GuessGameHard game(88172645463325252ULL);
     float observation[5] = {};
     float action[2] = {0.5f, -0.5f};
     game.reset(observation);
@@ -107,7 +107,7 @@ TEST_CASE("GameHard Reset Functionality")
 
 TEST_CASE("GameHard Step Functionality")
 {
-    GuessGameHard game(12345);
+    GuessGameHard game(88172645463325252ULL);
     float observation[5] = {};
     float action[2] = {0.5f, -0.5f};
     game.reset(observation);

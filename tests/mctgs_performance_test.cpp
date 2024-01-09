@@ -34,7 +34,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame")
         {
             RunnerInfo runnerInfo = env.getNext();
 
-            GuessGame game(123456 + i + it_idx * env.batch_size);
+            GuessGame game(88172645463325252ULL + i + it_idx * env.batch_size);
             multiPlayGuessGame(runnerInfo, &game, 20);
         }
 
@@ -88,7 +88,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2")
         {
             RunnerInfo runnerInfo = env.getNext();
 
-            GuessGameV2 game(123456 + i + it_idx * env.batch_size); // Corrected instantiation
+            GuessGameV2 game(88172645463325252ULL + i + it_idx * env.batch_size); // Corrected instantiation
 
             multiPlayGuessGame(runnerInfo, &game, 20);
         }
@@ -164,7 +164,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2")
         {
             RunnerInfo runnerInfo = env.getNext();
 
-            GuessGameHard game(123456 + i + it_idx * env.batch_size); // Corrected instantiation
+            GuessGameHard game(88172645463325252ULL + i + it_idx * env.batch_size); // Corrected instantiation
             float reward = 0;
             float *targetDatastream = runnerInfo.targetDatastream;
 

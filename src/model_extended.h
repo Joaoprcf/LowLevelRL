@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+int Model::nextId = 0;
+
 void replaceFirstInPlace(std::string &str, const std::string &from, const std::string &to)
 {
     size_t start_pos = str.find(from);
@@ -48,6 +50,10 @@ std::string denseActivationDefinition(type_inst activation)
         return "if_positive";
     case ACTIVATION_ARITH_INV:
         return "arith_inv";
+    case ACTIVATION_SOFTMAX:
+        return "softmax";
+    case ACTIVATION_SOFTPLUS:
+        return "softplus";
     default:
         return "None";
     }
@@ -66,6 +72,14 @@ std::string layerDefinition(Layer *layer)
     else if (ActivationLayer *activation = dynamic_cast<ActivationLayer *>(layer))
     {
         return "Activation('" + denseActivationDefinition(activation->activation) + "')";
+    }
+    else if (MultiplyScalerLayer *msl = dynamic_cast<MultiplyScalerLayer *>(layer))
+    {
+        return "MultiplyScalar(" + to_string(msl->scalar) + ")";
+    }
+    else if (AddScalerLayer *msl = dynamic_cast<AddScalerLayer *>(layer))
+    {
+        return "AddScalar(" + to_string(msl->scalar) + ")";
     }
     return "ERROR";
 }
@@ -163,8 +177,9 @@ string mountGraph(vector<Input *> inputs, vector<Layer *> layers)
     return result;
 }
 
-void Model::compile(std::string optimizer)
+void Model::compile_keras(std::string optimizer)
 {
+    this->id = Model::nextId++;
     std::ifstream t("keras_utils/compile.py");
     std::stringstream buffer;
     buffer << t.rdbuf();
@@ -179,13 +194,17 @@ void Model::compile(std::string optimizer)
     replaceFirstInPlace(contents, "#$OUTPUTS_PLACEHOLDER", model_outputs);
     replaceFirstInPlace(contents, "#$GRAPH_PLACEHOLDER", model_graph);
     replaceFirstInPlace(contents, "#$OPTIMIZER_PLACEHOLDER", "optimizer=" + optimizer);
-    Py_Initialize();
+    replaceFirstInPlace(contents, "#$MODEL_NAME_PLACEHOLDER", "model" + to_string(this->id));
+    if (!Py_IsInitialized())
+    {
+        Py_Initialize();
+    }
     PyRun_SimpleString(contents.c_str());
 
     // std::cout << contents << std::endl;
 }
 
-void Model::fit(float *dstWeights, float *originWeights, float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size)
+void Model::fit_keras(float *dstWeights, float *originWeights, float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size)
 {
     float *kerasWeights = new float[this->weights_size];
     size_t weights_ptr = 0;
@@ -198,32 +217,32 @@ void Model::fit(float *dstWeights, float *originWeights, float *data_x, float *d
             weights_ptr += trainable_layer->weights_size;
         }
     }
-    printf("DEBUG: weights_ptr: %zu\n", weights_ptr);
     saveParams("temp_weights", kerasWeights, this->weights_size);
 
-    printf("Before saving data, %lu, %lu\n", this->fullInputSize() * data_size, this->fullOutputSize() * data_size);
+    // printf("Before saving data, %lu, %lu\n", this->fullInputSize() * data_size, this->fullOutputSize() * data_size);
+
     saveVector("temp_data_x", data_x, this->fullInputSize() * data_size);
     saveVector("temp_data_y", data_y, this->fullOutputSize() * data_size);
-    printf("After saving data\n");
+
     std::ifstream t("keras_utils/train.py");
     std::stringstream buffer;
     buffer << t.rdbuf();
     std::string contents(buffer.str());
 
-    printf("Script loaded\n");
+    // printf("Script loaded\n");
     std::string marker = "#$SCRIPT_START";
     size_t markerPos = contents.find(marker);
 
     if (markerPos != std::string::npos)
     {
-        printf("Marker found \n");
+        // printf("Marker found \n");
         // Create a substring starting after the marker
         contents = contents.substr(markerPos + marker.length());
         // Output the trimmed script
 
         replaceFirstInPlace(contents, "#$EPOCHS_PLACEHOLDER", "epochs=" + to_string(epochs));
         replaceFirstInPlace(contents, "#$BATCH_SIZE_PLACEHOLDER", "batch_size=" + to_string(batch_size));
-
+        replaceFirstInPlace(contents, "#$MODEL_NAME_PLACEHOLDER", "model = model" + to_string(this->id));
         // std::cout << contents << std::endl;
 
         PyRun_SimpleString(contents.c_str());
@@ -237,7 +256,7 @@ void Model::fit(float *dstWeights, float *originWeights, float *data_x, float *d
 
     loadParams("temp_weights", kerasWeights, this->weights_size);
     weights_ptr = 0;
-    printf("Loading weights back\n");
+    // printf("Loading weights back\n");
     for (Layer *layer : this->jobs)
     {
         if (TrainableLayer *trainable_layer = dynamic_cast<TrainableLayer *>(layer))
@@ -249,7 +268,16 @@ void Model::fit(float *dstWeights, float *originWeights, float *data_x, float *d
     delete kerasWeights;
 }
 
-void Model::fit(float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size)
+void Model::fit_keras(float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size)
 {
-    this->fit(this->weights, this->weights, data_x, data_y, data_size, epochs, batch_size);
+    this->fit_keras(this->weights, this->weights, data_x, data_y, data_size, epochs, batch_size);
+}
+
+void Model::clear()
+{
+    std::string command1 = "if(model == model" + std::to_string(this->id) + "): model = {}";
+    PyRun_SimpleString(command1.c_str());
+
+    std::string command2 = "del model" + std::to_string(this->id);
+    PyRun_SimpleString(command2.c_str());
 }

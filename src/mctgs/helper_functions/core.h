@@ -11,8 +11,8 @@
 
 namespace mctgs
 {
-    uint32_t seed = 12345;
-    uint32_t fastRand(uint32_t mod)
+    uint64_t seed = 88172645463325252ULL;
+    uint64_t fastRand(uint64_t mod)
     {
         seed = (214013 * seed + 2531011);
         return ((seed >> 16) % mod);

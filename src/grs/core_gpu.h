@@ -172,7 +172,7 @@ struct GeneticRandomSearchGPU : GeneticRandomSearch
         }
         auto [blocks_per_grid, block_size] = getGridAndBlockSizes();
         int max_blocks = min(blocks_per_grid, (int)(rnd_kernels + block_size - 1) / block_size);
-        initRandomKernel<<<blocks_per_grid, block_size, 0, stream>>>(gpuNoiseDevStates, 12345, rnd_kernels);
+        initRandomKernel<<<blocks_per_grid, block_size, 0, stream>>>(gpuNoiseDevStates, 88172645463325252ULL, rnd_kernels);
         err = cudaDeviceSynchronize();
         if (err != cudaSuccess)
         {

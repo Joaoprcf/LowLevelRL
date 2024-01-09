@@ -10,7 +10,7 @@ TEST_CASE("Linear regression")
     Dense output(&input1, 1);
     Model nn(&input1, &output);
 
-    nn.compile("Adam(learning_rate=0.2)");
+    nn.compile_keras("Adam(learning_rate=0.2)");
 
     const size_t data_samples = 10;
 
@@ -31,7 +31,7 @@ TEST_CASE("Linear regression")
         printf("result[%lu]: %f\n", i, result[0]);
     }
 
-    nn.fit(nn.weights, nn.weights, data_x, data_y, data_samples, 100, 2);
+    nn.fit_keras(nn.weights, nn.weights, data_x, data_y, data_samples, 100, 2);
 
     REQUIRE(abs(nn.weights[0] - m) < 0.02f);
     REQUIRE(abs(nn.weights[1] - b) < 0.02f);
@@ -42,6 +42,7 @@ TEST_CASE("Linear regression")
         float *result = nn.FeedForwardSingle(data_in.data());
         printf("result[%lu]: %f\n", i, result[0]);
     }
+    nn.clear();
 }
 
 TEST_CASE("Linear regression with 2 inputs and 2 outputs")
@@ -50,7 +51,7 @@ TEST_CASE("Linear regression with 2 inputs and 2 outputs")
     Dense output(&input1, 2);
     Model nn(&input1, &output);
 
-    nn.compile("Adam(learning_rate=0.2)");
+    nn.compile_keras("Adam(learning_rate=0.2)");
 
     const size_t data_samples = 10;
     const size_t prod_samples = data_samples * data_samples;
@@ -76,7 +77,7 @@ TEST_CASE("Linear regression with 2 inputs and 2 outputs")
         }
     }
 
-    nn.fit(nn.weights, nn.weights, data_x, data_y, prod_samples, 100, 1);
+    nn.fit_keras(nn.weights, nn.weights, data_x, data_y, prod_samples, 100, 1);
     for (size_t i = 0; i < nn.weights_size; i++)
     {
         printf("w[%lu]: %f\n", i, nn.weights[i]);
@@ -89,6 +90,7 @@ TEST_CASE("Linear regression with 2 inputs and 2 outputs")
     REQUIRE(abs(nn.weights[3] - m21) < 0.02f);
     REQUIRE(abs(nn.weights[4] - m22) < 0.02f);
     REQUIRE(abs(nn.weights[5] - b2) < 0.02f);
+    nn.clear();
 }
 
 TEST_CASE("Solve GuessGame with regression")
@@ -97,14 +99,13 @@ TEST_CASE("Solve GuessGame with regression")
     Dense output(&input1, 2);
     Model nn(&input1, &output);
 
-    nn.compile("Adam(learning_rate=0.1)");
+    nn.compile_keras("Adam(learning_rate=0.1)");
 
-    const size_t data_samples = 400;
+    const size_t data_samples = 500;
 
     float data_x[data_samples * 5] = {0};
     float data_y[data_samples * 2] = {0};
-    GuessGame game(12345);
-    uint32_t seed = 12345;
+    uint64_t seed = 88172645463325252ULL;
     for (size_t i = 0; i < data_samples; i++)
     {
         float *data_x_ptr = data_x + i * 5;
@@ -112,14 +113,14 @@ TEST_CASE("Solve GuessGame with regression")
         for (int j = 0; j < 5; ++j)
         {
             // Generate a value between 0 and 1, then scale to [-1, 1]
-            float randVal = static_cast<float>(game::fastRand(seed, 500)) / 500;
+            float randVal = static_cast<float>(game::fastRand(seed, 1024)) / 1023;
             data_x_ptr[j] = randVal * 2 - 1; // Scale and shift to [-1, 1]
         }
         data_y_ptr[0] = data_x_ptr[0] - data_x_ptr[1] * 0.5f;
         data_y_ptr[1] = data_x_ptr[2] + data_x_ptr[3] * 2.0f;
     }
 
-    nn.fit(nn.weights, nn.weights, data_x, data_y, data_samples, 100, 4);
+    nn.fit_keras(nn.weights, nn.weights, data_x, data_y, data_samples, 100, 4);
     for (size_t i = 0; i < nn.weights_size; i++)
     {
         printf("w[%lu]: %f\n", i, nn.weights[i]);
@@ -130,6 +131,7 @@ TEST_CASE("Solve GuessGame with regression")
     REQUIRE(abs(nn.weights[8] - 1) < 0.1f);
     REQUIRE(abs(nn.weights[9] - 2) < 0.1f);
 
+    GuessGame game(seed);
     float observation[5];
     float reward = 0.0f;
     for (int _ = 0; _ < 40; ++_)
@@ -144,6 +146,8 @@ TEST_CASE("Solve GuessGame with regression")
     }
     printf("Reward: %f\n", reward);
     REQUIRE(reward > 78000.0f); // Almost max points
+
+    nn.clear();
 }
 
 TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers")
@@ -154,9 +158,9 @@ TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers")
     Dense output(&middle2, 2);
     Model nn(&input1, &output);
 
-    nn.compile("Adam(learning_rate=0.1)");
+    nn.compile_keras("Adam(learning_rate=0.1)");
 
-    const size_t data_samples = 400;
+    const size_t data_samples = 500;
 
     float data_x[data_samples * 2] = {0};
     float data_y[data_samples * 2] = {0};
@@ -167,7 +171,7 @@ TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers")
     float m21 = -2.5f;
     float m22 = 0.5f;
     float b2 = -0.5f;
-    uint32_t seed = 12345;
+    uint64_t seed = 88172645463325252ULL;
     for (size_t i = 0; i < data_samples; i++)
     {
         float *data_x_ptr = data_x + i * 2;
@@ -175,14 +179,14 @@ TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers")
         for (int j = 0; j < 2; ++j)
         {
             // Generate a value between 0 and 1, then scale to [-2, 2]
-            float randVal = static_cast<float>(game::fastRand(seed, 1001)) / 1000;
+            float randVal = static_cast<float>(game::fastRand(seed, 1024)) / 1023;
             data_x_ptr[j] = randVal * 4.0f - 2.0f; // Scale and shift to [-2, 2]
         }
         data_y_ptr[0] = data_x_ptr[0] * m11 + data_x_ptr[1] * m12 + b1;
         data_y_ptr[1] = data_x_ptr[0] * m21 + data_x_ptr[1] * m22 + b2;
     }
 
-    nn.fit(nn.weights, nn.weights, data_x, data_y, data_samples, 100, 4);
+    nn.fit_keras(nn.weights, nn.weights, data_x, data_y, data_samples, 100, 4);
 
     for (size_t i = 0; i < data_samples; i++)
     {
@@ -191,7 +195,7 @@ TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers")
         for (int j = 0; j < 2; ++j)
         {
             // Generate a value between 0 and 1, then scale to [-2, 2]
-            float randVal = static_cast<float>(game::fastRand(seed, 1001)) / 1000;
+            float randVal = static_cast<float>(game::fastRand(seed, 1024)) / 1023;
             data_x_ptr[j] = randVal * 4.0f - 2.0f; // Scale and shift to [-2, 2]
         }
         data_y_ptr[0] = data_x_ptr[0] * m11 + data_x_ptr[1] * m12 + b1;
@@ -201,6 +205,8 @@ TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers")
         REQUIRE(abs(result[0] - data_y_ptr[0]) < 0.15f);
         REQUIRE(abs(result[1] - data_y_ptr[1]) < 0.15f);
     }
+
+    nn.clear();
 }
 
 TEST_CASE("Linear regression with 2 inputs layers and 2 outputs layers")
@@ -212,7 +218,7 @@ TEST_CASE("Linear regression with 2 inputs layers and 2 outputs layers")
     Dense output2(&input, 1);
     Model nn({&input1, &input2}, {&output1, &output2});
 
-    nn.compile("Adam(learning_rate=0.2)");
+    nn.compile_keras("Adam(learning_rate=0.2)");
 
     const size_t data_samples = 10;
     const size_t prod_samples = data_samples * data_samples;
@@ -238,7 +244,7 @@ TEST_CASE("Linear regression with 2 inputs layers and 2 outputs layers")
         }
     }
 
-    nn.fit(nn.weights, nn.weights, data_x, data_y, prod_samples, 100, 1);
+    nn.fit_keras(nn.weights, nn.weights, data_x, data_y, prod_samples, 100, 1);
 
     REQUIRE(abs(nn.weights[0] - m11) < 0.02f);
     REQUIRE(abs(nn.weights[1] - m12) < 0.02f);
@@ -247,6 +253,8 @@ TEST_CASE("Linear regression with 2 inputs layers and 2 outputs layers")
     REQUIRE(abs(nn.weights[3] - m21) < 0.02f);
     REQUIRE(abs(nn.weights[4] - m22) < 0.02f);
     REQUIRE(abs(nn.weights[5] - b2) < 0.02f);
+
+    nn.clear();
 }
 
 TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers, one with tanh activation")
@@ -258,9 +266,9 @@ TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers, one w
     Dense output(&middle2, 2);
     Model nn(&input1, &output);
 
-    nn.compile("Adam(learning_rate=0.1)");
+    nn.compile_keras("Adam(learning_rate=0.1)");
 
-    const size_t data_samples = 400;
+    const size_t data_samples = 500;
 
     float data_x[data_samples * 2] = {0};
     float data_y[data_samples * 2] = {0};
@@ -274,7 +282,7 @@ TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers, one w
 
     float m31 = 0.5f;
     float m32 = -1.0f;
-    uint32_t seed = 12345;
+    uint64_t seed = 88172645463325252ULL;
     for (size_t i = 0; i < data_samples; i++)
     {
         float *data_x_ptr = data_x + i * 2;
@@ -282,14 +290,14 @@ TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers, one w
         for (int j = 0; j < 2; ++j)
         {
             // Generate a value between 0 and 1, then scale to [-2, 2]
-            float randVal = static_cast<float>(game::fastRand(seed, 1001)) / 1000;
+            float randVal = static_cast<float>(game::fastRand(seed, 1024)) / 1023;
             data_x_ptr[j] = randVal * 4.0f - 2.0f; // Scale and shift to [-2, 2]
         }
         data_y_ptr[0] = tanh(data_x_ptr[0] * m11 + data_x_ptr[1] * m12) * m31 + b1;
         data_y_ptr[1] = tanh(data_x_ptr[0] * m21 + data_x_ptr[1] * m22) * m32 + b2;
     }
 
-    nn.fit(nn.weights, nn.weights, data_x, data_y, data_samples, 100, 4);
+    nn.fit_keras(nn.weights, nn.weights, data_x, data_y, data_samples, 100, 4);
 
     for (size_t i = 0; i < data_samples; i++)
     {
@@ -298,7 +306,7 @@ TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers, one w
         for (int j = 0; j < 2; ++j)
         {
             // Generate a value between 0 and 1, then scale to [-2, 2]
-            float randVal = static_cast<float>(game::fastRand(seed, 1001)) / 1000;
+            float randVal = static_cast<float>(game::fastRand(seed, 1024)) / 1023;
             data_x_ptr[j] = randVal * 4.0f - 2.0f; // Scale and shift to [-2, 2]
         }
         data_y_ptr[0] = tanh(data_x_ptr[0] * m11 + data_x_ptr[1] * m12) * m31 + b1;
@@ -308,4 +316,5 @@ TEST_CASE("Linear regression with 2 inputs, 2 outputs and 2 hidden layers, one w
         REQUIRE(abs(result[0] - data_y_ptr[0]) < 0.5f);
         REQUIRE(abs(result[1] - data_y_ptr[1]) < 0.5f);
     }
+    nn.clear();
 }

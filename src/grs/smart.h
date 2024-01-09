@@ -97,9 +97,8 @@ struct SmartGeneticRandomSearch
         }
     }
 
-    void updateWeightsUsingCPUInfo()
+    void updateMasterWeights()
     {
-        // printf("Updating weights\n");
         for (size_t i = 0; i < grs_amount; ++i)
         {
             memcpy(rewardEntries + i * directions, grs[i].rewardEntryArray, directions * sizeof(RewardEntry));
@@ -112,23 +111,38 @@ struct SmartGeneticRandomSearch
         {
             size_t grs_index = rewardEntries[i].index / directions;
 
-            // printf("ctn[%lu]: %u\n", grs_index, cnt[grs_index]);
-            /* if (cnt[grs_index] >= 2 && best == -1)
-            {
-                best = grs_index;
-                // printf("Best GRS: %d\n", best);
-            } */
-
             size_t direction_index = rewardEntries[i].index % directions;
             memcpy(weights + i * weights_size, grs[grs_index].weights + direction_index * weights_size, weights_size * sizeof(float));
 
             // printf("reward: %.1f, index: %d (%lu, %lu)\n", rewardEntries[i].reward, rewardEntries[i].index, rewardEntries[i].index / directions, rewardEntries[i].index % directions);
         }
 
+        // int best = std::distance(ctn, std::max_element(ctn, ctn + grs_amount));
         int best = rewardEntries[0].index / directions;
+
         last_reward = rewardEntries[grs_amount - 1].reward;
         currentLearningRate = grs[best].optimizer->learningRate;
-        // printf("Learning rate: %f\n", currentLearningRate);
+    }
+
+    void updateWorkersWeights()
+    {
+
+        size_t pointer = 0;
+        float *tempWorkerWeights = new float[stairs * weights_size];
+        memcpy(tempWorkerWeights, weights, stairs * weights_size * sizeof(float));
+        for (size_t stairIdx = 0; stairIdx < stairs; stairIdx++)
+        {
+
+            size_t stairAmount = (stairs - stairIdx) * 2;
+
+            for (size_t i = 0; i < stairAmount; i++)
+            {
+                memcpy(weights + pointer * weights_size, tempWorkerWeights + stairIdx * weights_size, weights_size * sizeof(float));
+                pointer++;
+            }
+        }
+        delete[] tempWorkerWeights;
+
         float start_expoent = -(grs_amount - 1.0f) / 2.0f;
         for (size_t i = 0; i < grs_amount; i++)
         {
@@ -137,6 +151,14 @@ struct SmartGeneticRandomSearch
             grs[i].optimizer->learningRate = currentLearningRate * multiplier;
             grs[i].applyNoise(grs[i].preStoredTempWeights);
         }
+    }
+
+    void updateWeightsUsingCPUInfo()
+    {
+        // printf("Updating weights\n");
+        updateMasterWeights();
+
+        updateWorkersWeights();
     }
 
     void train(GuessGame *game, size_t epochs, size_t num_games)
@@ -152,6 +174,26 @@ struct SmartGeneticRandomSearch
                 multiPlayGuessGame(runnerInfo, game, num_games);
             }
             updateWeightsUsingCPUInfo();
+        }
+    }
+
+    void addActor(float *actorWeights, float reward)
+    {
+        for (size_t i = 0; i < directions; ++i)
+        {
+            if (reward > rewardEntries[i].reward)
+            {
+                size_t directions_missing = directions - i - 1;
+                if (directions_missing)
+                {
+                    memmove(rewardEntries + (i + 1) * directions, rewardEntries + i * directions, directions_missing * sizeof(RewardEntry));
+                    memmove(weights + (i + 1) * weights_size, weights + i * weights_size, directions_missing * weights_size * sizeof(float));
+                }
+                memcpy(weights + i * weights_size, actorWeights, weights_size * sizeof(float));
+                rewardEntries[i].reward = reward;
+                rewardEntries[i].index = -1;
+                break;
+            }
         }
     }
 

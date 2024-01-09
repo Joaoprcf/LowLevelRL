@@ -68,7 +68,7 @@ struct LearnableOptimizerGPU : LearnableOptimizer
 
 bool optmizerAllowGPU(GRSOptimizer *optimizer)
 {
-    return dynamic_cast<LearnableOptimizerGPU *>(optimizer) != nullptr;
+    return dynamic_cast<LearnableOptimizerGPU *>(optimizer) != nullptr || dynamic_cast<GRSOptimizer *>(optimizer) == nullptr;
 }
 
 void optimizerUpdateRewards(LearnableOptimizerGPU *optimizer, float *rewardArray, size_t directions, size_t weights_size)

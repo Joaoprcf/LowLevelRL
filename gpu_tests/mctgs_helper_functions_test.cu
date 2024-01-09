@@ -20,7 +20,7 @@ void TEST_generateNormalizedRandomWeightsGPU_With_2Dimentions_4Points()
     cudaMallocManaged(&weights, weights_size * dual_directions * 2 * sizeof(float));
     cudaMallocManaged(&forces, weights_size * dual_directions * sizeof(float));
     auto [gridSize, blockSize] = getGridAndBlockSizes();
-    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 12345, half_weights_size);
+    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 88172645463325252ULL, half_weights_size);
     generateNormalizedRandomWeightsGPU(gpuNoiseDevStates, weights, weights_size, dual_directions);
     cudaDeviceSynchronize();
     for (size_t i = 0; i < dual_directions; i++)
@@ -52,7 +52,7 @@ void TEST_generateNormalizedRandomWeightsGPU_With_2Dimentions_50Points()
     cudaMallocManaged(&weights, weights_size * dual_directions * 2 * sizeof(float));
     cudaMallocManaged(&forces, weights_size * dual_directions * sizeof(float));
     auto [gridSize, blockSize] = getGridAndBlockSizes();
-    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 12345, half_weights_size);
+    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 88172645463325252ULL, half_weights_size);
     generateNormalizedRandomWeightsGPU(gpuNoiseDevStates, weights, weights_size, dual_directions);
     cudaDeviceSynchronize();
     for (size_t i = 0; i < dual_directions; i++)
@@ -84,7 +84,7 @@ void TEST_generateNormalizedRandomWeightsGPU_With_1000Dimentions_5000Points()
     cudaMallocManaged(&weights, weights_size * dual_directions * 2 * sizeof(float));
     cudaMallocManaged(&forces, weights_size * dual_directions * sizeof(float));
     auto [gridSize, blockSize] = getGridAndBlockSizes();
-    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 12345, half_weights_size);
+    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 88172645463325252ULL, half_weights_size);
     generateNormalizedRandomWeightsGPU(gpuNoiseDevStates, weights, weights_size, dual_directions);
     cudaDeviceSynchronize();
     for (size_t i = 0; i < dual_directions; i++)
@@ -116,7 +116,7 @@ void TEST_calculateForcesGPU_With_2Dimentions_4Points()
     cudaMallocManaged(&weights, weights_size * dual_directions * 2 * sizeof(float));
     cudaMallocManaged(&forces, weights_size * dual_directions * sizeof(float));
     auto [gridSize, blockSize] = getGridAndBlockSizes();
-    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 12345, half_weights_size);
+    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 88172645463325252ULL, half_weights_size);
     generateNormalizedRandomWeightsGPU(gpuNoiseDevStates, weights, weights_size, dual_directions);
     calculateForcesGPU(forces, weights, weights_size, dual_directions);
     cudaDeviceSynchronize();
@@ -148,7 +148,7 @@ void TEST_calculateForcesGPU_With_300Dimentions_2000Points()
     cudaMallocManaged(&weights, weights_size * dual_directions * 2 * sizeof(float));
     cudaMallocManaged(&forces, weights_size * dual_directions * sizeof(float));
     auto [gridSize, blockSize] = getGridAndBlockSizes();
-    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 12345, half_weights_size);
+    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 88172645463325252ULL, half_weights_size);
     generateNormalizedRandomWeightsGPU(gpuNoiseDevStates, weights, weights_size, dual_directions);
     cudaDeviceSynchronize();
 
@@ -195,7 +195,7 @@ void TEST_applyForcesGPU_With_500Dimentions_2000Points()
     cudaMallocManaged(&weights, weights_size * dual_directions * 2 * sizeof(float));
     cudaMallocManaged(&forces, weights_size * dual_directions * sizeof(float));
     auto [gridSize, blockSize] = getGridAndBlockSizes();
-    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 12345, half_weights_size);
+    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 88172645463325252ULL, half_weights_size);
     generateNormalizedRandomWeightsGPU(gpuNoiseDevStates, weights, weights_size, dual_directions);
     calculateForcesGPU(forces, weights, weights_size, dual_directions);
     cudaDeviceSynchronize();
@@ -248,7 +248,7 @@ void TEST_generateEvenlyDistributedWeightsGPU_With_1000Dimentions_200Points()
     auto [gridSize, blockSize] = getGridAndBlockSizes();
     auto startGPU = high_resolution_clock::now();
 
-    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 12345, half_weights_size);
+    initRandomKernel<<<gridSize, blockSize>>>(gpuNoiseDevStates, 88172645463325252ULL, half_weights_size);
     generateEvenlyDistributedWeightsGPU(gpuNoiseDevStates, weights, weights_size, dual_directions);
 
     auto stopGPU = high_resolution_clock::now();

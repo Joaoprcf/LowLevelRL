@@ -78,7 +78,7 @@ struct MonteCarloTreeGeneticSearchGPU : MonteCarloTreeGeneticSearch
 
         cudaError_t err = cudaMalloc((void **)&gpuNoiseDevStates, rnd_kernels * sizeof(curandState));
         auto [blocks_per_grid, block_size] = getGridAndBlockSizes();
-        initRandomKernel<<<blocks_per_grid, block_size>>>(gpuNoiseDevStates, 123456, rnd_kernels);
+        initRandomKernel<<<blocks_per_grid, block_size>>>(gpuNoiseDevStates, 88172645463325252ULL, rnd_kernels);
         noise_pointer = reserved_noise;
     }
 

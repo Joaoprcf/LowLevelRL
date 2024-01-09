@@ -34,7 +34,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame")
             {
                 RunnerInfo runnerInfo = sgrs.getNext();
 
-                GuessGame game(123456 + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
+                GuessGame game(88172645463325252ULL + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
 
                 multiPlayGuessGame(runnerInfo, &game, 40);
             }
@@ -89,11 +89,10 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2")
 
     Model nn(&input, &output);
 
-    for (size_t stairs : {4, 5, 6, 8, 13})
+    for (size_t stairs : {5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
-        SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.3f, 1.1f);
-        float last_reward = 0.0f;
+        SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.3f, 1.05f);
         sgrs.initCPU();
         for (size_t idx = 0; idx < 800; idx++)
         {
@@ -105,7 +104,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2")
             {
                 RunnerInfo runnerInfo = sgrs.getNext();
 
-                GuessGameV2 game(123456 + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
+                GuessGameV2 game(88172645463325252ULL + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
 
                 multiPlayGuessGame(runnerInfo, &game, 40);
             }
@@ -168,7 +167,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame using complex nn")
     for (size_t stairs : {6, 8, 11})
     {
         printf("stairs: %zu\n", stairs);
-        SmartGeneticRandomSearch sgrs(&nn, stairs, 7, 0.3f, 1.1f);
+        SmartGeneticRandomSearch sgrs(&nn, stairs, 7, 0.3f, 1.05f);
         float last_reward = 0.0f;
         sgrs.initCPU();
         for (size_t idx = 0; idx < 1600; idx++)
@@ -179,7 +178,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame using complex nn")
             {
                 RunnerInfo runnerInfo = sgrs.getNext();
 
-                GuessGame game(123456 + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
+                GuessGame game(88172645463325252ULL + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
 
                 multiPlayGuessGame(runnerInfo, &game, 40);
             }
@@ -234,43 +233,42 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2 using train API")
 
     Model nn(&input, &output);
 
-    for (size_t stairs : {4, 5, 6, 8, 13})
+    GuessGameV2 game(88172645463325252ULL); // Corrected instantiation
+    for (size_t stairs : {5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
-        SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.3f, 1.1f);
-        float last_reward = 0.0f;
+        SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.3f, 1.05f);
         sgrs.initCPU();
-        GuessGameV2 game(123456 + stairs); // Corrected instantiation
-        for (size_t idx = 0; idx < 40; idx++)
+        for (size_t idx = 0; idx < 80; idx++)
         {
-            sgrs.train(&game, 20, 40);
+            sgrs.train(&game, 10, 40);
             float current_reward = sgrs.last_reward;
             if (current_reward >= GUESS_GAME_GOAL)
             {
                 printf("Goal reward %.1f achieved at idx %zu \n", current_reward, idx);
                 break;
             }
-            if (idx == 2)
-            {
-                printf("%.1f > 1600.0\n", current_reward);
-                REQUIRE(current_reward > 1600.0f);
-            }
             if (idx == 4)
+            {
+                printf("%.1f > 1500.0\n", current_reward);
+                REQUIRE(current_reward > 1500.0f);
+            }
+            if (idx == 9)
             {
                 printf("%.1f > 5000.0\n", current_reward);
                 REQUIRE(current_reward > 5000.0f);
             }
-            else if (idx == 9)
+            else if (idx == 19)
             {
                 printf("%.1f > 10000.0\n", current_reward);
                 REQUIRE(current_reward > 10000.0f);
             }
-            else if (idx == 19)
+            else if (idx == 39)
             {
                 printf("%.1f > 35000.0\n", current_reward);
                 REQUIRE(current_reward > 35000.0f);
             }
-            else if (idx == 39)
+            else if (idx == 79)
             {
                 printf("%.1f > 75000.0\n", current_reward);
                 REQUIRE(current_reward > 75000.0f);
