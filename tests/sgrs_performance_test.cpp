@@ -4,6 +4,7 @@
 #include "../src/grs/smart.h"
 #include "../src/game_examples.h"
 #include "../src/analizers.h"
+#include "../src/game_utils.h"
 
 constexpr float GUESS_GAME_GOAL = 79500;
 
@@ -33,26 +34,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame")
 
                 GuessGame game(123456 + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
 
-                float reward = 0;
-                float *targetDatastream = runnerInfo.targetDatastream;
-
-                float *input = targetDatastream;
-                float *output = targetDatastream + runnerInfo.builder->outputLocations[0];
-
-                for (size_t _ = 0; _ < 40; _++)
-                {
-
-                    game.reset(input);
-
-                    while (game.missing_steps > 0)
-                    {
-                        runnerInfo.builder->FeedForwardSingle(input, targetDatastream);
-                        game.step(output, input);
-                    }
-                    reward += game.reward;
-                }
-
-                runnerInfo.setReward(reward);
+                multiPlayGuessGame(runnerInfo, &game, 40);
             }
             sgrs.updateWeightsUsingCPUInfo();
             float current_reward = sgrs.last_reward;
@@ -122,26 +104,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2")
 
                 GuessGameV2 game(123456 + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
 
-                float reward = 0;
-                float *targetDatastream = runnerInfo.targetDatastream;
-
-                float *input = targetDatastream;
-                float *output = targetDatastream + runnerInfo.builder->outputLocations[0];
-
-                for (size_t _ = 0; _ < 40; _++)
-                {
-
-                    game.reset(input);
-
-                    while (game.missing_steps > 0)
-                    {
-                        runnerInfo.builder->FeedForwardSingle(input, targetDatastream);
-                        game.step(output, input);
-                    }
-                    reward += game.reward;
-                }
-
-                runnerInfo.setReward(reward);
+                multiPlayGuessGame(runnerInfo, &game, 40);
             }
             sgrs.updateWeightsUsingCPUInfo();
             float current_reward = sgrs.last_reward;
@@ -208,34 +171,13 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame using complex nn")
         {
             sgrs.copyWeigthsToCPU();
             sgrs.initIterator();
-            // Iterate through all directions and check RunnerInfo
-            float median_reward = 0;
             for (size_t i = 0; sgrs.hasNext(); i++)
             {
                 RunnerInfo runnerInfo = sgrs.getNext();
 
                 GuessGame game(123456 + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
 
-                float reward = 0;
-                float *targetDatastream = runnerInfo.targetDatastream;
-
-                float *input = targetDatastream;
-                float *output = targetDatastream + runnerInfo.builder->outputLocations[0];
-
-                for (size_t _ = 0; _ < 40; _++)
-                {
-
-                    game.reset(input);
-
-                    while (game.missing_steps > 0)
-                    {
-                        runnerInfo.builder->FeedForwardSingle(input, targetDatastream);
-                        game.step(output, input);
-                    }
-                    reward += game.reward;
-                }
-
-                runnerInfo.setReward(reward);
+                multiPlayGuessGame(runnerInfo, &game, 40);
             }
             sgrs.updateWeightsUsingCPUInfo();
             float current_reward = sgrs.last_reward;

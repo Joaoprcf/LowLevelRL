@@ -2,7 +2,7 @@
 #include "catch.hpp"
 #define TEST
 #include "../src/grs/core.h"
-#include "../src/game_examples.h"
+#include "../src/game_utils.h"
 #include "../src/analizers.h"
 
 constexpr float GUESS_GAME_GOAL = 79500;
@@ -32,26 +32,7 @@ TEST_CASE("GeneticRandomSearch test against GuessGame using IterativeOptimizer")
                 RunnerInfo runnerInfo = grs.getNext();
 
                 GuessGame game(123456 + i + idx * grs.directions); // Corrected instantiation
-                float reward = 0;
-                float *targetDatastream = runnerInfo.targetDatastream;
-
-                float *input = targetDatastream;
-                float *output = targetDatastream + runnerInfo.builder->outputLocations[0];
-
-                for (size_t i = 0; i < 40; i++)
-                {
-
-                    game.reset(input);
-
-                    while (game.missing_steps > 0)
-                    {
-                        runnerInfo.builder->FeedForwardSingle(input, targetDatastream);
-                        game.step(output, input);
-                    }
-                    reward += game.reward;
-                }
-
-                runnerInfo.setFloatReward(reward);
+                multiPlayGuessGame(runnerInfo, &game, 40);
             }
 
             grs.updateWeightsUsingCPUInfo();
@@ -125,26 +106,7 @@ TEST_CASE("GeneticRandomSearch test against GuessGame using IterativeOptimizer u
                 RunnerInfo runnerInfo = grs.getNext();
 
                 GuessGame game(123456 + i + idx * grs.directions); // Corrected instantiation
-                float reward = 0;
-                float *targetDatastream = runnerInfo.targetDatastream;
-
-                float *input = targetDatastream;
-                float *output = targetDatastream + runnerInfo.builder->outputLocations[0];
-
-                for (size_t i = 0; i < 40; i++)
-                {
-
-                    game.reset(input);
-
-                    while (game.missing_steps > 0)
-                    {
-                        runnerInfo.builder->FeedForwardSingle(input, targetDatastream);
-                        game.step(output, input);
-                    }
-                    reward += game.reward;
-                }
-
-                runnerInfo.setFloatReward(reward);
+                multiPlayGuessGame(runnerInfo, &game, 40);
             }
             grs.updateWeightsUsingCPUInfo(weightsInfluence);
             float current_reward = dynamic_cast<IterativeOptimizer *>(grs.optimizer)->movingAvgScore;

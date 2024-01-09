@@ -57,7 +57,7 @@ struct GuessGame
         }
     }
 
-    CUDA_CALLABLE_MEMBER void virtual step(float *action, float *observation)
+    CUDA_CALLABLE_MEMBER float virtual step(float *action, float *observation)
     {
         float expected[2]{
             values[0] - values[1] * 0.5f,
@@ -69,7 +69,8 @@ struct GuessGame
             distance += (expected[i] - action[i]) * (expected[i] - action[i]);
         }
 
-        reward += 1.0f / distance;
+        float step_reward = 1.0f / distance;
+        reward += step_reward;
 
         generateValues();
         for (int i = 0; i < observation_space; ++i)
@@ -77,6 +78,7 @@ struct GuessGame
             observation[i] = values[i];
         }
         missing_steps -= 1;
+        return step_reward;
     };
 };
 
@@ -90,7 +92,7 @@ struct GuessGameV2 : GuessGame
 
     CUDA_CALLABLE_MEMBER GuessGameV2(uint32_t initSeed) : GuessGame(initSeed) {}
 
-    CUDA_CALLABLE_MEMBER void step(float *action, float *observation) override
+    CUDA_CALLABLE_MEMBER float step(float *action, float *observation) override
     {
         float expected[4]{
             values[0] - values[1] * 0.5f,
@@ -104,7 +106,8 @@ struct GuessGameV2 : GuessGame
             distance += (expected[i] - action[i]) * (expected[i] - action[i]);
         }
 
-        reward += 1.0f / distance;
+        float step_reward = 1.0f / distance;
+        reward += step_reward;
 
         generateValues();
         for (int i = 0; i < observation_space; ++i)
@@ -112,6 +115,7 @@ struct GuessGameV2 : GuessGame
             observation[i] = values[i];
         }
         missing_steps -= 1;
+        return step_reward;
     }
 };
 
@@ -154,12 +158,13 @@ struct GuessGameHard
         }
     }
 
-    CUDA_CALLABLE_MEMBER void step(float *action, float *observation)
+    CUDA_CALLABLE_MEMBER float step(float *action, float *observation)
     {
         float expected1 = values[0] > values[1] ? values[0] - values[1] * 0.5f : values[2] + values[3] * 2.0f;
         float expected2 = values[4] > values[3] ? values[3] - values[2] * 0.5f : values[1] + values[0] * 2.0f;
 
-        reward += (1.0f / (abs(expected1 - action[0]) + abs(expected2 - action[1]) + 0.01f));
+        float step_reward = (1.0f / (abs(expected1 - action[0]) + abs(expected2 - action[1]) + 0.01f));
+        reward += step_reward;
 
         generateValues();
         for (int i = 0; i < observation_space; ++i)
@@ -167,5 +172,6 @@ struct GuessGameHard
             observation[i] = values[i];
         }
         missing_steps -= 1;
+        return step_reward;
     }
 };

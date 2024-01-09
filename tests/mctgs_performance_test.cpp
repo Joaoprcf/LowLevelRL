@@ -2,9 +2,10 @@
 #include "catch.hpp"
 #include "../src/mctgs/core.h"
 #include "../src/mctgs/helper_functions/core.h"
+#include "../src/game_utils.h"
 #include <chrono>
 
-constexpr float GUESS_GAME_GOAL = 79500;
+constexpr float GUESS_GAME_GOAL = 39750;
 
 TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame")
 {
@@ -34,26 +35,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame")
             RunnerInfo runnerInfo = env.getNext();
 
             GuessGame game(123456 + i + it_idx * env.batch_size);
-            float reward = 0;
-            float *targetDatastream = runnerInfo.targetDatastream;
-
-            float *input = targetDatastream;
-            float *output = targetDatastream + builder.outputLocations[0];
-
-            for (size_t i = 0; i < 20; i++)
-            {
-
-                game.reset(input);
-
-                while (game.missing_steps > 0)
-                {
-                    runnerInfo.builder->FeedForwardSingle(input, targetDatastream);
-                    game.step(output, input);
-                }
-                reward += game.reward;
-            }
-
-            runnerInfo.setFloatReward(reward * 2);
+            multiPlayGuessGame(runnerInfo, &game, 20);
         }
 
         mctgs.multiBackpropagateNoVisits(node_idxs, env.rewardArray, env.batch_size);
@@ -66,12 +48,12 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame")
         if (it_idx == 29)
         {
             printf("%.f > 10000.0\n", best_reward);
-            REQUIRE(best_reward > 100.0f);
+            REQUIRE(best_reward > 10000.0f);
         }
         if (it_idx == 49)
         {
             printf("%.f > 25000.0\n", best_reward);
-            REQUIRE(best_reward > 250.0f);
+            REQUIRE(best_reward > 25000.0f);
         }
     }
     delete[] node_idxs;
@@ -107,26 +89,8 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2")
             RunnerInfo runnerInfo = env.getNext();
 
             GuessGameV2 game(123456 + i + it_idx * env.batch_size); // Corrected instantiation
-            float reward = 0;
-            float *targetDatastream = runnerInfo.targetDatastream;
 
-            float *input = targetDatastream;
-            float *output = targetDatastream + runnerInfo.builder->outputLocations[0];
-
-            for (size_t i = 0; i < 20; i++)
-            {
-
-                game.reset(input);
-
-                while (game.missing_steps > 0)
-                {
-                    runnerInfo.builder->FeedForwardSingle(input, targetDatastream);
-                    game.step(output, input);
-                }
-                reward += game.reward;
-            }
-
-            runnerInfo.setFloatReward(reward * 2);
+            multiPlayGuessGame(runnerInfo, &game, 20);
         }
 
         mctgs.multiBackpropagateNoVisits(node_idxs, env.rewardArray, env.batch_size);
@@ -139,18 +103,18 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2")
         }
         else if (it_idx == 49)
         {
-            printf("%.f > 1500.0\n", best_reward);
-            REQUIRE(best_reward > 1500.0f);
+            printf("%.f > 750.0\n", best_reward);
+            REQUIRE(best_reward > 750.0f);
         }
         else if (it_idx == 99)
         {
-            printf("%.f > 6000.0\n", best_reward);
-            REQUIRE(best_reward > 6000.0f);
+            printf("%.f > 3000.0\n", best_reward);
+            REQUIRE(best_reward > 3000.0f);
         }
         else if (it_idx == 399)
         {
-            printf("%.f > 40000.0\n", best_reward);
-            REQUIRE(best_reward > 40000.0f);
+            printf("%.f > 20000.0\n", best_reward);
+            REQUIRE(best_reward > 20000.0f);
         }
         else if (it_idx % 10 == 0)
             printf("it_idx: %lu, best_reward: %.f\n", it_idx, best_reward);
