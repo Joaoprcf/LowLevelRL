@@ -1,7 +1,7 @@
 #pragma once
 #include "model.h"
 #include "grs/core.h"
-
+#include "game_utils.h"
 struct SmartGeneticRandomSearch
 {
     float startLearningRate = 0.02f;
@@ -136,6 +136,22 @@ struct SmartGeneticRandomSearch
             float multiplier = pow(learningRateStep, start_expoent + i);
             grs[i].optimizer->learningRate = currentLearningRate * multiplier;
             grs[i].applyNoise(grs[i].preStoredTempWeights);
+        }
+    }
+
+    void train(GuessGame *game, size_t epochs, size_t num_games)
+    {
+        for (size_t idx = 0; idx < epochs; idx++)
+        {
+            copyWeigthsToCPU();
+            initIterator();
+            for (size_t i = 0; hasNext(); i++)
+            {
+                RunnerInfo runnerInfo = getNext();
+
+                multiPlayGuessGame(runnerInfo, game, num_games);
+            }
+            updateWeightsUsingCPUInfo();
         }
     }
 
