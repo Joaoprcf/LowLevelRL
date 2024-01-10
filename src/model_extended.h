@@ -9,8 +9,15 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <csignal>
 
 int Model::nextId = 0;
+
+void signalHandler(int signum)
+{
+    printf("\nInterrupt signal (%d) received, shutting down.\n", signum);
+    std::exit(0);
+}
 
 void replaceFirstInPlace(std::string &str, const std::string &from, const std::string &to)
 {
@@ -197,6 +204,7 @@ void Model::compile_keras(std::string optimizer)
     replaceFirstInPlace(contents, "#$MODEL_NAME_PLACEHOLDER", "model" + to_string(this->id));
     if (!Py_IsInitialized())
     {
+        std::signal(SIGINT, signalHandler);
         Py_Initialize();
     }
     PyRun_SimpleString(contents.c_str());

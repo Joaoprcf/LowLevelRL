@@ -8,8 +8,6 @@ constexpr float GUESS_GAME_GOAL = 79500;
 
 int main()
 {
-    printf("Hello world!\n");
-
     Input input_actor(5);
     Dense middle_actor(&input_actor, 4, ACTIVATION_TANH);
     Dense output_actor(&middle_actor, 4);
@@ -134,9 +132,9 @@ int main()
                 entryArray[i].index = i;
             }
             heapSort(entryArray, steps_size, comparison);
-            for (size_t i = 0; i < 20000; i++)
+            for (size_t i = 0; i < 24000; i++)
             {
-                size_t repeat = (20000 - i) / 10000 + 1;
+                size_t repeat = 1; // (20000 - i) / 10000 + 1;
                 for (size_t j = 0; j < repeat; j++)
                 {
                     usable_actor_data_x.insert(usable_actor_data_x.end(), actor_data_x.begin() + entryArray[i].index * input_size, actor_data_x.begin() + (entryArray[i].index + 1) * input_size);
