@@ -99,13 +99,18 @@ TEST_CASE("Solve GuessGame with regression")
     Dense output(&input1, 2);
     Model nn(&input1, &output);
 
-    nn.compile_keras("Adam(learning_rate=0.1)");
+    uint64_t seed = 88172645463325252ULL;
+    for (size_t w_idx = 0; w_idx < nn.weights_size; w_idx++)
+    {
+        nn.weights[w_idx] = game::fastRand(seed, 1024) / 2048.0f - 0.25f;
+    }
+
+    nn.compile_keras("Adam(learning_rate=0.2)");
 
     const size_t data_samples = 500;
 
     float data_x[data_samples * 5] = {0};
     float data_y[data_samples * 2] = {0};
-    uint64_t seed = 88172645463325252ULL;
     for (size_t i = 0; i < data_samples; i++)
     {
         float *data_x_ptr = data_x + i * 5;
@@ -113,14 +118,14 @@ TEST_CASE("Solve GuessGame with regression")
         for (int j = 0; j < 5; ++j)
         {
             // Generate a value between 0 and 1, then scale to [-1, 1]
-            float randVal = static_cast<float>(game::fastRand(seed, 1024)) / 1023;
+            float randVal = static_cast<float>(game::fastRand(seed, 512)) / 511;
             data_x_ptr[j] = randVal * 2 - 1; // Scale and shift to [-1, 1]
         }
         data_y_ptr[0] = data_x_ptr[0] - data_x_ptr[1] * 0.5f;
         data_y_ptr[1] = data_x_ptr[2] + data_x_ptr[3] * 2.0f;
     }
 
-    nn.fit_keras(nn.weights, nn.weights, data_x, data_y, data_samples, 100, 4);
+    nn.fit_keras(nn.weights, nn.weights, data_x, data_y, data_samples, 100, 2);
     for (size_t i = 0; i < nn.weights_size; i++)
     {
         printf("w[%lu]: %f\n", i, nn.weights[i]);

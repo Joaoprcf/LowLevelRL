@@ -46,10 +46,8 @@ int main()
     size_t input_size = actor.fullInputSize();
     size_t output_size = actor.fullOutputSize();
 
-    sgrs.initCPU();
     for (size_t it_idx = 0; it_idx < 500; it_idx++)
     {
-        sgrs.copyWeigthsToCPU();
         sgrs.initIterator();
         // Iterate through all directions and check RunnerInfo
         GuessGameV3 game(seed);
@@ -172,7 +170,6 @@ int main()
 
         sgrs.updateWorkersWeights();
     }
-    sgrs.clearCPU();
     actor.clear();
     critic.clear();
 }

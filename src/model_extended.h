@@ -273,7 +273,7 @@ void Model::fit_keras(float *dstWeights, float *originWeights, float *data_x, fl
             weights_ptr += trainable_layer->weights_size;
         }
     }
-    delete kerasWeights;
+    delete[] kerasWeights;
 }
 
 void Model::fit_keras(float *data_x, float *data_y, size_t data_size, size_t epochs, size_t batch_size)
