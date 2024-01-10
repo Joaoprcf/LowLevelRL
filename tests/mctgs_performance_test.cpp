@@ -72,7 +72,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2")
 
     MonteCarloTreeSearchConfig config;
     config.dual_selection_amount = 4;
-    config.discount_factor = 0.98f;
+    config.discount_factor = 0.985f;
 
     MonteCarloTreeGeneticSearch mctgs(&builder, config);
 

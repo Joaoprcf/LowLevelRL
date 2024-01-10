@@ -15,7 +15,7 @@ LDFLAGS="$(python3-config --ldflags --embed)"
 
 # Check for the debug flag
 if [ "$#" -eq 2 ] && [ "$2" = "debug" ]; then
-    CXXFLAGS="$CXXFLAGS -O0 -g"
+    CXXFLAGS="$CXXFLAGS -O0 -g -fsanitize=address"
     echo "Debug mode enabled"
 fi
 

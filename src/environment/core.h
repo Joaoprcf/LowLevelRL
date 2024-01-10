@@ -39,6 +39,7 @@ struct BatchEnvironment
     Instruction *instructions = nullptr;
     RewardEntry *rewardEntryArray;
     PipelineBuilderBatch *builderBatch;
+
     size_t it_pointer = 0;
     bool manage_memory = true;
     BatchEnvironment(PipelineBuilder *builder, size_t batch_size, bool manage_memory = true) : batch_size(batch_size), manage_memory(manage_memory)
@@ -78,6 +79,11 @@ struct BatchEnvironment
             datastream + current_pointer * datastream_size,
             rewardArray + current_pointer,
             rewardEntryArray + current_pointer};
+    }
+
+    void sortRewards()
+    {
+        heapSort(rewardEntryArray, batch_size, comparison);
     }
 
     ~BatchEnvironment()
