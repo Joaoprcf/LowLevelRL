@@ -14,8 +14,19 @@ namespace mctgs
     uint64_t seed = 88172645463325252ULL;
     uint64_t fastRand(uint64_t mod)
     {
-        seed = (214013 * seed + 2531011);
-        return ((seed >> 16) % mod);
+        if (seed == 0)
+        {
+            // Avoid the all-zeros state
+            seed = 88172645463325252ULL;
+        }
+
+        uint64_t x = seed;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        seed = x;
+
+        return x % mod;
     }
 }
 
@@ -38,7 +49,7 @@ void generateNormalizedRandomWeights(float *weights, size_t size)
 {
 
     std::random_device rd;                           // Random number engine (seed)
-    std::mt19937 gen(mctgs::fastRand(50000));        // Mersenne Twister generator
+    std::mt19937 gen(mctgs::fastRand(65536));        // Mersenne Twister generator
     std::uniform_real_distribution<> dis(-1.0, 1.0); // Distribution between -1 and 1
 
     for (size_t i = 0; i < size; ++i)
@@ -180,6 +191,27 @@ void applyForces(float *allWeights, float *forces, size_t weights_size, size_t d
     }
 }
 
+void generateEvenlyDistributedWeights(float *allWeights, size_t weights_size, size_t dual_directions, std::default_random_engine &generator, size_t iterations = 1000)
+{
+    size_t half_weights_size = weights_size * dual_directions;
+    // size_t full_weights_size = half_weights_size * 2;
+    for (size_t i = 0; i < dual_directions; i++)
+    {
+        generateNormalizedRandomWeights(allWeights + i * weights_size, weights_size);
+    }
+    // inverse weights
+    for (size_t i = 0; i < dual_directions; i++)
+    {
+        inverseWeights(allWeights + half_weights_size + i * weights_size, allWeights + i * weights_size, weights_size);
+    }
+    float *forces = new float[half_weights_size];
+    for (size_t it = 0; it < iterations * 2; ++it)
+    {
+        calculateForces(forces, allWeights, weights_size, dual_directions);
+        applyForces(allWeights, forces, weights_size, dual_directions, generator, it < iterations);
+    }
+    delete[] forces;
+}
 void generateEvenlyDistributedWeights(float *allWeights, size_t weights_size, size_t dual_directions, size_t iterations = 1000)
 {
     size_t half_weights_size = weights_size * dual_directions;
@@ -193,8 +225,8 @@ void generateEvenlyDistributedWeights(float *allWeights, size_t weights_size, si
     {
         inverseWeights(allWeights + half_weights_size + i * weights_size, allWeights + i * weights_size, weights_size);
     }
-    std::default_random_engine generator;
     float *forces = new float[half_weights_size];
+    std::default_random_engine generator;
     for (size_t it = 0; it < iterations * 2; ++it)
     {
         calculateForces(forces, allWeights, weights_size, dual_directions);
