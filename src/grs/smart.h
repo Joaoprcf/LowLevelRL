@@ -18,15 +18,15 @@ struct SmartGeneticRandomSearch
 
     float currentLearningRate = 0.02f;
     BatchEnvironment *env;
-    PipelineBuilder *builder;
     std::default_random_engine generator;
-    SmartGeneticRandomSearch(Model *nn, size_t stairs, size_t grs_amount, float startLearningRate = 0.2f, float learningRateStep = 1.1f) : stairs(stairs), startLearningRate(startLearningRate), learningRateStep(learningRateStep), grs_amount(grs_amount)
+    SmartGeneticRandomSearch(Model *nn, size_t stairs, size_t grs_amount, float startLearningRate = 0.2f, float learningRateStep = 1.1f)
+        : startLearningRate(startLearningRate), learningRateStep(learningRateStep), grs_amount(grs_amount), stairs(stairs)
     {
         assert(grs_amount >= 2); // 2 minimum
         directions = stairs * (stairs + 1);
         currentLearningRate = startLearningRate;
-        builder = new PipelineBuilder(nn);
-        env = new BatchEnvironment(builder, directions * grs_amount);
+        PipelineBuilder builder(nn);
+        env = new BatchEnvironment(&builder, directions * grs_amount);
         weights_size = nn->weights_size;
 
         weights = new float[directions * weights_size];
@@ -166,9 +166,9 @@ struct SmartGeneticRandomSearch
 
     ~SmartGeneticRandomSearch()
     {
+        printf("SmartGeneticRandomSearch destructor\n");
         delete[] weights;
         delete[] tempWeights;
         delete env;
-        delete builder;
     }
 };

@@ -2,7 +2,7 @@ CXX = g++
 NVCC = nvcc
 PYTHON_INCLUDES = $(shell python3-config --includes --embed)
 PYTHON_LDFLAGS = $(shell python3-config --ldflags --embed)
-CXXFLAGS = -pthread -lstdc++ -std=gnu++17 -lrt -I./src -I./tests -I/usr/local/cuda/include $(PYTHON_INCLUDES)
+CXXFLAGS = -pthread -lstdc++ -std=gnu++17 -O3 -lrt -I./src -I./tests -I/usr/local/cuda/include $(PYTHON_INCLUDES)
 NVCCFLAGS = -I./src -I./tests $(PYTHON_INCLUDES)
 LDFLAGS = $(PYTHON_LDFLAGS)
 

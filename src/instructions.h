@@ -15,10 +15,10 @@ using namespace std;
 #define CUDA_CALLABLE_MEMBER
 #endif
 
-CUDA_CALLABLE_MEMBER void fillLayer(float *input, float *output, float *weights, int inputSize, int layerSize)
+CUDA_CALLABLE_MEMBER void fillLayer(float *input, float *output, float *weights, size_t inputSize, size_t layerSize)
 {
     // For each neuron in the layer
-    for (int neuron = 0; neuron < layerSize; neuron++)
+    for (size_t neuron = 0; neuron < layerSize; neuron++)
     {
         size_t start = neuron * (inputSize + 1);
         // Initialize sum with bias (last weight for the neuron)
@@ -59,20 +59,20 @@ struct Instruction
     type_inst op;
     uint32_t size_in;
     uint32_t size_out;
-    float scalar1;
+    float scalar1 = 0.0f;
     float *addr1;
     float *addr2;
-    float *addr3;
+    float *addr3 = nullptr;
 
     // Revised constructor with additional parameters for size_in and size_out
     CUDA_CALLABLE_MEMBER Instruction(type_inst op, uint32_t size_in, uint32_t size_out, float *addr1, float *addr2, float *addr3 = nullptr)
         : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3) {}
 
     CUDA_CALLABLE_MEMBER Instruction(type_inst op, uint32_t size_in, uint32_t size_out, float *addr1, float *addr2, float scalar)
-        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(nullptr), scalar1(scalar) {}
+        : op(op), size_in(size_in), size_out(size_out), scalar1(scalar), addr1(addr1), addr2(addr2), addr3(nullptr) {}
 
     CUDA_CALLABLE_MEMBER Instruction(type_inst op, uint32_t size_in, uint32_t size_out, float scalar, float *addr1, float *addr2, float *addr3) // full constructor
-        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3), scalar1(scalar)
+        : op(op), size_in(size_in), size_out(size_out), scalar1(scalar), addr1(addr1), addr2(addr2), addr3(addr3)
     {
     }
 
@@ -228,10 +228,10 @@ struct RecoverableInstruction
 
     // Revised constructor with additional parameters for size_in and size_out
     RecoverableInstruction(type_inst op, uint32_t size_in, uint32_t size_out, size_t addr1, size_t addr2, size_t addr3 = 0xffffffffffff)
-        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3) {}
+        : op(op), size_in(size_in), size_out(size_out), scalar1(0.0f), addr1(addr1), addr2(addr2), addr3(addr3) {}
 
     RecoverableInstruction(type_inst op, uint32_t size_in, uint32_t size_out, float scalar, size_t addr1, size_t addr2, size_t addr3)
-        : op(op), size_in(size_in), size_out(size_out), addr1(addr1), addr2(addr2), addr3(addr3), scalar1(scalar) {}
+        : op(op), size_in(size_in), size_out(size_out), scalar1(scalar), addr1(addr1), addr2(addr2), addr3(addr3) {}
 
     RecoverableInstruction() {}
 };

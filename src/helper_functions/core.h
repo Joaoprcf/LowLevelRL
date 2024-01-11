@@ -154,7 +154,7 @@ CUDA_CALLABLE_MEMBER inline bool comparison(const RewardEntry &node1, const Rewa
     return node1.reward > node2.reward;
 }
 
-inline std::vector<RewardEntry> createEntryFromRewards(float *splitedRewards, int directions, int envCount, int sortEntries = 1)
+inline std::vector<RewardEntry> createEntryFromRewards(float *splitedRewards, size_t directions, size_t envCount, int sortEntries = 1)
 {
     float rewards[directions];
     if (envCount == 1)
@@ -163,11 +163,11 @@ inline std::vector<RewardEntry> createEntryFromRewards(float *splitedRewards, in
     }
     else
     {
-        for (int d = 0; d < directions; d++)
+        for (size_t d = 0; d < directions; d++)
         {
 
             float direction_rewards[envCount];
-            for (int i = d * envCount; i < (d + 1) * envCount; i++)
+            for (size_t i = d * envCount; i < (d + 1) * envCount; i++)
             {
                 direction_rewards[i - d * envCount] = splitedRewards[i];
             }
@@ -191,7 +191,7 @@ inline std::vector<RewardEntry> createEntryFromRewards(float *splitedRewards, in
 
     std::vector<RewardEntry> rEntries;
     rEntries.reserve(directions);
-    for (int i = 0; i < directions; i++)
+    for (size_t i = 0; i < directions; i++)
     {
         RewardEntry entry(rewards, i);
         rEntries.push_back(entry);

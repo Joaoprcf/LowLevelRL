@@ -62,7 +62,8 @@ struct PipelineBuilder
         void *buffer = malloc(total_size);
         file.read((char *)buffer, total_size);
         file.close();
-        memcpy(this, buffer, sizeof(PipelineBuilder));
+        PipelineBuilder *bufferPipelineBuilder = static_cast<PipelineBuilder *>(buffer);
+        *this = *bufferPipelineBuilder;
         unserializeMemory((char *)buffer + sizeof(PipelineBuilder), true);
         free(buffer);
     }
@@ -140,7 +141,7 @@ struct PipelineBuilder
         fastExecution = nullptr; // Allocate as needed
     }
 
-    ~PipelineBuilder()
+    virtual ~PipelineBuilder()
     {
         // Deallocate instructions TODO
         if (manage_memory)
@@ -360,7 +361,8 @@ struct TrainedPipelineBuilder : PipelineBuilder
         void *buffer = malloc(total_size);
         file.read((char *)buffer, total_size);
         file.close();
-        memcpy(this, buffer, sizeof(PipelineBuilder));
+        TrainedPipelineBuilder *bufferPipelineBuilder = static_cast<TrainedPipelineBuilder *>(buffer);
+        *this = *bufferPipelineBuilder;
 
         unserializeMemory((char *)buffer + sizeof(PipelineBuilder), true);
         size_t memory_used = calculateMemoryRequired() + sizeof(PipelineBuilder);
@@ -459,7 +461,7 @@ struct PipelineBuilderBatch
         serializedMemory = malloc(buffer_size);
         builder->serializeMemory(serializedMemory);
     }
-    ~PipelineBuilderBatch()
+    virtual ~PipelineBuilderBatch()
     {
         if (!manage_memory)
             return;

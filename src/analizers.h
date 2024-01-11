@@ -96,10 +96,10 @@ struct WeightsInfluenceAnalizer : GraphAnalizer
     {
         for (TrainableLayer *layer : nonOutputTrainableLayers)
         {
-            if (Dense *dense = dynamic_cast<Dense *>(layer))
+            if (dynamic_cast<Dense *>(layer) != nullptr)
             {
                 size_t size_in = layer->from[0]->size_out;
-                for (int output_idx = 0; output_idx < layer->size_out; output_idx++)
+                for (size_t output_idx = 0; output_idx < layer->size_out; output_idx++)
                 {
                     int start_idx = output_idx * (size_in + 1);
                     for (size_t input_idx = 0; input_idx < size_in; input_idx++)
@@ -108,7 +108,7 @@ struct WeightsInfluenceAnalizer : GraphAnalizer
                     }
                 }
             }
-            else if (GRU *gru = dynamic_cast<GRU *>(layer))
+            else if (dynamic_cast<GRU *>(layer) != nullptr)
             {
                 // TODO
             }

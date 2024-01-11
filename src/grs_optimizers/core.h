@@ -92,9 +92,9 @@ struct GRSAdamOptimizer : GRSOptimizer
 struct IterativeOptimizer : GRSOptimizer
 {
     // config
-    int mid_step;
     size_t stairs;
     size_t directions;
+    int mid_step;
     float learningRateStep = 0.85f;
     size_t iterationsPerUpdate = 3;
 

@@ -111,8 +111,6 @@ struct Model : TrainableLayer
 
         for (Layer *layer : jobs)
         {
-
-            size_t num_layers = layer->from.size();
             float *outputAddress = location[layer]; // Output address of this layer
 
             InstructionsGuide guide;
@@ -293,11 +291,11 @@ struct Model : TrainableLayer
         }
     }
 
-    virtual vector<Instruction> createLowLevelInstructions(InstructionsGuide guide)
+    /* virtual vector<Instruction> createLowLevelInstructions(InstructionsGuide guide)
     {
         // TODO
         return vector<Instruction>();
-    }
+    } */
 
     vector<float *> FeedForward(vector<float *> data_in)
     {

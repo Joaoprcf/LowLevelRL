@@ -86,7 +86,7 @@ struct BatchEnvironment
         heapSort(rewardEntryArray, batch_size, comparison);
     }
 
-    ~BatchEnvironment()
+    virtual ~BatchEnvironment()
     {
 
         if (!manage_memory)

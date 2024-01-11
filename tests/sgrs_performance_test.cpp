@@ -17,6 +17,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame")
 
     Model nn(&input, &output);
 
+    GuessGame game;
     for (size_t stairs : {4, 5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
@@ -25,8 +26,6 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame")
         {
             sgrs.initIterator();
             // Iterate through all directions and check RunnerInfo
-            GuessGame game(88172645463325252ULL & idx);
-            float median_reward = 0;
             for (size_t i = 0; sgrs.hasNext(); i++)
             {
                 RunnerInfo runnerInfo = sgrs.getNext();
@@ -82,6 +81,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2")
 
     Model nn(&input, &output);
 
+    GuessGameV2 game;
     for (size_t stairs : {5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
@@ -90,12 +90,9 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2")
         {
             sgrs.initIterator();
             // Iterate through all directions and check RunnerInfo
-            float median_reward = 0;
             for (size_t i = 0; sgrs.hasNext(); i++)
             {
                 RunnerInfo runnerInfo = sgrs.getNext();
-
-                GuessGameV2 game(88172645463325252ULL + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
 
                 multiPlayGuessGame(runnerInfo, &game, 40);
             }
@@ -153,6 +150,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame using complex nn")
 
     // No need for weights influence analizer
 
+    GuessGame game;
     for (size_t stairs : {6, 8, 11})
     {
         printf("stairs: %zu\n", stairs);
@@ -163,8 +161,6 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame using complex nn")
             for (size_t i = 0; sgrs.hasNext(); i++)
             {
                 RunnerInfo runnerInfo = sgrs.getNext();
-
-                GuessGame game(88172645463325252ULL + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
 
                 multiPlayGuessGame(runnerInfo, &game, 40);
             }
@@ -217,7 +213,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2 using train API")
 
     Model nn(&input, &output);
 
-    GuessGameV2 game(88172645463325252ULL); // Corrected instantiation
+    GuessGameV2 game;
     for (size_t stairs : {5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
@@ -271,7 +267,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameLocalMinima using trai
 
     Model nn(&input, &output);
 
-    GuessGameLocalMinina game(88172645463325252ULL); // Corrected instantiation
+    GuessGameLocalMinina game;
     for (size_t stairs : {5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
