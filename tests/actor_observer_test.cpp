@@ -3,6 +3,7 @@
 #include "model_extended.h"
 #include "instructions.h"
 #include "game_examples.h"
+#include "game_utils.h"
 #include "grs/smart.h"
 #include "environment/core.h"
 
@@ -151,20 +152,7 @@ TEST_CASE("Actor Observer test against GuessGameV3")
             usable_actor_data_y.clear();
             rewards.clear();
 
-            float reward = 0;
-            for (size_t i = 0; i < 40; i++)
-            {
-                GuessGameV3 game(seed);
-                float input[5];
-                game.reset(input);
-                while (game.missing_steps > 0)
-                {
-                    float *output = actor.FeedForwardSingle(input);
-
-                    game.step(output, input);
-                }
-                reward += game.reward;
-            }
+            float reward = multiPlayGuessGame(&actor, &game, 40);
 
             printf("Actor reward: %.2f\n", reward);
             sgrs.addActor(actor.weights, reward);

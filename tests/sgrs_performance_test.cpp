@@ -258,7 +258,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2 using train API")
     }
 }
 
-/* TEST_CASE("SmartGeneticRandomSearch test against GuessGameLocalMinima using train API, trapped")
+TEST_CASE("SmartGeneticRandomSearch test against GuessGameLocalMinima using train API, trapped")
 {
     printf("SmartGeneticRandomSearch test against GuessGameLocalMinima using train API:\n\n");
 
@@ -310,4 +310,4 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2 using train API")
             printf("idx: %zu, current_reward: %.2f, learning_rate: %.4f\n", idx, current_reward, sgrs.currentLearningRate);
         }
     }
-} */
+}

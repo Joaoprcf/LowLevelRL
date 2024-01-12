@@ -95,10 +95,10 @@ struct GuessGame
 
 struct GuessGameV2 : GuessGame
 {
-    int action_space = 4;
 
     CUDA_CALLABLE_MEMBER GuessGameV2() : GuessGame()
     {
+        action_space = 4;
     }
 
     CUDA_CALLABLE_MEMBER GuessGameV2(uint64_t initSeed) : GuessGame(initSeed) {}
@@ -132,10 +132,10 @@ struct GuessGameV2 : GuessGame
 
 struct GuessGameV3 : GuessGame
 {
-    int action_space = 4;
 
     CUDA_CALLABLE_MEMBER GuessGameV3() : GuessGame()
     {
+        action_space = 4;
     }
 
     CUDA_CALLABLE_MEMBER GuessGameV3(uint64_t initSeed) : GuessGame(initSeed) {}
@@ -161,6 +161,57 @@ struct GuessGameV3 : GuessGame
         }
 
         float step_reward = 1.0f / distance;
+        reward += step_reward;
+
+        generateValues();
+        for (int i = 0; i < observation_space; ++i)
+        {
+            observation[i] = values[i];
+        }
+        missing_steps -= 1;
+        return step_reward;
+    }
+};
+
+struct GuessGameLocalMinina : GuessGame
+{
+
+    CUDA_CALLABLE_MEMBER GuessGameLocalMinina() : GuessGame()
+    {
+        action_space = 4;
+    }
+
+    CUDA_CALLABLE_MEMBER GuessGameLocalMinina(uint64_t initSeed) : GuessGame(initSeed) {}
+
+    CUDA_CALLABLE_MEMBER float step(float *action, float *observation) override
+    {
+
+        float expectedTrap[4]{
+            -values[0] * 0.5f + values[1] * 0.25f,
+            -values[2] * 0.5f - values[3] * 1.0f,
+            -values[0] * 0.5f + values[1] * 0.25f + values[4] * 2.0f,
+            -values[1] * 0.5f + values[2] * 1.75f - 0.25f};
+
+        float expectedReal[4]{
+            values[0] - values[1] * 0.5f,
+            values[2] + values[3] * 2.0f,
+            values[0] - values[1] * 0.5f - values[4] * 4.0f,
+            values[1] - values[2] * 3.5f + 0.5f};
+
+        float distanceReal = 0.01f;
+        for (int i = 0; i < 4; ++i)
+        {
+            distanceReal += (expectedReal[i] - action[i]) * (expectedReal[i] - action[i]);
+        }
+
+        float distanceTrap = 0.02f;
+        for (int i = 0; i < 4; ++i)
+        {
+            distanceTrap += (expectedTrap[i] - action[i]) * (expectedTrap[i] - action[i]);
+        }
+        float distance = distanceReal < distanceTrap ? distanceReal : distanceTrap;
+        float step_reward = 1.0f / distance;
+
         reward += step_reward;
 
         generateValues();

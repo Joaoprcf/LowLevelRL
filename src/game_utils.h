@@ -34,6 +34,46 @@ void multiPlayGuessGame(RunnerInfo &runnerInfo, GuessGame *game, size_t num_game
     runnerInfo.setReward(reward);
 }
 
+float multiPlayGuessGame(Model *nn, GuessGame *game, float *input, size_t num_games)
+{
+    float reward = 0;
+
+    for (size_t i = 0; i < num_games; i++)
+    {
+
+        game->reset(input);
+
+        while (game->missing_steps > 0)
+        {
+            float *output = nn->FeedForwardSingle(input);
+            game->step(output, input);
+        }
+        reward += game->reward;
+    }
+
+    return reward;
+}
+
+float multiPlayGuessGame(Model *nn, GuessGame *game, size_t num_games)
+{
+    float reward = 0;
+    float *input = new float[game->observation_space];
+    for (size_t i = 0; i < num_games; i++)
+    {
+
+        game->reset(input);
+
+        while (game->missing_steps > 0)
+        {
+            float *output = nn->FeedForwardSingle(input);
+            game->step(output, input);
+        }
+        reward += game->reward;
+    }
+    delete[] input;
+    return reward;
+}
+
 void playGuessGame(RunnerInfo &runnerInfo, GuessGame *game)
 {
     float reward = 0;
