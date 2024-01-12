@@ -1,3 +1,5 @@
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
 #include "model_extended.h"
 #include "instructions.h"
 #include "game_examples.h"
@@ -6,7 +8,7 @@
 
 constexpr float GUESS_GAME_GOAL = 79500;
 
-int main()
+TEST_CASE("Actor Observer test against GuessGameV3")
 {
     Input input_actor(5);
     Dense middle_actor(&input_actor, 4, ACTIVATION_TANH);
@@ -46,10 +48,8 @@ int main()
     size_t input_size = actor.fullInputSize();
     size_t output_size = actor.fullOutputSize();
 
-    sgrs.initCPU();
     for (size_t it_idx = 0; it_idx < 500; it_idx++)
     {
-        sgrs.copyWeigthsToCPU();
         sgrs.initIterator();
         // Iterate through all directions and check RunnerInfo
         GuessGameV3 game(seed);
@@ -93,27 +93,27 @@ int main()
         if (it_idx == 29)
         {
             printf("%.1f > 1500.0\n", current_reward);
-            assert(current_reward > 1500.0f);
+            REQUIRE(current_reward > 1500.0f);
         }
         if (it_idx == 59)
         {
             printf("%.1f > 6000.0\n", current_reward);
-            assert(current_reward > 6000.0f);
+            REQUIRE(current_reward > 6000.0f);
         }
         else if (it_idx == 119)
         {
             printf("%.1f > 15000.0\n", current_reward);
-            assert(current_reward > 15000.0f);
+            REQUIRE(current_reward > 15000.0f);
         }
         else if (it_idx == 239)
         {
             printf("%.1f > 60000.0\n", current_reward);
-            assert(current_reward > 60000.0f);
+            REQUIRE(current_reward > 60000.0f);
         }
         else if (it_idx == 479)
         {
             printf("%.1f > 75000.0\n", current_reward);
-            assert(current_reward > 75000.0f);
+            REQUIRE(current_reward > 75000.0f);
         }
         else
         {
@@ -124,7 +124,7 @@ int main()
         if (it_idx % 5 == 0 && it_idx > 0)
         {
             size_t steps_size = actor_data_x.size() / input_size;
-            assert(actor_data_y.size() == steps_size * output_size);
+            REQUIRE(actor_data_y.size() == steps_size * output_size);
             RewardEntry *entryArray = new RewardEntry[steps_size];
             for (size_t i = 0; i < steps_size; i++)
             {
@@ -172,7 +172,6 @@ int main()
 
         sgrs.updateWorkersWeights();
     }
-    sgrs.clearCPU();
     actor.clear();
     critic.clear();
     Py_Finalize();

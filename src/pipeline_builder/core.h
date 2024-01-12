@@ -15,7 +15,6 @@
 #include <map>
 #include <set>
 #include <assert.h>
-#include <new>
 
 using namespace std;
 
@@ -444,7 +443,7 @@ struct PipelineBuilderBatch
             return;
 
         // Allocate uninitialized memory
-        void *rawMemory = operator new[](batch_size * sizeof(PipelineBuilder));
+        void *rawMemory = malloc(batch_size * sizeof(PipelineBuilder));
 
         // Cast raw memory to PipelineBuilder pointer
         builders = static_cast<PipelineBuilder *>(rawMemory);
@@ -471,7 +470,7 @@ struct PipelineBuilderBatch
         }
 
         // Free the memory
-        operator delete[](builders);
+        free(builders);
         free(serializedMemory);
     }
 
