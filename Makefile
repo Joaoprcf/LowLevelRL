@@ -2,7 +2,7 @@ CXX = g++
 NVCC = nvcc
 PYTHON_INCLUDES = $(shell python3-config --includes --embed)
 PYTHON_LDFLAGS = $(shell python3-config --ldflags --embed)
-CXXFLAGS = -pthread -lstdc++ -std=gnu++17 -lrt -I./src -I./tests -I/usr/local/cuda/include $(PYTHON_INCLUDES)
+CXXFLAGS = -pthread -lstdc++ -std=gnu++17 -O3 -lrt -I./src -I./tests -I/usr/local/cuda/include $(PYTHON_INCLUDES)
 NVCCFLAGS = -I./src -I./tests $(PYTHON_INCLUDES)
 LDFLAGS = $(PYTHON_LDFLAGS)
 
@@ -40,8 +40,8 @@ test: clean build_dir $(TEST_EXECS) $(INDEX_EXE)
 	$(NVCC) $(NVCCFLAGS) $(LDFLAGS) $(INDEX_CU) -o $(INDEX_EXE)
 
 fast_test: clean build_dir
-	$(MAKE) -j $(TEST_EXECS)
-	$(MAKE) -j $(GPU_TEST_EXECS)
+	$(MAKE) -j4 $(TEST_EXECS)
+	$(MAKE) -j4 $(GPU_TEST_EXECS)
 	@status=0; \
 	for test_exec in $(TEST_EXECS) ; do \
 		echo "Running $$test_exec"; \
