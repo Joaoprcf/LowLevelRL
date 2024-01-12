@@ -60,9 +60,19 @@ struct BatchEnvironment
         builderBatch->init(instructions, datastream, weights);
     }
 
+    void sortRewards()
+    {
+        heapSort(rewardEntryArray, batch_size, comparison);
+    }
+
     void initIterator()
     {
         it_pointer = 0;
+    }
+
+    bool hasNext()
+    {
+        return it_pointer < batch_size;
     }
 
     RunnerInfo getNext()

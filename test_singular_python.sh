@@ -10,8 +10,8 @@ TEST_NAME=$1
 BUILD_DIR=./build
 TEST_DIR=./tests
 CXX=g++
-CXXFLAGS="-pthread -lstdc++ -std=gnu++17 -lrt -ldl -lm -I./src -I./tests -I/usr/local/cuda/include"
-LDFLAGS=
+CXXFLAGS="-pthread -lstdc++ -std=gnu++17 -lrt -ldl -lm $(python3-config --includes --embed) -I./src -I./tests -I/usr/local/cuda/include"
+LDFLAGS="$(python3-config --ldflags --embed)"
 
 # Check for the debug flag
 if [ "$#" -eq 2 ] && [ "$2" = "debug" ]; then

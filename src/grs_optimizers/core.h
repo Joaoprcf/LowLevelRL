@@ -162,7 +162,7 @@ struct IterativeOptimizer : GRSOptimizer
 
                 offset += 1;
 
-                memcpy(analitics, analitics + 1, sizeof(int) * (mid_step * 2));
+                memmove(analitics, analitics + 1, sizeof(int) * (mid_step * 2));
                 analitics[mid_step * 2] = positive - mid_step;
                 positive = 0;
             }
@@ -170,7 +170,7 @@ struct IterativeOptimizer : GRSOptimizer
             {
                 step = mid_step;
                 offset -= 1;
-                memcpy(analitics + 1, analitics, sizeof(int) * (mid_step * 2));
+                memmove(analitics + 1, analitics, sizeof(int) * (mid_step * 2));
                 analitics[0] = positive - mid_step;
                 positive = 0;
             }
@@ -400,7 +400,9 @@ struct LearnableOptimizer : GRSOptimizer
         delete[] datastream;
         delete[] learningRateHistory;
         delete[] serializableRecords;
+        delete[] reservedCalculationSpace;
         delete[] records;
+        delete[] tempRewards;
     }
 
     // static PipelineBuilder *defaultBuilder;

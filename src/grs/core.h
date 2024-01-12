@@ -64,9 +64,9 @@ private:
     GRSOptimizer *_optimizer = nullptr;
 
 public:
-    GeneticRandomSearch(Model *nn, size_t stairs) : stairs(stairs),
-                                                    builder(new PipelineBuilder(nn))
+    GeneticRandomSearch(Model *nn, size_t stairs) : stairs(stairs)
     {
+        builder = new PipelineBuilder(nn);
         assert(nn->datastream_size == builder->datastream_size);
         directions = stairs * (stairs + 1);
 
@@ -126,7 +126,8 @@ public:
 
     ~GeneticRandomSearch()
     {
-        // delete _optimizer;
+        delete builder;
+        delete _optimizer;
         delete[] currentWeights;
         delete[] preStoredRewards;
 

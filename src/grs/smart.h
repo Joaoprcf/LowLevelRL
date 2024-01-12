@@ -186,7 +186,7 @@ struct SmartGeneticRandomSearch
                 size_t directions_missing = directions - i - 1;
                 if (directions_missing)
                 {
-                    memmove(rewardEntries + (i + 1) * directions, rewardEntries + i * directions, directions_missing * sizeof(RewardEntry));
+                    memmove(rewardEntries + (i + 1), rewardEntries + i, directions_missing * sizeof(RewardEntry));
                     memmove(weights + (i + 1) * weights_size, weights + i * weights_size, directions_missing * weights_size * sizeof(float));
                 }
                 memcpy(weights + i * weights_size, actorWeights, weights_size * sizeof(float));

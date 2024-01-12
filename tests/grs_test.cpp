@@ -89,6 +89,8 @@ TEST_CASE("GeneticRandomSearch updateWeights function")
     REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[2], grs.weights_size * sizeof(float)) == 0);
     REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[3], grs.weights_size * sizeof(float)) == 0);
     REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[4], grs.weights_size * sizeof(float)) != 0);
+
+    delete grs.optimizer;
 }
 
 TEST_CASE("GeneticRandomSearch CPU Initialization and Cleanup")
@@ -177,4 +179,5 @@ TEST_CASE("Test cacheInverseStairsTable function")
             pointer++;
         }
     }
+    delete[] tempInverseStairsTable;
 }

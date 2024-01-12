@@ -74,5 +74,9 @@ TEST_CASE("BatchEnvironment iterator")
         runnerInfo.setReward(5.0f);
         REQUIRE(env.rewardEntryArray[i].reward == 5.0f);
         REQUIRE(env.rewardEntryArray[i].index == i);
+
+        bool hasNext = env.hasNext();
+        bool expectResult = i < env.batch_size - 1;
+        REQUIRE(expectResult == hasNext);
     }
 }

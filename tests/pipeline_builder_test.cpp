@@ -132,6 +132,7 @@ TEST_CASE("PipelineBuilder FeedForwardSingle Test")
 
     REQUIRE(result[0] == Approx(3.0f));
     REQUIRE(result[1] == Approx(-3.0f));
+    delete[] customDatastream;
 }
 
 TEST_CASE("PipelineBuilder Calculate Memory Required for Neural Network")
