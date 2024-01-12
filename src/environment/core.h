@@ -51,8 +51,10 @@ struct BatchEnvironment
             return;
         builderBatch = new PipelineBuilderBatch(builder, batch_size);
         weights = new float[batch_size * weights_size];
+        memset(weights, 0, batch_size * weights_size * sizeof(float));
         datastream = new float[batch_size * datastream_size];
         memory = new float[batch_size * memory_size];
+        memset(memory, 0, batch_size * memory_size * sizeof(float));
         rewardArray = new float[batch_size];
         rewardEntryArray = new RewardEntry[batch_size];
         instructions = new Instruction[batch_size * num_instructions];

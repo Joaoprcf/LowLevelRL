@@ -11,34 +11,28 @@ constexpr float GUESS_GAME_GOAL = 79500;
 TEST_CASE("SmartGeneticRandomSearch test against GuessGame")
 {
     printf("SmartGeneticRandomSearch test against GuessGame:\n\n");
-    // Setup Model and GeneticRandomSearch
+
     Input input(5);
     Dense output(&input, 2);
 
     Model nn(&input, &output);
 
+    GuessGame game;
     for (size_t stairs : {4, 5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
         SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.3f, 1.1f);
-        float last_reward = 0.0f;
-        sgrs.initCPU();
-        float fallbacks = 0;
         for (size_t idx = 0; idx < 800; idx++)
         {
-            sgrs.copyWeigthsToCPU();
             sgrs.initIterator();
             // Iterate through all directions and check RunnerInfo
-            float median_reward = 0;
             for (size_t i = 0; sgrs.hasNext(); i++)
             {
                 RunnerInfo runnerInfo = sgrs.getNext();
 
-                GuessGame game(88172645463325252ULL + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
-
                 multiPlayGuessGame(runnerInfo, &game, 40);
             }
-            sgrs.updateWeightsUsingCPUInfo();
+            sgrs.updateWeights();
             float current_reward = sgrs.last_reward;
             if (current_reward >= GUESS_GAME_GOAL)
             {
@@ -75,40 +69,34 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame")
                 printf("idx: %zu, current_reward: %.2f, learning_rate: %.4f\n", idx, current_reward, sgrs.currentLearningRate);
             }
         }
-
-        sgrs.clearCPU();
     }
 }
 
 TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2")
 {
     printf("SmartGeneticRandomSearch test against GuessGameV2:\n\n");
-    // Setup Model and GeneticRandomSearch
+
     Input input(5);
     Dense output(&input, 4);
 
     Model nn(&input, &output);
 
+    GuessGameV2 game;
     for (size_t stairs : {5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
         SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.3f, 1.05f);
-        sgrs.initCPU();
         for (size_t idx = 0; idx < 800; idx++)
         {
-            sgrs.copyWeigthsToCPU();
             sgrs.initIterator();
             // Iterate through all directions and check RunnerInfo
-            float median_reward = 0;
             for (size_t i = 0; sgrs.hasNext(); i++)
             {
                 RunnerInfo runnerInfo = sgrs.getNext();
 
-                GuessGameV2 game(88172645463325252ULL + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
-
-                multiPlayGuessGame(runnerInfo, &game, 40);
+                multiPlayGuessGame(runnerInfo, &game, 40); // not the problem
             }
-            sgrs.updateWeightsUsingCPUInfo();
+            sgrs.updateWeights();
             float current_reward = sgrs.last_reward;
             if (current_reward >= GUESS_GAME_GOAL)
             {
@@ -145,15 +133,13 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2")
                 printf("idx: %zu, current_reward: %.2f, learning_rate: %.4f\n", idx, current_reward, sgrs.currentLearningRate);
             }
         }
-
-        sgrs.clearCPU();
     }
 }
 
 TEST_CASE("SmartGeneticRandomSearch test against GuessGame using complex nn")
 {
     printf("SmartGeneticRandomSearch test against GuessGame using complex nn:\n\n");
-    // Setup Model and GeneticRandomSearch
+
     Input input1(5);
     Dense dense1(&input1, 2);
     Dense dense2(&dense1, 2);
@@ -164,25 +150,21 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame using complex nn")
 
     // No need for weights influence analizer
 
+    GuessGame game;
     for (size_t stairs : {6, 8, 11})
     {
         printf("stairs: %zu\n", stairs);
         SmartGeneticRandomSearch sgrs(&nn, stairs, 7, 0.3f, 1.05f);
-        float last_reward = 0.0f;
-        sgrs.initCPU();
         for (size_t idx = 0; idx < 1600; idx++)
         {
-            sgrs.copyWeigthsToCPU();
             sgrs.initIterator();
             for (size_t i = 0; sgrs.hasNext(); i++)
             {
                 RunnerInfo runnerInfo = sgrs.getNext();
 
-                GuessGame game(88172645463325252ULL + i + idx * sgrs.directions * sgrs.grs_amount); // Corrected instantiation
-
                 multiPlayGuessGame(runnerInfo, &game, 40);
             }
-            sgrs.updateWeightsUsingCPUInfo();
+            sgrs.updateWeights();
             float current_reward = sgrs.last_reward;
             if (current_reward >= GUESS_GAME_GOAL)
             {
@@ -219,26 +201,23 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame using complex nn")
                 printf("idx: %zu, current_reward: %.2f, learning_rate: %.4f\n", idx, current_reward, sgrs.currentLearningRate);
             }
         }
-
-        sgrs.clearCPU();
     }
 }
 
 TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2 using train API")
 {
     printf("SmartGeneticRandomSearch test against GuessGameV2 using train API:\n\n");
-    // Setup Model and GeneticRandomSearch
+
     Input input(5);
     Dense output(&input, 4);
 
     Model nn(&input, &output);
 
-    GuessGameV2 game(88172645463325252ULL); // Corrected instantiation
+    GuessGameV2 game;
     for (size_t stairs : {5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
         SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.3f, 1.05f);
-        sgrs.initCPU();
         for (size_t idx = 0; idx < 80; idx++)
         {
             sgrs.train(&game, 10, 40);
@@ -276,7 +255,59 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2 using train API")
 
             printf("idx: %zu, current_reward: %.2f, learning_rate: %.4f\n", idx, current_reward, sgrs.currentLearningRate);
         }
-
-        sgrs.clearCPU();
     }
 }
+
+/* TEST_CASE("SmartGeneticRandomSearch test against GuessGameLocalMinima using train API, trapped")
+{
+    printf("SmartGeneticRandomSearch test against GuessGameLocalMinima using train API:\n\n");
+
+    Input input(5);
+    Dense output(&input, 4);
+
+    Model nn(&input, &output);
+
+    GuessGameLocalMinina game;
+    for (size_t stairs : {5, 6, 8, 13})
+    {
+        printf("stairs: %zu\n", stairs);
+        SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.3f, 1.05f);
+        for (size_t idx = 0; idx < 80; idx++)
+        {
+            sgrs.train(&game, 10, 40);
+            float current_reward = sgrs.last_reward;
+            if (current_reward >= GUESS_GAME_GOAL * 0.5f)
+            {
+                printf("Goal reward %.1f achieved at idx %zu \n", current_reward, idx);
+                break;
+            }
+            if (idx == 4)
+            {
+                printf("%.1f > 750.0\n", current_reward);
+                REQUIRE(current_reward > 750.0f);
+            }
+            if (idx == 9)
+            {
+                printf("%.1f > 2500.0\n", current_reward);
+                REQUIRE(current_reward > 2500.0f);
+            }
+            else if (idx == 19)
+            {
+                printf("%.1f > 5000.0\n", current_reward);
+                REQUIRE(current_reward > 5000.0f);
+            }
+            else if (idx == 39)
+            {
+                printf("%.1f > 17500.0\n", current_reward);
+                REQUIRE(current_reward > 17500.0f);
+            }
+            else if (idx == 79)
+            {
+                printf("%.1f > 37500.0\n", current_reward);
+                REQUIRE(current_reward > 37500.0f);
+            }
+
+            printf("idx: %zu, current_reward: %.2f, learning_rate: %.4f\n", idx, current_reward, sgrs.currentLearningRate);
+        }
+    }
+} */
