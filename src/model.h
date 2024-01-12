@@ -53,9 +53,8 @@ struct Model : TrainableLayer
     float *datastream = nullptr;
     vector<float> memory;
 
-    void useOwnWeights()
+    void setSizesFromJobs()
     {
-        usingOwnWeights = true;
         size_t totalWeightSize = 0;
         size_t totalMemorySize = 0;
         // Calculate total weights size
@@ -71,11 +70,15 @@ struct Model : TrainableLayer
                 totalMemorySize += denseLayer->memory_size;
             }
         }
-
-        // Reserve space to avoid reallocatio
         weights_size = totalWeightSize;
-        weights = new float[weights_size];
         memory.reserve(totalMemorySize);
+    }
+
+    void useOwnWeights()
+    {
+        usingOwnWeights = true;
+        setSizesFromJobs();
+        weights = new float[weights_size];
 
         size_t weight_ptr = 0;
         size_t memory_ptr = 0;
@@ -105,6 +108,10 @@ struct Model : TrainableLayer
         if (applyUsingOwnWeights && !usingOwnWeights)
         {
             useOwnWeights();
+        }
+        else
+        {
+            setSizesFromJobs();
         }
 
         fastExecution.clear(); // Clear any existing instructions

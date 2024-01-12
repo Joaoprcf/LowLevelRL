@@ -183,7 +183,7 @@ TEST_CASE("Model initialized with usingOwnWeights as false - Simple Setup")
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
     REQUIRE(nn.usingOwnWeights == false);
-    REQUIRE(nn.weights_size == 0);
+    REQUIRE(nn.weights_size == 8);
     REQUIRE(denseLayer.weights[0] == 3.0f);
     REQUIRE(denseLayer.weights[1] == 4.0f);
 }
@@ -206,7 +206,7 @@ TEST_CASE("Model initialized with usingOwnWeights as false - Complex Setup")
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
     REQUIRE(nn.usingOwnWeights == false);
-    REQUIRE(nn.weights_size == 0);
+    REQUIRE(nn.weights_size == 45); // 12 + 9 + 24
     REQUIRE(dense1.weights[0] == 1.0f);
     REQUIRE(dense2.weights[1] == 2.0f);
     REQUIRE(dense3.weights[2] == 3.0f);
@@ -226,7 +226,7 @@ TEST_CASE("Model initialized with usingOwnWeights as false - Effect on Weights")
     REQUIRE(nn.fastExecution[0].addr1 == nn.datastream);
 
     REQUIRE(nn.usingOwnWeights == false);
-    REQUIRE(nn.weights_size == 0);
+    REQUIRE(nn.weights_size == denseLayer.weights_size);
     REQUIRE(denseLayer.weights[0] == 5.0f);
     REQUIRE(denseLayer.weights[1] == 6.0f);
 
@@ -448,4 +448,52 @@ TEST_CASE("Model FeedForwardSingle Test - SOFTPLUS Activation")
 
     REQUIRE(result[0] == Approx(logf(1.0f + expf(1.0f))));
     REQUIRE(result[1] == Approx(logf(1.0f + expf(2.0f))));
+}
+
+TEST_CASE("Memory management")
+{
+    InstructionsGuide *instructionGuide = new InstructionsGuide;
+    delete instructionGuide;
+
+    Layer *layer = new Layer(5, 5);
+    delete layer;
+
+    Input *input = new Input(5);
+    delete input;
+
+    Input *inputTemp = new Input(5);
+    Dense *dense = new Dense(inputTemp, 5);
+
+    delete dense;
+    delete inputTemp;
+
+    vector<float> v_weights = {1, 2, 3, 4, 5, 6};
+
+    input = new Input(2);
+    TrainableLayer *trainableLayer = new TrainableLayer(input, 2, 2);
+    trainableLayer->useWeights(v_weights.data());
+
+    delete trainableLayer;
+    for (int i = 0; i < 5; i++)
+    {
+        REQUIRE(v_weights[i] == i + 1);
+    }
+    delete input;
+
+    input = new Input(10);
+    dense = new Dense(input, 5);
+    Dense *output = new Dense(dense, 2);
+
+    Model *model = new Model(input, output);
+    Layer *layers[4]{
+        input,
+        dense,
+        output,
+        model};
+
+    // clear
+    for (int i = 3; i >= 0; i--)
+    {
+        delete layers[i];
+    }
 }

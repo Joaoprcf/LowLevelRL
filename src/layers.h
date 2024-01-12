@@ -33,21 +33,23 @@ struct Layer
 
 struct Input : Layer
 {
-    float *input;
     Input(size_t size_out) : Layer(size_out, size_out) {}
 };
 
 struct TrainableLayer : Layer
 {
     size_t weights_size;
-    float *weights;
+    float *weights = nullptr;
     bool manage_memory = true;
     TrainableLayer(Layer *from, size_t size_out, size_t datastream_size, bool manage_memory = false) : Layer(size_out, datastream_size, from), manage_memory(manage_memory)
     {
     }
-    void useWeights(float *weights)
+    void useWeights(float *weights, bool copy_first = true)
     {
-        memcpy(weights, this->weights, sizeof(float) * weights_size);
+        if (this->weights && copy_first)
+        {
+            memcpy(weights, this->weights, sizeof(float) * weights_size);
+        }
         if (manage_memory)
             delete[] this->weights;
 
@@ -65,7 +67,10 @@ struct TrainableLayer : Layer
     ~TrainableLayer()
     {
         if (manage_memory)
+        {
             delete[] weights;
+            weights = nullptr;
+        }
     }
 };
 
@@ -95,8 +100,6 @@ struct Dense : TrainableLayer
     {
         weights_size = size_out * (from->size_out + 1);
         createEmptyWeights();
-        cout
-            << "weights_size: " << weights_size << endl;
     }
     vector<Instruction> createLowLevelInstructions(InstructionsGuide guide) override
     {

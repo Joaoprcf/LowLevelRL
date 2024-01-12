@@ -175,4 +175,5 @@ int main()
     sgrs.clearCPU();
     actor.clear();
     critic.clear();
+    Py_Finalize();
 }

@@ -29,5 +29,5 @@ TEST_CASE("LearnableOptimizer loads properly")
         REQUIRE(optimizer.weights[i] == weights[i]);
     }
 
-    delete weights;
+    delete[] weights;
 }
