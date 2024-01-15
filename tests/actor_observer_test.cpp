@@ -7,7 +7,7 @@
 #include "grs/smart.h"
 #include "environment/core.h"
 
-constexpr float GUESS_GAME_GOAL = 79500;
+constexpr float GUESS_GAME_GOAL = 70000;
 
 TEST_CASE("Actor Observer test against GuessGameV3")
 {

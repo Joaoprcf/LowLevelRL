@@ -51,6 +51,18 @@ fast_test: clean build_dir
 	echo "Compiling index.cu"; \
 	$(NVCC) $(NVCCFLAGS) $(LDFLAGS) $(INDEX_CU) -o $(INDEX_EXE)
 
+fast_test16: clean build_dir
+	$(MAKE) -j16 $(TEST_EXECS)
+	$(MAKE) -j16 $(GPU_TEST_EXECS)
+	@status=0; \
+	for test_exec in $(TEST_EXECS) ; do \
+		echo "Running $$test_exec"; \
+		./$$test_exec || status=1; \
+	done; \
+	if [ $$status -ne 0 ]; then exit 1; fi;
+	echo "Compiling index.cu"; \
+	$(NVCC) $(NVCCFLAGS) $(LDFLAGS) $(INDEX_CU) -o $(INDEX_EXE)
+
 gpu_fast_test: clean build_dir 
 	$(MAKE) -j $(GPU_TEST_EXECS)
 	@status=0; \

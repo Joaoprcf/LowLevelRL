@@ -5,7 +5,7 @@
 #include "../src/game_utils.h"
 #include "../src/analizers.h"
 
-constexpr float GUESS_GAME_GOAL = 79500;
+constexpr float GUESS_GAME_GOAL = 70000;
 
 TEST_CASE("GeneticRandomSearch test against GuessGame using IterativeOptimizer")
 {

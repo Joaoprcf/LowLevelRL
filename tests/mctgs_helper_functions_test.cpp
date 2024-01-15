@@ -6,8 +6,6 @@
 
 using namespace std::chrono;
 
-constexpr float GUESS_GAME_GOAL = 79500;
-
 TEST_CASE("Test normalize function")
 {
     float input[] = {3.0f, 4.0f, 0.0f};

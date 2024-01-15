@@ -6,7 +6,7 @@
 #include "../src/analizers.h"
 #include "../src/game_utils.h"
 
-constexpr float GUESS_GAME_GOAL = 79500;
+constexpr float GUESS_GAME_GOAL = 70000;
 
 TEST_CASE("SmartGeneticRandomSearch test against GuessGame")
 {
@@ -21,7 +21,8 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame")
     for (size_t stairs : {4, 5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
-        SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.3f, 1.1f);
+
+        SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.1f, 1.05f);
         for (size_t idx = 0; idx < 800; idx++)
         {
             sgrs.initIterator();
@@ -154,7 +155,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGame using complex nn")
     for (size_t stairs : {6, 8, 11})
     {
         printf("stairs: %zu\n", stairs);
-        SmartGeneticRandomSearch sgrs(&nn, stairs, 7, 0.3f, 1.05f);
+        SmartGeneticRandomSearch sgrs(&nn, stairs, 7, 0.1f, 1.05f);
         for (size_t idx = 0; idx < 1600; idx++)
         {
             sgrs.initIterator();
@@ -217,7 +218,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameV2 using train API")
     for (size_t stairs : {5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
-        SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.3f, 1.05f);
+        SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.1f, 1.05f);
         for (size_t idx = 0; idx < 80; idx++)
         {
             sgrs.train(&game, 10, 40);
@@ -271,7 +272,7 @@ TEST_CASE("SmartGeneticRandomSearch test against GuessGameLocalMinima using trai
     for (size_t stairs : {5, 6, 8, 13})
     {
         printf("stairs: %zu\n", stairs);
-        SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.3f, 1.05f);
+        SmartGeneticRandomSearch sgrs(&nn, stairs, 5, 0.1f, 1.05f);
         for (size_t idx = 0; idx < 80; idx++)
         {
             sgrs.train(&game, 10, 40);

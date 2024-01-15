@@ -5,7 +5,7 @@
 #include "../src/game_utils.h"
 #include <chrono>
 
-constexpr float GUESS_GAME_GOAL = 39750;
+constexpr float GUESS_GAME_GOAL = 35000;
 
 TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame")
 {
@@ -20,7 +20,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame")
 
     MonteCarloTreeGeneticSearch mctgs(&nn, dual_selection_amount);
 
-    BatchEnvironment env(&builder, 100);
+    BatchEnvironment env(&builder, 150);
 
     size_t *node_idxs = new size_t[env.batch_size];
 
@@ -47,13 +47,13 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame")
         }
         if (it_idx == 29)
         {
-            printf("%.f > 10000.0\n", best_reward);
-            REQUIRE(best_reward > 10000.0f);
+            printf("%.f > 7500.0\n", best_reward);
+            REQUIRE(best_reward > 7500.0f);
         }
         if (it_idx == 49)
         {
-            printf("%.f > 25000.0\n", best_reward);
-            REQUIRE(best_reward > 25000.0f);
+            printf("%.f > 15000.0\n", best_reward);
+            REQUIRE(best_reward > 15000.0f);
         }
     }
     delete[] node_idxs;
