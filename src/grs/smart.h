@@ -19,15 +19,20 @@ struct SmartGeneticRandomSearch
     float currentLearningRate = 0.02f;
     BatchEnvironment *env;
     std::default_random_engine generator;
-    SmartGeneticRandomSearch(Model *nn, size_t stairs, size_t grs_amount, float startLearningRate = 0.2f, float learningRateStep = 1.1f)
-        : startLearningRate(startLearningRate), learningRateStep(learningRateStep), grs_amount(grs_amount), stairs(stairs)
+    bool manage_memory = true;
+    SmartGeneticRandomSearch(Model *nn, size_t stairs, size_t grs_amount, float startLearningRate = 0.2f, float learningRateStep = 1.1f, bool manage_memory = true)
+        : startLearningRate(startLearningRate), learningRateStep(learningRateStep), grs_amount(grs_amount), stairs(stairs), manage_memory(manage_memory)
     {
         assert(grs_amount >= 2); // 2 minimum
         directions = stairs * (stairs + 1);
         currentLearningRate = startLearningRate;
+        weights_size = nn->weights_size;
+
         PipelineBuilder builder(nn);
         env = new BatchEnvironment(&builder, directions * grs_amount);
-        weights_size = nn->weights_size;
+
+        if (!manage_memory)
+            return;
 
         weights = new float[directions * weights_size];
         memset(weights, 0, directions * weights_size * sizeof(float));
@@ -38,7 +43,7 @@ struct SmartGeneticRandomSearch
         float start_expoent = -(grs_amount - 1.0f) / 2.0f;
         for (size_t i = 0; i < grs_amount; i++)
         {
-            float multiplier = pow(learningRateStep, start_expoent + i);
+            float multiplier = powf(learningRateStep, start_expoent + i);
             float learning_rate = currentLearningRate * multiplier;
             applyNoise(i, learning_rate);
         }
@@ -74,7 +79,7 @@ struct SmartGeneticRandomSearch
 
         last_reward = env->rewardEntryArray[grs_amount - 1].reward;
         float start_expoent = -(grs_amount - 1.0f) / 2.0f;
-        float multiplier = pow(learningRateStep, start_expoent + best);
+        float multiplier = powf(learningRateStep, start_expoent + best);
         currentLearningRate *= multiplier;
     }
 
@@ -114,7 +119,7 @@ struct SmartGeneticRandomSearch
         for (size_t i = 0; i < grs_amount; i++)
         {
             memcpy(env->weights + i * directions * weights_size, weights, directions * weights_size * sizeof(float));
-            float multiplier = pow(learningRateStep, start_expoent + i);
+            float multiplier = powf(learningRateStep, start_expoent + i);
             float learning_rate = currentLearningRate * multiplier;
             applyNoise(i, learning_rate);
         }
@@ -172,6 +177,9 @@ struct SmartGeneticRandomSearch
 
     ~SmartGeneticRandomSearch()
     {
+        if (!manage_memory)
+            return;
+
         delete[] weights;
         delete[] tempWeights;
         delete env;

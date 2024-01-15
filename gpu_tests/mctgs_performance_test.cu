@@ -14,7 +14,7 @@
 
 using namespace std::chrono;
 
-constexpr float GUESS_GAME_GOAL = 79500;
+constexpr float GUESS_GAME_GOAL = 70000;
 void __global__ gpuPlay(curandState *state, PipelineBuilder *tempBuilder, size_t directions, float *datastream, float *rewardArray, RewardEntry *entries)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;

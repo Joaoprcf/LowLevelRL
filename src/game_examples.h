@@ -101,7 +101,10 @@ struct GuessGameV2 : GuessGame
         action_space = 4;
     }
 
-    CUDA_CALLABLE_MEMBER GuessGameV2(uint64_t initSeed) : GuessGame(initSeed) {}
+    CUDA_CALLABLE_MEMBER GuessGameV2(uint64_t initSeed) : GuessGame(initSeed)
+    {
+        action_space = 4;
+    }
 
     CUDA_CALLABLE_MEMBER float step(float *action, float *observation) override
     {
@@ -138,7 +141,10 @@ struct GuessGameV3 : GuessGame
         action_space = 4;
     }
 
-    CUDA_CALLABLE_MEMBER GuessGameV3(uint64_t initSeed) : GuessGame(initSeed) {}
+    CUDA_CALLABLE_MEMBER GuessGameV3(uint64_t initSeed) : GuessGame(initSeed)
+    {
+        action_space = 4;
+    }
 
     CUDA_CALLABLE_MEMBER float step(float *action, float *observation) override
     {
@@ -181,7 +187,10 @@ struct GuessGameLocalMinina : GuessGame
         action_space = 4;
     }
 
-    CUDA_CALLABLE_MEMBER GuessGameLocalMinina(uint64_t initSeed) : GuessGame(initSeed) {}
+    CUDA_CALLABLE_MEMBER GuessGameLocalMinina(uint64_t initSeed) : GuessGame(initSeed)
+    {
+        action_space = 4;
+    }
 
     CUDA_CALLABLE_MEMBER float step(float *action, float *observation) override
     {
@@ -233,7 +242,9 @@ struct GuessGameHard : GuessGame
 
     float values[5];
 
-    CUDA_CALLABLE_MEMBER GuessGameHard() : GuessGame() {}
+    CUDA_CALLABLE_MEMBER GuessGameHard() : GuessGame()
+    {
+    }
 
     CUDA_CALLABLE_MEMBER GuessGameHard(uint64_t initSeed) : GuessGame(initSeed) {}
 

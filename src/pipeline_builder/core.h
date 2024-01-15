@@ -44,7 +44,7 @@ struct PipelineBuilder
 
     PipelineBuilder() : ownFastExecution(false), manage_memory(false)
     {
-        printf("Created shitty pipeline builder\n");
+        printf("Created placeholder pipeline builder\n");
     }
 
     PipelineBuilder(string filename)

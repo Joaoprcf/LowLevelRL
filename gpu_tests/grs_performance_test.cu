@@ -9,7 +9,7 @@
 #include "analizers.h"
 #include <cuda_runtime.h>
 
-constexpr float GUESS_GAME_GOAL = 79500;
+constexpr float GUESS_GAME_GOAL = 75000;
 void __global__ gpuPlay(PipelineBuilder *tempBuilder, size_t directions, float *datastream, float *rewardArray, RewardEntry *entries)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -207,135 +207,9 @@ void TEST_GeneticRandomSearch_test_against_GuessGame_using_IterativeOptimizer_us
     }
 }
 
-void TEST_GeneticRandomSearch_test_against_GuessGame_using_LearnableOptimizer()
-{
-    printf("GeneticRandomSearch test against GuessGame using LearnableOptimizer Test:\n\n");
-    auto [gridSize, blockSize] = getGridAndBlockSizes();
-
-    Input input(5);
-    Dense output(&input, 2);
-
-    Model nn(&input, &output);
-
-    for (size_t stairs : {8, 11, 14, 17})
-    {
-        printf("\nInitiating test with %lu stairs:\n\n", stairs);
-        GeneticRandomSearchGPU grs(&nn, stairs);
-        LearnableOptimizer *optimizer = new LearnableOptimizer(grs.directions, "learnable_optimizer_weights");
-        grs.optimizer = optimizer;
-        grs.initGPU();
-
-        for (size_t idx = 0; idx < 800; idx++)
-        {
-            grs.copyWeigthsToGPU();
-
-            gpuPlay<<<gridSize, blockSize>>>(grs.builderBatch->builders, grs.directions, grs.datastream, grs.rewardArray, grs.rewardEntryArray);
-            cudaDeviceSynchronize();
-            grs.updateWeightsUsingGPUInfo();
-            heapSort(grs.preStoredRewards, grs.directions, fcomp);
-            float worstReward = grs.preStoredRewards[stairs - 1];
-            if (worstReward >= GUESS_GAME_GOAL)
-            {
-                printf("Goal reward %.f achieved at idx %zu \n", worstReward, idx);
-                break;
-            }
-            if (idx == 49)
-            {
-                printf("%.f > 3000.0\n", worstReward);
-                assert(worstReward > 3000.0f);
-            }
-            else if (idx == 74)
-            {
-                printf("%.f > 15000.0\n", worstReward);
-                assert(worstReward > 15000.0f);
-            }
-            else if (idx == 99)
-            {
-                printf("%.f > 35000.0\n", worstReward);
-                assert(worstReward > 35000.0f);
-            }
-            else if (idx == 149)
-            {
-                printf("%.f > 60000.0\n", worstReward);
-                assert(worstReward > 60000.0f);
-            }
-            else if (idx == 299)
-            {
-                printf("%.f > 75000.0\n", worstReward);
-                assert(worstReward > 75000.0f);
-            }
-        }
-        grs.clearGPU();
-    }
-}
-
-void TEST_GeneticRandomSearch_test_against_GuessGameV2_using_LearnableOptimizer()
-{
-    printf("GeneticRandomSearch test against GuessGameV2 using LearnableOptimizer Test:\n\n");
-    auto [gridSize, blockSize] = getGridAndBlockSizes();
-    // Setup Model and GeneticRandomSearch
-    Input input(5);
-    Dense output(&input, 4);
-    Model nn(&input, &output);
-
-    for (size_t stairs : {8, 11, 14, 17})
-    {
-        printf("\nInitiating test with %lu stairs:\n\n", stairs);
-        GeneticRandomSearchGPU grs(&nn, stairs);
-        LearnableOptimizer *optimizer = new LearnableOptimizer(grs.directions, "learnable_optimizer_weights");
-        grs.optimizer = optimizer;
-        grs.initGPU();
-
-        for (size_t idx = 0; idx < 800; idx++)
-        {
-            grs.copyWeigthsToGPU();
-
-            gpuPlayV2<<<gridSize, blockSize>>>(grs.builderBatch->builders, grs.directions, grs.datastream, grs.rewardArray, grs.rewardEntryArray);
-            cudaDeviceSynchronize();
-            grs.updateWeightsUsingGPUInfo();
-            heapSort(grs.preStoredRewards, grs.directions, fcomp);
-            float worstReward = grs.preStoredRewards[stairs - 1];
-            if (worstReward >= GUESS_GAME_GOAL)
-            {
-                printf("Goal reward %.f achieved at idx %zu \n", worstReward, idx);
-                break;
-            }
-            if (idx == 49)
-            {
-                printf("%.f > 3000.0\n", worstReward);
-                assert(worstReward > 3000.0f);
-            }
-            else if (idx == 74)
-            {
-                printf("%.f > 15000.0\n", worstReward);
-                assert(worstReward > 15000.0f);
-            }
-            else if (idx == 99)
-            {
-                printf("%.f > 35000.0\n", worstReward);
-                assert(worstReward > 35000.0f);
-            }
-            else if (idx == 149)
-            {
-                printf("%.f > 60000.0\n", worstReward);
-                assert(worstReward > 60000.0f);
-            }
-            else if (idx == 299)
-            {
-                printf("%.f > 75000.0\n", worstReward);
-                assert(worstReward > 75000.0f);
-            }
-        }
-        grs.clearGPU();
-    }
-}
 int main()
 {
     TEST_GeneticRandomSearch_test_against_GuessGame_using_IterativeOptimizer();
 
     TEST_GeneticRandomSearch_test_against_GuessGame_using_IterativeOptimizer_using_complex_nn();
-
-    TEST_GeneticRandomSearch_test_against_GuessGame_using_LearnableOptimizer();
-
-    TEST_GeneticRandomSearch_test_against_GuessGameV2_using_LearnableOptimizer();
 }

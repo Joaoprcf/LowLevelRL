@@ -61,7 +61,6 @@ struct MonteCarloTreeGeneticSearchGPU : MonteCarloTreeGeneticSearch
         cudaMallocManaged(&tempSelectionReward, selection_amount * sizeof(RewardEntry));
 
         streams = new cudaStream_t[reserved_noise];
-        // initialize reserved_noise cudaStream_t
         for (size_t i = 0; i < reserved_noise; i++)
         {
             cudaStreamCreate(&streams[i]);
