@@ -16,15 +16,28 @@ struct SmartGeneticRandomSearch
     float *tempWeights;
     float last_reward = 0.0f;
 
+    // state
     float currentLearningRate = 0.02f;
     BatchEnvironment *env;
     std::default_random_engine generator;
+
     bool manage_memory = true;
+
+    // experimental
+    int idx_counter = 0;
+    float best_reward = 0.0f;
+    int last_best_idx = 0;
+    float solution_threshold = 0.00035f;
+    float local_minima_step = 1.02f;
+    float total_minima_jumps = 50.0f;
+    size_t explore_amount = 0;
+    bool anti_local_minima = false;
+
     SmartGeneticRandomSearch(Model *nn, size_t stairs, size_t grs_amount, float startLearningRate = 0.2f, float learningRateStep = 1.1f, bool manage_memory = true)
         : startLearningRate(startLearningRate), learningRateStep(learningRateStep), grs_amount(grs_amount), stairs(stairs), manage_memory(manage_memory)
     {
         assert(grs_amount >= 2); // 2 minimum
-        directions = stairs * (stairs + 1);
+        directions = (1ULL << (stairs + 1)) - 2;
         currentLearningRate = startLearningRate;
         weights_size = nn->weights_size;
 
@@ -77,10 +90,40 @@ struct SmartGeneticRandomSearch
 
         int best = env->rewardEntryArray[0].index / directions;
 
-        last_reward = env->rewardEntryArray[grs_amount - 1].reward;
+        last_reward = env->rewardEntryArray[0].reward;
         float start_expoent = -(grs_amount - 1.0f) / 2.0f;
         float multiplier = powf(learningRateStep, start_expoent + best);
-        currentLearningRate *= multiplier;
+
+        float max_learning_rate = startLearningRate * (explore_amount + 1);
+        if (!anti_local_minima)
+        {
+            currentLearningRate *= multiplier;
+        }
+        else if (currentLearningRate < max_learning_rate)
+        {
+            currentLearningRate *= local_minima_step;
+        }
+        else
+        {
+            anti_local_minima = false;
+            printf("Reached limit at %d\n", idx_counter - last_best_idx);
+        }
+
+        // experimental
+        if (!anti_local_minima && currentLearningRate < solution_threshold)
+        {
+            explore_amount += 1;
+            printf("Local minima found with reward %.3f\n", last_reward);
+            printf("avoid size: %lu\n", explore_amount);
+            // currentLearningRate = startLearningRate * powf(learningRateStep, 50);
+            last_best_idx = idx_counter;
+            best_reward = last_reward;
+            anti_local_minima = true;
+            max_learning_rate += startLearningRate;
+            currentLearningRate = max_learning_rate / powf(local_minima_step, total_minima_jumps);
+            printf("currentLearningRate: %f\n", currentLearningRate);
+        }
+        idx_counter++;
     }
 
     void applyNoise(size_t grs_idx, float learning_rate)
@@ -106,7 +149,7 @@ struct SmartGeneticRandomSearch
         for (size_t stairIdx = 0; stairIdx < stairs; stairIdx++)
         {
 
-            size_t stairAmount = (stairs - stairIdx) * 2;
+            size_t stairAmount = 1ULL << (stairs - stairIdx);
 
             for (size_t i = 0; i < stairAmount; i++)
             {

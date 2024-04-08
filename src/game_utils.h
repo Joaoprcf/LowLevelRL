@@ -57,7 +57,7 @@ float multiPlayGuessGame(Model *nn, GuessGame *game, float *input, size_t num_ga
 float multiPlayGuessGame(Model *nn, GuessGame *game, size_t num_games)
 {
     float reward = 0;
-    float *input = new float[game->observation_space];
+    float *input = nn->datastream;
     for (size_t i = 0; i < num_games; i++)
     {
 
@@ -70,7 +70,6 @@ float multiPlayGuessGame(Model *nn, GuessGame *game, size_t num_games)
         }
         reward += game->reward;
     }
-    delete[] input;
     return reward;
 }
 

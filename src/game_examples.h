@@ -179,15 +179,112 @@ struct GuessGameV3 : GuessGame
     }
 };
 
-struct GuessGameLocalMinina : GuessGame
+struct GuessGameV3Hard : GuessGame
 {
 
-    CUDA_CALLABLE_MEMBER GuessGameLocalMinina() : GuessGame()
+    CUDA_CALLABLE_MEMBER GuessGameV3Hard() : GuessGame()
+    {
+        action_space = 6;
+    }
+
+    CUDA_CALLABLE_MEMBER GuessGameV3Hard(uint64_t initSeed) : GuessGame(initSeed)
+    {
+        action_space = 6;
+    }
+
+    CUDA_CALLABLE_MEMBER float step(float *action, float *observation) override
+    {
+        float middle_tanhf[4]{
+            tanhf(values[0] - values[1] * 0.5f),
+            tanhf(values[2] + values[3] * 2.0f),
+            tanhf(values[0] - values[1] * 0.5f - values[4] * 4.0f),
+            tanhf(values[1] - values[2] * 3.5f + 0.5f)};
+
+        float middle_sigmoid[4]{
+            1.0f / (1.0f + expf((values[0] - values[1] * 0.5f) * 0.3f)),
+            1.0f / (1.0f + expf((values[2] + values[3] * 2.0f) * 0.3f)),
+            1.0f / (1.0f + expf((values[0] - values[1] * 0.5f - values[4] * 4.0f) * 0.3f)),
+            1.0f / (1.0f + expf((values[1] - values[2] * 3.5f + 0.5f) * 0.3f))};
+
+        float expected[6]{
+            middle_tanhf[0] + middle_tanhf[1] * 2.0f + middle_sigmoid[0] + middle_sigmoid[1] * 0.5f,
+            middle_tanhf[1] + middle_tanhf[2] * 2.0f + middle_sigmoid[1] + middle_sigmoid[2] * 0.5f,
+            middle_tanhf[2] + middle_tanhf[3] * 2.0f + middle_sigmoid[2] + middle_sigmoid[3] * 0.5f,
+            middle_tanhf[3] + middle_tanhf[0] * 2.0f + middle_sigmoid[3] + middle_sigmoid[0] * 0.5f,
+            middle_tanhf[3] * 2.0f - middle_sigmoid[2],
+            middle_tanhf[0] * 3.0f - middle_sigmoid[3] * 1.5f};
+
+        float distance = 0.0f;
+        for (int i = 0; i < action_space; ++i)
+        {
+            distance += (expected[i] - action[i]) * (expected[i] - action[i]);
+        }
+
+        float step_reward = 3.0f / (sqrtf(distance) + 0.03f);
+        reward += step_reward;
+
+        generateValues();
+        for (int i = 0; i < observation_space; ++i)
+        {
+            observation[i] = values[i];
+        }
+        missing_steps -= 1;
+        return step_reward;
+    }
+};
+
+struct GuessGameV3Easy : GuessGame
+{
+
+    CUDA_CALLABLE_MEMBER GuessGameV3Easy() : GuessGame()
+    {
+        observation_space = 2;
+        action_space = 1;
+    }
+
+    CUDA_CALLABLE_MEMBER GuessGameV3Easy(uint64_t initSeed) : GuessGame(initSeed)
+    {
+        observation_space = 1;
+        action_space = 1;
+    }
+
+    CUDA_CALLABLE_MEMBER float step(float *action, float *observation) override
+    {
+        float middle[2]{
+            tanhf(values[0] * 2.0f),
+            tanhf(-values[0])};
+
+        float expected[1]{
+            middle[0] + middle[1] * 2.0f};
+
+        float distance = 0.0f;
+        for (int i = 0; i < action_space; ++i)
+        {
+            distance += (expected[i] - action[i]) * (expected[i] - action[i]);
+        }
+
+        float step_reward = 2.0f / (sqrtf(distance * 8) + 0.02f);
+        reward += step_reward;
+
+        generateValues();
+        for (int i = 0; i < observation_space; ++i)
+        {
+            observation[i] = values[i];
+        }
+        missing_steps -= 1;
+        return step_reward;
+    }
+};
+
+struct GuessGameLocalMinima : GuessGame
+{
+
+    CUDA_CALLABLE_MEMBER GuessGameLocalMinima() : GuessGame()
     {
         action_space = 4;
     }
 
-    CUDA_CALLABLE_MEMBER GuessGameLocalMinina(uint64_t initSeed) : GuessGame(initSeed)
+    CUDA_CALLABLE_MEMBER GuessGameLocalMinima(uint64_t initSeed) : GuessGame(initSeed)
     {
         action_space = 4;
     }

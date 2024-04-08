@@ -9,6 +9,139 @@
 
 constexpr float GUESS_GAME_GOAL = 70000;
 
+/* TEST_CASE("Actor Observer test against GuessGameV3Hard")
+{
+    Input input_actor(5);
+    Dense middle_tanh(&input_actor, 4, ACTIVATION_TANH);
+    Dense middle_sig(&input_actor, 4, ACTIVATION_SIGMOID);
+    Concatenate middle_actor({&middle_tanh, &middle_sig});
+    Dense output_actor(&middle_actor, 6);
+    Model actor(&input_actor, &output_actor);
+
+    actor.compile_keras("Adam(learning_rate=0.02)");
+
+    PipelineBuilder builder(&actor);
+
+    size_t stairs = 4;
+
+    SmartGeneticRandomSearch sgrs(&actor, stairs, 17, 0.35f, 1.02f);
+
+    vector<float> actor_data_x;
+    vector<float> usable_actor_data_x;
+    vector<float> rewards;
+    vector<float> actor_data_y;
+    vector<float> usable_actor_data_y;
+    uint64_t seed = 88172645463325252ULL;
+    float avg_reward = 0.0f;
+
+    size_t input_size = actor.fullInputSize();
+    size_t output_size = actor.fullOutputSize();
+
+    for (size_t it_idx = 0; it_idx < 5000; it_idx++)
+    {
+        sgrs.initIterator();
+        // Iterate through all directions and check RunnerInfo
+        GuessGameV3Hard game(seed);
+        for (size_t i = 0; sgrs.hasNext(); i++)
+        {
+            RunnerInfo runnerInfo = sgrs.getNext();
+
+            float reward = 0;
+            float *targetDatastream = runnerInfo.targetDatastream;
+
+            float *input = targetDatastream;
+            float *output = targetDatastream + builder.outputLocations[0];
+
+            for (size_t i = 0; i < 40; i++)
+            {
+                game.reset(input);
+                while (game.missing_steps > 0)
+                {
+                    runnerInfo.builder->FeedForwardSingle(input, targetDatastream);
+
+                    actor_data_x.insert(actor_data_x.end(), input, input + input_size);
+                    actor_data_y.insert(actor_data_y.end(), output, output + output_size);
+
+                    float step_reward = game.step(output, input);
+
+                    rewards.push_back(step_reward);
+                }
+                reward += game.reward;
+            }
+            // printf("Reward: %.2f\n", reward);
+            runnerInfo.setReward(reward);
+        }
+
+        sgrs.updateMasterWeights();
+        float current_reward = sgrs.last_reward;
+        if (current_reward >= GUESS_GAME_GOAL)
+        {
+            printf("Goal reward %.1f achieved at idx %zu \n", current_reward, it_idx);
+            break;
+        }
+        else
+        {
+            printf("it_idx: %zu, current_reward: %.2f, learning_rate: %.4f\n", it_idx, current_reward, sgrs.currentLearningRate);
+        }
+
+        float sum_rewards = 0.0f;
+        if (it_idx % 10 == 0 && it_idx > 0)
+        {
+            size_t steps_size = actor_data_x.size() / input_size;
+            REQUIRE(actor_data_y.size() == steps_size * output_size);
+            RewardEntry *entryArray = new RewardEntry[steps_size];
+            for (size_t i = 0; i < steps_size; i++)
+            {
+                entryArray[i].reward = rewards[i];
+                entryArray[i].index = i;
+            }
+            heapSort(entryArray, steps_size, comparison);
+            printf("Amount of arrays: %zu\n", steps_size);
+
+            size_t steps = 30;
+
+            float previous_reward = 0.0f;
+            size_t data_idx = 0;
+            size_t amount = 0;
+            while (data_idx < steps_size - steps)
+            {
+                for (size_t i = 0; i < steps; i++, data_idx++)
+                {
+                    size_t repeat = 1; // (20000 - i) / 10000 + 1;
+                    for (size_t j = 0; j < repeat; j++)
+                    {
+                        usable_actor_data_x.insert(usable_actor_data_x.end(), actor_data_x.begin() + entryArray[data_idx].index * input_size, actor_data_x.begin() + (entryArray[data_idx].index + 1) * input_size);
+                        usable_actor_data_y.insert(usable_actor_data_y.end(), actor_data_y.begin() + entryArray[data_idx].index * output_size, actor_data_y.begin() + (entryArray[data_idx].index + 1) * output_size);
+                    }
+                }
+                actor.fit_keras(usable_actor_data_x.data(), usable_actor_data_y.data(), usable_actor_data_x.size() / input_size, 1, 8);
+                float reward = multiPlayGuessGame(&actor, &game, 40);
+                if (reward < previous_reward && reward > current_reward * powf(0.99f, amount))
+                {
+                    break;
+                }
+                previous_reward = (amount * previous_reward + reward) / (amount + 1);
+                amount++;
+                printf("data_idx: %zu, reward: %.2f\n", data_idx, reward);
+                sgrs.addActor(actor.weights, reward);
+            }
+
+            delete[] entryArray;
+
+            // exit(0);
+            actor_data_x.clear();
+            usable_actor_data_x.clear();
+            actor_data_y.clear();
+            usable_actor_data_y.clear();
+            rewards.clear();
+        }
+
+        sgrs.updateWorkersWeights();
+    }
+    actor.clear();
+    // Py_Finalize();
+}
+ */
 TEST_CASE("Actor Observer test against GuessGameV3")
 {
     Input input_actor(5);
@@ -18,23 +151,9 @@ TEST_CASE("Actor Observer test against GuessGameV3")
 
     actor.compile_keras("Adam(learning_rate=0.02)");
 
-    Input input_critic1(5);
-    Input input_critic2(4);
-    Concatenate input_critic({&input_critic1, &input_critic2});
-    Dense sigmoid(&input_critic, 4, ACTIVATION_SIGMOID);
-    Dense relu(&input_critic, 4, ACTIVATION_RELU);
-    Concatenate output_joint({&sigmoid, &relu});
-    Dense output_joint2(&output_joint, 6, ACTIVATION_TANH);
-    Dense output_joint3(&output_joint2, 6, ACTIVATION_TANH);
-    Dense output_joint4(&output_joint3, 4);
-    Dense output_critic(&output_joint4, 1);
-    Model critic({&input_critic1, &input_critic2}, {&output_critic});
-
-    critic.compile_keras("Adam(learning_rate=0.02)");
-
     PipelineBuilder builder(&actor);
 
-    size_t stairs = 9;
+    size_t stairs = 5;
 
     SmartGeneticRandomSearch sgrs(&actor, stairs, 9, 0.3f, 1.04f);
 
@@ -64,7 +183,7 @@ TEST_CASE("Actor Observer test against GuessGameV3")
             float *input = targetDatastream;
             float *output = targetDatastream + builder.outputLocations[0];
 
-            for (size_t i = 0; i < 20; i++)
+            for (size_t i = 0; i < 40; i++)
             {
                 game.reset(input);
                 while (game.missing_steps > 0)
@@ -81,7 +200,7 @@ TEST_CASE("Actor Observer test against GuessGameV3")
                 reward += game.reward;
             }
             // printf("Reward: %.2f\n", reward);
-            runnerInfo.setReward(reward * 2.0f);
+            runnerInfo.setReward(reward);
         }
 
         sgrs.updateMasterWeights();
@@ -133,16 +252,36 @@ TEST_CASE("Actor Observer test against GuessGameV3")
                 entryArray[i].index = i;
             }
             heapSort(entryArray, steps_size, comparison);
-            for (size_t i = 0; i < 24000; i++)
+            printf("Amount of arrays: %zu\n", steps_size);
+
+            size_t steps = 50;
+
+            float previous_reward = 0.0f;
+            size_t data_idx = 0;
+            size_t amount = 0;
+            while (data_idx < steps_size - steps)
             {
-                size_t repeat = 1; // (20000 - i) / 10000 + 1;
-                for (size_t j = 0; j < repeat; j++)
+                for (size_t i = 0; i < steps; i++, data_idx++)
                 {
-                    usable_actor_data_x.insert(usable_actor_data_x.end(), actor_data_x.begin() + entryArray[i].index * input_size, actor_data_x.begin() + (entryArray[i].index + 1) * input_size);
-                    usable_actor_data_y.insert(usable_actor_data_y.end(), actor_data_y.begin() + entryArray[i].index * output_size, actor_data_y.begin() + (entryArray[i].index + 1) * output_size);
+                    size_t repeat = 1; // (20000 - i) / 10000 + 1;
+                    for (size_t j = 0; j < repeat; j++)
+                    {
+                        usable_actor_data_x.insert(usable_actor_data_x.end(), actor_data_x.begin() + entryArray[data_idx].index * input_size, actor_data_x.begin() + (entryArray[data_idx].index + 1) * input_size);
+                        usable_actor_data_y.insert(usable_actor_data_y.end(), actor_data_y.begin() + entryArray[data_idx].index * output_size, actor_data_y.begin() + (entryArray[data_idx].index + 1) * output_size);
+                    }
                 }
+                actor.fit_keras(usable_actor_data_x.data(), usable_actor_data_y.data(), usable_actor_data_x.size() / input_size, 1, 8);
+                float reward = multiPlayGuessGame(&actor, &game, 40);
+                if (reward < previous_reward)
+                {
+                    break;
+                }
+                previous_reward = (amount * previous_reward + reward) / (amount + 1);
+                amount++;
+                printf("data_idx: %zu, reward: %.2f\n", data_idx, reward);
+                sgrs.addActor(actor.weights, reward);
             }
-            actor.fit_keras(usable_actor_data_x.data(), usable_actor_data_y.data(), usable_actor_data_x.size() / input_size, 1, 16);
+
             delete[] entryArray;
 
             // exit(0);
@@ -151,16 +290,10 @@ TEST_CASE("Actor Observer test against GuessGameV3")
             actor_data_y.clear();
             usable_actor_data_y.clear();
             rewards.clear();
-
-            float reward = multiPlayGuessGame(&actor, &game, 40);
-
-            printf("Actor reward: %.2f\n", reward);
-            sgrs.addActor(actor.weights, reward);
         }
 
         sgrs.updateWorkersWeights();
     }
     actor.clear();
-    critic.clear();
-    Py_Finalize();
+    // Py_Finalize();
 }

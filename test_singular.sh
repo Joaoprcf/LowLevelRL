@@ -10,7 +10,7 @@ TEST_NAME=$1
 BUILD_DIR=./build
 TEST_DIR=./tests
 CXX=g++
-CXXFLAGS="-pthread -lstdc++ -std=gnu++17 -lrt -ldl -lm -I./src -I./tests -I/usr/local/cuda/include"
+CXXFLAGS="-pthread -lstdc++ -std=gnu++17 -O3 -lrt -ldl -lm -I./src -I./tests -I/usr/local/cuda/include"
 LDFLAGS=
 
 # Check for the debug flag
