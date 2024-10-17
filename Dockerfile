@@ -13,8 +13,10 @@ RUN pip install --upgrade pip
 RUN pip install tensorflow
 
 # Copy your project files into the Docker image
-WORKDIR /project
+WORKDIR /projects
 COPY . .
+
+ENV PYTHONIOENCODING=utf-8
 
 # Build and run tests
 CMD ["make", "fast_test"]
