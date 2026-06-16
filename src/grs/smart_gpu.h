@@ -5,13 +5,23 @@
 #include "grs/smart.h"
 #include "mctgs/helper_functions/core_gpu.h"
 #include <cuda_runtime.h>
+#include <stdexcept>
+#include <string>
+
+inline void throwIfCudaError(cudaError_t status, const char *message)
+{
+    if (status != cudaSuccess)
+    {
+        throw std::runtime_error(std::string(message) + ": " + cudaGetErrorString(status));
+    }
+}
 
 struct SmartGeneticRandomSearchGPU : public SmartGeneticRandomSearch
 {
-    BatchEnvironmentGPU *envGPU;
-    curandState *gpuNoiseDevStates;
-    float *reservedForces;
-    cudaStream_t *streams;
+    BatchEnvironmentGPU *envGPU = nullptr;
+    curandState *gpuNoiseDevStates = nullptr;
+    float *reservedForces = nullptr;
+    cudaStream_t *streams = nullptr;
 
     SmartGeneticRandomSearchGPU(Model *nn, size_t stairs, size_t grs_amount, float startLearningRate = 0.2f, float learningRateStep = 1.1f) : SmartGeneticRandomSearch(nn, stairs, grs_amount, startLearningRate, learningRateStep, false)
     {
@@ -20,25 +30,30 @@ struct SmartGeneticRandomSearchGPU : public SmartGeneticRandomSearch
         PipelineBuilder builder(nn);
         envGPU = new BatchEnvironmentGPU(&builder, directions * grs_amount);
 
-        env = envGPU;
+        env.reset(envGPU);
 
-        cudaMallocManaged(&weights, directions * weights_size * sizeof(float));
-        memset(weights, 0, directions * weights_size * sizeof(float));
+        float *raw_weights = nullptr;
+        throwIfCudaError(cudaMallocManaged(&raw_weights, directions * weights_size * sizeof(float)), "Failed to allocate managed weights");
+        memset(raw_weights, 0, directions * weights_size * sizeof(float));
+        weights.reset(raw_weights);
 
-        cudaMallocManaged(&tempWeights, directions * weights_size * sizeof(float));
-        memset(tempWeights, 0, directions * weights_size * sizeof(float));
+        float *raw_tempWeights = nullptr;
+        throwIfCudaError(cudaMallocManaged(&raw_tempWeights, directions * weights_size * sizeof(float)), "Failed to allocate managed tempWeights");
+        memset(raw_tempWeights, 0, directions * weights_size * sizeof(float));
+        tempWeights.reset(raw_tempWeights);
 
         size_t rnd_kernels = grs_amount * directions / 2 * weights_size;
-        cudaMallocManaged(&reservedForces, sizeof(float) * rnd_kernels);
+        throwIfCudaError(cudaMallocManaged(&reservedForces, sizeof(float) * rnd_kernels), "Failed to allocate managed reservedForces");
 
-        cudaMalloc((void **)&gpuNoiseDevStates, rnd_kernels * sizeof(curandState));
+        throwIfCudaError(cudaMalloc((void **)&gpuNoiseDevStates, rnd_kernels * sizeof(curandState)), "Failed to allocate gpuNoiseDevStates");
         auto [blocks_per_grid, block_size] = getGridAndBlockSizes();
         initRandomKernel<<<blocks_per_grid, block_size>>>(gpuNoiseDevStates, 88172645463325252ULL, rnd_kernels);
+        throwIfCudaError(cudaGetLastError(), "Failed to launch initRandomKernel");
 
         streams = new cudaStream_t[grs_amount];
         for (size_t i = 0; i < grs_amount; i++)
         {
-            cudaStreamCreate(&streams[i]);
+            throwIfCudaError(cudaStreamCreate(&streams[i]), "Failed to create CUDA stream");
         }
 
         float start_expoent = -(grs_amount - 1.0f) / 2.0f;
@@ -56,7 +71,7 @@ struct SmartGeneticRandomSearchGPU : public SmartGeneticRandomSearch
 
         // generateEvenlyDistributedWeights(tempWeights, weights_size, directions / 2, generator, 10);
 
-        generateEvenlyDistributedWeightsGPU(reservedForces + grs_idx * kernel_size, gpuNoiseDevStates + grs_idx * kernel_size, tempWeights, weights_size, directions / 2, 20, streams[grs_idx]);
+        generateEvenlyDistributedWeightsGPU(reservedForces + grs_idx * kernel_size, gpuNoiseDevStates + grs_idx * kernel_size, tempWeights.get(), weights_size, directions / 2, 20, streams[grs_idx]);
         cudaStreamSynchronize(streams[grs_idx]);
         // cudaStreamSynchronize(streams[grs_idx]);
         //  cudaMemPrefetchAsync(tempWeights, weights_size * directions * sizeof(float), cudaCpuDeviceId, streams[grs_idx]);
@@ -78,7 +93,7 @@ struct SmartGeneticRandomSearchGPU : public SmartGeneticRandomSearch
         for (size_t i = 0; i < directions; ++i)
         {
             size_t idx = env->rewardEntryArray[i].index;
-            cudaMemcpyAsync(weights + i * weights_size, env->weights + idx * weights_size, weights_size * sizeof(float), cudaMemcpyDeviceToDevice);
+            cudaMemcpyAsync(weights.get() + i * weights_size, env->weights + idx * weights_size, weights_size * sizeof(float), cudaMemcpyDeviceToDevice);
         }
 
         int best = env->rewardEntryArray[0].index / directions;
@@ -93,7 +108,7 @@ struct SmartGeneticRandomSearchGPU : public SmartGeneticRandomSearch
     {
 
         size_t pointer = 0;
-        cudaMemcpyAsync(tempWeights, weights, stairs * weights_size * sizeof(float), cudaMemcpyDeviceToDevice);
+        cudaMemcpyAsync(tempWeights.get(), weights.get(), stairs * weights_size * sizeof(float), cudaMemcpyDeviceToDevice);
         for (size_t stairIdx = 0; stairIdx < stairs; stairIdx++)
         {
 
@@ -101,7 +116,7 @@ struct SmartGeneticRandomSearchGPU : public SmartGeneticRandomSearch
 
             for (size_t i = 0; i < stairAmount; i++)
             {
-                cudaMemcpyAsync(weights + pointer * weights_size, tempWeights + stairIdx * weights_size, weights_size * sizeof(float), cudaMemcpyDeviceToDevice);
+                cudaMemcpyAsync(weights.get() + pointer * weights_size, tempWeights.get() + stairIdx * weights_size, weights_size * sizeof(float), cudaMemcpyDeviceToDevice);
                 pointer++;
             }
         }
@@ -109,7 +124,7 @@ struct SmartGeneticRandomSearchGPU : public SmartGeneticRandomSearch
         float start_expoent = -(grs_amount - 1.0f) / 2.0f;
         for (size_t i = 0; i < grs_amount; i++)
         {
-            cudaMemcpyAsync(env->weights + i * directions * weights_size, weights, directions * weights_size * sizeof(float), cudaMemcpyDeviceToDevice);
+            cudaMemcpyAsync(env->weights + i * directions * weights_size, weights.get(), directions * weights_size * sizeof(float), cudaMemcpyDeviceToDevice);
             float multiplier = powf(learningRateStep, start_expoent + i);
             float learning_rate = currentLearningRate * multiplier;
             applyNoise(i, learning_rate);
@@ -125,16 +140,19 @@ struct SmartGeneticRandomSearchGPU : public SmartGeneticRandomSearch
 
     ~SmartGeneticRandomSearchGPU()
     {
-        cudaFree(weights);
-        cudaFree(tempWeights);
+        cudaFree(weights.release());
+        cudaFree(tempWeights.release());
         cudaFree(reservedForces);
         cudaFree(gpuNoiseDevStates);
         for (size_t i = 0; i < grs_amount; i++)
         {
-            cudaStreamDestroy(streams[i]);
+            if (streams != nullptr)
+            {
+                cudaStreamDestroy(streams[i]);
+            }
         }
 
-        env = nullptr;
+        env.release();
         delete envGPU;
         delete[] streams;
     }

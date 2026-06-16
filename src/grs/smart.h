@@ -3,25 +3,25 @@
 #include "grs/core.h"
 #include "game_utils.h"
 #include "mctgs/helper_functions/core.h"
+#include <cassert>
+#include <cstring>
 
 struct SmartGeneticRandomSearch
 {
     float startLearningRate = 0.02f;
     float learningRateStep = 1.1f;
     size_t grs_amount = 2;
-    size_t stairs;
-    size_t directions;
-    size_t weights_size;
-    float *weights;
-    float *tempWeights;
+    size_t stairs = 0;
+    size_t directions = 0;
+    size_t weights_size = 0;
+    unique_ptr<float[]> weights;
+    unique_ptr<float[]> tempWeights;
     float last_reward = 0.0f;
 
     // state
     float currentLearningRate = 0.02f;
-    BatchEnvironment *env;
+    unique_ptr<BatchEnvironment> env;
     std::default_random_engine generator;
-
-    bool manage_memory = true;
 
     // experimental
     int idx_counter = 0;
@@ -34,58 +34,67 @@ struct SmartGeneticRandomSearch
     bool anti_local_minima = false;
 
     SmartGeneticRandomSearch(Model *nn, size_t stairs, size_t grs_amount, float startLearningRate = 0.2f, float learningRateStep = 1.1f, bool manage_memory = true)
-        : startLearningRate(startLearningRate), learningRateStep(learningRateStep), grs_amount(grs_amount), stairs(stairs), manage_memory(manage_memory)
+        : startLearningRate(startLearningRate), learningRateStep(learningRateStep), grs_amount(grs_amount), stairs(stairs)
     {
         assert(grs_amount >= 2); // 2 minimum
         directions = (1ULL << (stairs + 1)) - 2;
         currentLearningRate = startLearningRate;
         weights_size = nn->weights_size;
 
-        PipelineBuilder builder(nn);
-        env = new BatchEnvironment(&builder, directions * grs_amount);
-
-        if (!manage_memory)
-            return;
-
-        weights = new float[directions * weights_size];
-        memset(weights, 0, directions * weights_size * sizeof(float));
-
-        tempWeights = new float[directions * weights_size];
-        memset(tempWeights, 0, directions * weights_size * sizeof(float));
-
-        float start_expoent = -(grs_amount - 1.0f) / 2.0f;
-        for (size_t i = 0; i < grs_amount; i++)
+        if (manage_memory)
         {
-            float multiplier = powf(learningRateStep, start_expoent + i);
-            float learning_rate = currentLearningRate * multiplier;
-            applyNoise(i, learning_rate);
+            PipelineBuilder builder(nn);
+            env.reset(new BatchEnvironment(&builder, directions * grs_amount));
+
+            weights.reset(new float[directions * weights_size]);
+            memset(weights.get(), 0, directions * weights_size * sizeof(float));
+
+            tempWeights.reset(new float[directions * weights_size]);
+            memset(tempWeights.get(), 0, directions * weights_size * sizeof(float));
+
+            float start_expoent = -(grs_amount - 1.0f) / 2.0f;
+            for (size_t i = 0; i < grs_amount; i++)
+            {
+                float multiplier = powf(learningRateStep, start_expoent + i);
+                float learning_rate = currentLearningRate * multiplier;
+                applyNoise(i, learning_rate);
+            }
         }
     }
 
+    SmartGeneticRandomSearch(const SmartGeneticRandomSearch &) = delete;
+    SmartGeneticRandomSearch &operator=(const SmartGeneticRandomSearch &) = delete;
+
+    virtual ~SmartGeneticRandomSearch() = default;
+
     void initIterator()
     {
+        assert(env != nullptr);
         env->initIterator();
     }
 
     bool hasNext()
     {
+        assert(env != nullptr);
         return env->hasNext();
     }
 
     RunnerInfo getNext()
     {
+        assert(env != nullptr);
         return env->getNext();
     }
 
     void updateMasterWeights()
     {
+        assert(env != nullptr);
         env->sortRewards();
 
         // print for now
         for (size_t i = 0; i < directions; ++i)
         {
             size_t idx = env->rewardEntryArray[i].index;
-            memcpy(weights + i * weights_size, env->weights + idx * weights_size, weights_size * sizeof(float));
+            memcpy(weights.get() + i * weights_size, env->weights.get() + idx * weights_size, weights_size * sizeof(float));
         }
 
         int best = env->rewardEntryArray[0].index / directions;
@@ -128,12 +137,14 @@ struct SmartGeneticRandomSearch
 
     void applyNoise(size_t grs_idx, float learning_rate)
     {
-        generateEvenlyDistributedWeights(tempWeights, weights_size, directions / 2, generator, 10);
+        assert(env != nullptr);
+        assert(tempWeights != nullptr);
+        generateEvenlyDistributedWeights(tempWeights.get(), weights_size, directions / 2, generator, 10);
 
         float modifier = learning_rate * sqrt(weights_size);
         for (size_t i = 0; i < directions; ++i)
         {
-            float *grs_weights = env->weights + (grs_idx * directions + i) * weights_size;
+            float *grs_weights = env->weights.get() + (grs_idx * directions + i) * weights_size;
             for (size_t j = 0; j < weights_size; ++j)
             {
                 grs_weights[j] += tempWeights[i * weights_size + j] * modifier;
@@ -143,9 +154,12 @@ struct SmartGeneticRandomSearch
 
     void updateWorkersWeights()
     {
+        assert(env != nullptr);
+        assert(weights != nullptr);
+        assert(tempWeights != nullptr);
 
         size_t pointer = 0;
-        memcpy(tempWeights, weights, stairs * weights_size * sizeof(float));
+        memcpy(tempWeights.get(), weights.get(), stairs * weights_size * sizeof(float));
         for (size_t stairIdx = 0; stairIdx < stairs; stairIdx++)
         {
 
@@ -153,7 +167,7 @@ struct SmartGeneticRandomSearch
 
             for (size_t i = 0; i < stairAmount; i++)
             {
-                memcpy(weights + pointer * weights_size, tempWeights + stairIdx * weights_size, weights_size * sizeof(float));
+                memcpy(weights.get() + pointer * weights_size, tempWeights.get() + stairIdx * weights_size, weights_size * sizeof(float));
                 pointer++;
             }
         }
@@ -161,7 +175,7 @@ struct SmartGeneticRandomSearch
         float start_expoent = -(grs_amount - 1.0f) / 2.0f;
         for (size_t i = 0; i < grs_amount; i++)
         {
-            memcpy(env->weights + i * directions * weights_size, weights, directions * weights_size * sizeof(float));
+            memcpy(env->weights.get() + i * directions * weights_size, weights.get(), directions * weights_size * sizeof(float));
             float multiplier = powf(learningRateStep, start_expoent + i);
             float learning_rate = currentLearningRate * multiplier;
             applyNoise(i, learning_rate);
@@ -170,6 +184,7 @@ struct SmartGeneticRandomSearch
 
     void updateWeights()
     {
+        assert(env != nullptr);
         updateMasterWeights();
 
         updateWorkersWeights();
@@ -177,9 +192,11 @@ struct SmartGeneticRandomSearch
 
     void distributeWeights()
     {
+        assert(env != nullptr);
+        assert(weights != nullptr);
         for (size_t i = 1; i < grs_amount; i++)
         {
-            memcpy(env->weights + i * directions * weights_size, weights, directions * weights_size * sizeof(float));
+            memcpy(env->weights.get() + i * directions * weights_size, weights.get(), directions * weights_size * sizeof(float));
         }
     }
 
@@ -207,10 +224,10 @@ struct SmartGeneticRandomSearch
                 size_t directions_missing = directions - i - 1;
                 if (directions_missing)
                 {
-                    memmove(env->rewardEntryArray + (i + 1), env->rewardEntryArray + i, directions_missing * sizeof(RewardEntry));
-                    memmove(weights + (i + 1) * weights_size, weights + i * weights_size, directions_missing * weights_size * sizeof(float));
+                    memmove(env->rewardEntryArray.get() + (i + 1), env->rewardEntryArray.get() + i, directions_missing * sizeof(RewardEntry));
+                    memmove(weights.get() + (i + 1) * weights_size, weights.get() + i * weights_size, directions_missing * weights_size * sizeof(float));
                 }
-                memcpy(weights + i * weights_size, actorWeights, weights_size * sizeof(float));
+                memcpy(weights.get() + i * weights_size, actorWeights, weights_size * sizeof(float));
                 env->rewardEntryArray[i].reward = reward;
                 env->rewardEntryArray[i].index = -1;
                 break;
@@ -218,13 +235,4 @@ struct SmartGeneticRandomSearch
         }
     }
 
-    ~SmartGeneticRandomSearch()
-    {
-        if (!manage_memory)
-            return;
-
-        delete[] weights;
-        delete[] tempWeights;
-        delete env;
-    }
 };

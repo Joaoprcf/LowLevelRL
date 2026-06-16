@@ -26,7 +26,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame")
 
     for (size_t it_idx = 0; it_idx < 500; it_idx++)
     {
-        mctgs.multiRolloutAndVisit(env.weights, node_idxs, env.batch_size);
+        mctgs.multiRolloutAndVisit(env.weights.get(), node_idxs, env.batch_size);
 
         env.initIterator();
         // Iterate through all directions and check RunnerInfo
@@ -38,7 +38,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGame")
             multiPlayGuessGame(runnerInfo, &game, 20);
         }
 
-        mctgs.multiBackpropagateNoVisits(node_idxs, env.rewardArray, env.batch_size);
+        mctgs.multiBackpropagateNoVisits(node_idxs, env.rewardArray.get(), env.batch_size);
         float best_reward = mctgs.nodes[0].reward;
         if (best_reward >= GUESS_GAME_GOAL)
         {
@@ -80,7 +80,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2")
 
     for (size_t it_idx = 0; it_idx < 500; it_idx++)
     {
-        mctgs.multiRolloutAndVisit(env.weights, node_idxs, env.batch_size);
+        mctgs.multiRolloutAndVisit(env.weights.get(), node_idxs, env.batch_size);
 
         env.initIterator();
         // Iterate through all directions and check RunnerInfo
@@ -93,7 +93,7 @@ TEST_CASE("MonteCarloTreeGeneticSearch test against GuessGameV2")
             multiPlayGuessGame(runnerInfo, &game, 20);
         }
 
-        mctgs.multiBackpropagateNoVisits(node_idxs, env.rewardArray, env.batch_size);
+        mctgs.multiBackpropagateNoVisits(node_idxs, env.rewardArray.get(), env.batch_size);
         float best_reward = mctgs.nodes[0].reward;
 
         if (best_reward >= GUESS_GAME_GOAL)

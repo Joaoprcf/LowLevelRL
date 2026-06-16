@@ -36,16 +36,16 @@ struct GeneticRandomSearch
     size_t directions;
     size_t weights_size;
     size_t datastream_size;
-    float *currentWeights;
-    float **allWeights;
-    float *allWeightsSerialized;
-    PipelineBuilder *builder;
+    unique_ptr<float[]> currentWeights;
+    unique_ptr<float*[]> allWeights;
+    unique_ptr<float[]> allWeightsSerialized;
+    unique_ptr<PipelineBuilder> builder;
     GRSOptimizer *optimizer;
 
     // optimization purpose only
-    float *preStoredRewards;
-    float **preStoredTempWeights;
-    float *preStoredTempWeightsSerialized;
+    unique_ptr<float[]> preStoredRewards;
+    unique_ptr<float*[]> preStoredTempWeights;
+    unique_ptr<float[]> preStoredTempWeightsSerialized;
     std::shared_ptr<std::default_random_engine> generator;
 
     // cpu stuff
@@ -61,33 +61,33 @@ struct GeneticRandomSearch
 
 private:
     // memory management
-    GRSOptimizer *_optimizer = nullptr;
+    unique_ptr<GRSOptimizer> _optimizer;
 
 public:
     GeneticRandomSearch(Model *nn, size_t stairs) : stairs(stairs)
     {
-        builder = new PipelineBuilder(nn);
+        builder.reset(new PipelineBuilder(nn));
         assert(nn->datastream_size == builder->datastream_size);
         directions = stairs * (stairs + 1);
 
-        _optimizer = new IterativeOptimizer(stairs);
-        optimizer = _optimizer;
+        _optimizer.reset(new IterativeOptimizer(stairs));
+        optimizer = _optimizer.get();
 
         weights_size = this->builder->weights_size;
         datastream_size = this->builder->datastream_size;
-        currentWeights = new float[weights_size];
-        preStoredRewards = new float[directions];
-        memcpy(currentWeights, nn->weights, weights_size * sizeof(float));
-        allWeights = new float *[directions];
-        preStoredTempWeights = new float *[directions];
-        allWeightsSerialized = new float[directions * weights_size];
-        preStoredTempWeightsSerialized = new float[directions * weights_size];
-        memset(preStoredTempWeightsSerialized, 0, weights_size * directions * sizeof(float));
+        currentWeights.reset(new float[weights_size]);
+        preStoredRewards.reset(new float[directions]);
+        memcpy(currentWeights.get(), nn->weights, weights_size * sizeof(float));
+        allWeights.reset(new float*[directions]);
+        preStoredTempWeights.reset(new float*[directions]);
+        allWeightsSerialized.reset(new float[directions * weights_size]);
+        preStoredTempWeightsSerialized.reset(new float[directions * weights_size]);
+        memset(preStoredTempWeightsSerialized.get(), 0, weights_size * directions * sizeof(float));
 
         for (size_t i = 0; i < directions; i++)
         {
-            allWeights[i] = allWeightsSerialized + i * weights_size;
-            preStoredTempWeights[i] = preStoredTempWeightsSerialized + i * weights_size;
+            allWeights[i] = allWeightsSerialized.get() + i * weights_size;
+            preStoredTempWeights[i] = preStoredTempWeightsSerialized.get() + i * weights_size;
             memcpy(allWeights[i], nn->weights, weights_size * sizeof(float));
         }
     }
@@ -96,51 +96,41 @@ public:
     {
         directions = stairs * (stairs + 1);
         // optimizer = new LeaderboardOptimizer(stairs, directions);
-        _optimizer = new IterativeOptimizer(stairs);
-        optimizer = _optimizer;
+        _optimizer.reset(new IterativeOptimizer(stairs));
+        optimizer = _optimizer.get();
         weights_size = this->builder->weights_size;
         datastream_size = this->builder->datastream_size;
-        currentWeights = new float[weights_size];
-        preStoredRewards = new float[directions];
-        memset(currentWeights, 0, weights_size * sizeof(float));
-        allWeights = new float *[directions];
-        preStoredTempWeights = new float *[directions];
-        allWeightsSerialized = new float[directions * weights_size];
-        preStoredTempWeightsSerialized = new float[directions * weights_size];
-        memset(preStoredTempWeightsSerialized, 0, weights_size * directions * sizeof(float));
+        currentWeights.reset(new float[weights_size]);
+        preStoredRewards.reset(new float[directions]);
+        memset(currentWeights.get(), 0, weights_size * sizeof(float));
+        allWeights.reset(new float*[directions]);
+        preStoredTempWeights.reset(new float*[directions]);
+        allWeightsSerialized.reset(new float[directions * weights_size]);
+        preStoredTempWeightsSerialized.reset(new float[directions * weights_size]);
+        memset(preStoredTempWeightsSerialized.get(), 0, weights_size * directions * sizeof(float));
 
         for (size_t i = 0; i < directions; i++)
         {
-            allWeights[i] = allWeightsSerialized + i * weights_size;
-            preStoredTempWeights[i] = preStoredTempWeightsSerialized + i * weights_size;
-            memset(allWeightsSerialized, 0, weights_size * directions * sizeof(float));
+            allWeights[i] = allWeightsSerialized.get() + i * weights_size;
+            preStoredTempWeights[i] = preStoredTempWeightsSerialized.get() + i * weights_size;
+            memset(allWeightsSerialized.get(), 0, weights_size * directions * sizeof(float));
         }
     }
 
     void resetWeights()
     {
-        memset(currentWeights, 0, weights_size * sizeof(float));
-        memset(allWeightsSerialized, 0, weights_size * directions * sizeof(float));
-        memset(preStoredTempWeightsSerialized, 0, weights_size * directions * sizeof(float));
+        memset(currentWeights.get(), 0, weights_size * sizeof(float));
+        memset(allWeightsSerialized.get(), 0, weights_size * directions * sizeof(float));
+        memset(preStoredTempWeightsSerialized.get(), 0, weights_size * directions * sizeof(float));
     }
 
     ~GeneticRandomSearch()
     {
-        delete builder;
-        delete _optimizer;
-        delete[] currentWeights;
-        delete[] preStoredRewards;
-
-        delete[] allWeights;
-        delete[] preStoredTempWeights;
-
-        delete[] allWeightsSerialized;
-        delete[] preStoredTempWeightsSerialized;
     }
 
     void copyWeigthsToCPU()
     {
-        memcpy(weights, allWeightsSerialized, weights_size * directions * sizeof(float));
+        memcpy(weights, allWeightsSerialized.get(), weights_size * directions * sizeof(float));
     }
 
     void copyRewardsFromCPU(float *rewards)
@@ -150,8 +140,8 @@ public:
 
     void updateWeightsUsingCPUInfo(vector<WeightInfluence> influences = {})
     {
-        copyRewardsFromCPU(preStoredRewards);
-        updateWeights(preStoredRewards, influences);
+        copyRewardsFromCPU(preStoredRewards.get());
+        updateWeights(preStoredRewards.get(), influences);
     }
 
     void applyNoise(float **originWeights)
@@ -200,7 +190,7 @@ public:
         // optimizer->updateRewards(rewards);
         vector<RewardEntry> rEntries = createEntryFromRewards(rewards, directions, 1);
 
-        memcpy(currentWeights, allWeights[rEntries[0].index], weights_size * sizeof(float));
+        memcpy(currentWeights.get(), allWeights[rEntries[0].index], weights_size * sizeof(float));
 
         size_t pointer = 0;
         for (size_t stairIdx = 0; stairIdx < stairs; stairIdx++)
@@ -216,7 +206,7 @@ public:
             }
         }
 
-        applyNoise(preStoredTempWeights);
+        applyNoise(preStoredTempWeights.get());
     }
 
     void initCPU(bool applyFirstNoise = true)
@@ -246,7 +236,7 @@ public:
         cpuBuilders = new PipelineBuilder *[directions];
         for (size_t i = 0; i < directions; i++)
         {
-            cpuBuilders[i] = new PipelineBuilder(builder);
+            cpuBuilders[i] = new PipelineBuilder(builder.get());
             cpuBuilders[i]->init(datastream + i * builder->datastream_size, weights + i * weights_size, instructions + i * builder->num_instructions);
         }
 
@@ -254,7 +244,7 @@ public:
         it_pointer = 0; // Assuming it_pointer is used as an iterator or counter, initialize it as needed
         if (applyFirstNoise)
         {
-            applyNoise(allWeights);
+            applyNoise(allWeights.get());
             copyWeigthsToCPU();
         }
     }

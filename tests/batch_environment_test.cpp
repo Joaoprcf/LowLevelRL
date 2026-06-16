@@ -61,11 +61,11 @@ TEST_CASE("BatchEnvironment iterator")
 
         // Validate the runnerInfo contents
         REQUIRE(runnerInfo.direction_idx == i); // Check current index
-        REQUIRE(runnerInfo.targetInstructions == env.instructions + i * env.num_instructions);
-        REQUIRE(runnerInfo.targetWeights == env.weights + i * env.weights_size);
-        REQUIRE(runnerInfo.targetMemory == env.memory + i * env.memory_size);
-        REQUIRE(runnerInfo.targetDatastream == env.datastream + i * env.datastream_size);
-        REQUIRE(runnerInfo.reward == env.rewardArray + i);
+        REQUIRE(runnerInfo.targetInstructions == env.instructions.get() + i * env.num_instructions);
+        REQUIRE(runnerInfo.targetWeights == env.weights.get() + i * env.weights_size);
+        REQUIRE(runnerInfo.targetMemory == env.memory.get() + i * env.memory_size);
+        REQUIRE(runnerInfo.targetDatastream == env.datastream.get() + i * env.datastream_size);
+        REQUIRE(runnerInfo.reward == env.rewardArray.get() + i);
 
         // Check iterator advancement
         REQUIRE(env.it_pointer == i + 1);

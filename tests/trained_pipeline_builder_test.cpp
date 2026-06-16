@@ -28,7 +28,7 @@ TEST_CASE("TrainedPipelineBuilder Save (using NN as argument) and Load")
     REQUIRE(builder.num_outputs == builderCopy.num_outputs);
     REQUIRE(builder.weights_size == builderCopy.weights_size);
 
-    REQUIRE(memcmp(builder.weights, builderCopy.weights,
+    REQUIRE(memcmp(builder.weights.get(), builderCopy.weights.get(),
                    builder.weights_size * sizeof(float)) == 0);
 
     REQUIRE(memcmp(builder.instructions, builderCopy.instructions,
@@ -74,7 +74,7 @@ TEST_CASE("TrainedPipelineBuilder Save (using PipelineBuilder as argument) and L
     REQUIRE(builder.num_outputs == builderCopy.num_outputs);
     REQUIRE(builder.weights_size == builderCopy.weights_size);
 
-    REQUIRE(memcmp(builder.weights, builderCopy.weights,
+    REQUIRE(memcmp(builder.weights.get(), builderCopy.weights.get(),
                    builder.weights_size * sizeof(float)) == 0);
 
     REQUIRE(memcmp(builder.instructions, builderCopy.instructions,
@@ -118,7 +118,7 @@ TEST_CASE("PipelineBuilder SaveTrained and PipelineBuilder Load")
     REQUIRE(builder.num_outputs == builderCopy.num_outputs);
     REQUIRE(builder.weights_size == builderCopy.weights_size);
 
-    REQUIRE(memcmp(weights, builderCopy.weights,
+    REQUIRE(memcmp(weights, builderCopy.weights.get(),
                    builder.weights_size * sizeof(float)) == 0);
 
     REQUIRE(memcmp(builder.instructions, builderCopy.instructions,

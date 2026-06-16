@@ -345,7 +345,7 @@ struct PipelineBuilder
 struct TrainedPipelineBuilder : PipelineBuilder
 {
     // Always hold own memory
-    float *weights;
+    unique_ptr<float[]> weights;
     TrainedPipelineBuilder(string filename)
     {
         // Load from models filename
@@ -360,56 +360,57 @@ struct TrainedPipelineBuilder : PipelineBuilder
         void *buffer = malloc(total_size);
         file.read((char *)buffer, total_size);
         file.close();
-        TrainedPipelineBuilder *bufferPipelineBuilder = static_cast<TrainedPipelineBuilder *>(buffer);
-        *this = *bufferPipelineBuilder;
+        PipelineBuilder *bufferPipelineBuilder = static_cast<PipelineBuilder *>(buffer);
+        weights_size = bufferPipelineBuilder->weights_size;
+        datastream_size = bufferPipelineBuilder->datastream_size;
+        memory_size = bufferPipelineBuilder->memory_size;
+        num_inputs = bufferPipelineBuilder->num_inputs;
+        num_outputs = bufferPipelineBuilder->num_outputs;
+        num_instructions = bufferPipelineBuilder->num_instructions;
 
         unserializeMemory((char *)buffer + sizeof(PipelineBuilder), true);
         size_t memory_used = calculateMemoryRequired() + sizeof(PipelineBuilder);
         // Load weights from the end of the buffer
-        weights = new float[weights_size];
-        memcpy(weights, (char *)buffer + memory_used, weights_size * sizeof(float));
+        weights.reset(new float[weights_size]);
+        memcpy(weights.get(), (char *)buffer + memory_used, weights_size * sizeof(float));
 
         free(buffer);
     }
     TrainedPipelineBuilder(PipelineBuilder *builder) : PipelineBuilder(builder)
     {
-        weights = new float[weights_size];
-        memset(weights, 0, weights_size * sizeof(float));
+        weights.reset(new float[weights_size]);
+        memset(weights.get(), 0, weights_size * sizeof(float));
     }
     TrainedPipelineBuilder(Model *nn) : PipelineBuilder(nn)
     {
-        weights = new float[weights_size];
-        memset(weights, 0, weights_size * sizeof(float));
+        weights.reset(new float[weights_size]);
+        memset(weights.get(), 0, weights_size * sizeof(float));
     }
     TrainedPipelineBuilder(PipelineBuilder *builder, float *weights) : PipelineBuilder(builder)
     {
-        this->weights = new float[weights_size];
+        this->weights.reset(new float[weights_size]);
         loadWeights(weights);
     }
     TrainedPipelineBuilder(Model *nn, float *weights) : PipelineBuilder(nn)
     {
-        this->weights = new float[weights_size];
+        this->weights.reset(new float[weights_size]);
         loadWeights(weights);
     }
-    ~TrainedPipelineBuilder()
-    {
-        // printf("Clearing trainable pipeline builder (%p)\n", this);
-        delete[] weights;
-    }
+    ~TrainedPipelineBuilder() = default;
 
     void loadWeights(float *weights)
     {
-        memcpy(this->weights, weights, weights_size * sizeof(float));
+        memcpy(this->weights.get(), weights, weights_size * sizeof(float));
     }
 
     CUDA_CALLABLE_MEMBER void init(float *datastream)
     {
-        PipelineBuilder::init(datastream, weights);
+        PipelineBuilder::init(datastream, weights.get());
     }
 
     CUDA_CALLABLE_MEMBER void init(float *datastream, Instruction *reversedSpacedInstructions)
     {
-        PipelineBuilder::init(datastream, weights, reversedSpacedInstructions);
+        PipelineBuilder::init(datastream, weights.get(), reversedSpacedInstructions);
     }
 
     void save(string filename) override
@@ -419,7 +420,7 @@ struct TrainedPipelineBuilder : PipelineBuilder
         buffer = malloc(total_size);
         memcpy(buffer, this, sizeof(PipelineBuilder));
         serializeMemory((char *)buffer + sizeof(PipelineBuilder));
-        memcpy((char *)buffer + sizeof(PipelineBuilder) + calculateMemoryRequired(), weights, weights_size * sizeof(float));
+        memcpy((char *)buffer + sizeof(PipelineBuilder) + calculateMemoryRequired(), weights.get(), weights_size * sizeof(float));
         // save in models filename
         ofstream file(filename, ios::binary);
         if (file.fail())

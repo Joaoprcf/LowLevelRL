@@ -83,7 +83,7 @@ TEST_CASE("GeneticRandomSearch updateWeights function")
 
     grs.updateWeights(rewards);
 
-    REQUIRE(memcmp(grs.allWeights[0], grs.currentWeights, grs.weights_size * sizeof(float)) == 0);
+    REQUIRE(memcmp(grs.allWeights[0], grs.currentWeights.get(), grs.weights_size * sizeof(float)) == 0);
     REQUIRE(memcmp(grs.allWeights[0], winnerWeights, grs.weights_size * sizeof(float)) == 0);
     REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[1], grs.weights_size * sizeof(float)) == 0);
     REQUIRE(memcmp(grs.allWeights[0], grs.allWeights[2], grs.weights_size * sizeof(float)) == 0);

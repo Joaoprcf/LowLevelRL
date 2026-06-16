@@ -246,7 +246,7 @@ struct MonteCarloTreeGeneticSearch
     {
         grs->optimizer->reset();
         memcpy(grs->weights, weightsBuffer.data() + node_idx * weights_size, weights_size * sizeof(float));
-        memcpy(grs->currentWeights, grs->weights, weights_size * sizeof(float));
+        memcpy(grs->currentWeights.get(), grs->weights, weights_size * sizeof(float));
         for (size_t i = 0; i < grs->directions; i++)
         {
             memcpy(grs->allWeights[i], grs->weights, weights_size * sizeof(float));

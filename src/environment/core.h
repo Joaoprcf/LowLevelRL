@@ -32,16 +32,15 @@ struct BatchEnvironment
     size_t memory_size;
     size_t datastream_size;
     size_t num_instructions;
-    float *weights;
-    float *datastream;
-    float *memory;
-    float *rewardArray;
-    Instruction *instructions = nullptr;
-    RewardEntry *rewardEntryArray;
-    PipelineBuilderBatch *builderBatch;
+    unique_ptr<float[]> weights;
+    unique_ptr<float[]> datastream;
+    unique_ptr<float[]> memory;
+    unique_ptr<float[]> rewardArray;
+    unique_ptr<Instruction[]> instructions;
+    unique_ptr<RewardEntry[]> rewardEntryArray;
+    unique_ptr<PipelineBuilderBatch> builderBatch;
     size_t it_pointer = 0;
-    bool manage_memory = true;
-    BatchEnvironment(PipelineBuilder *builder, size_t batch_size, bool manage_memory = true) : batch_size(batch_size), manage_memory(manage_memory)
+    BatchEnvironment(PipelineBuilder *builder, size_t batch_size, bool manage_memory = true) : batch_size(batch_size)
     {
         weights_size = builder->weights_size;
         datastream_size = builder->datastream_size;
@@ -49,22 +48,22 @@ struct BatchEnvironment
         memory_size = builder->memory_size;
         if (!manage_memory)
             return;
-        builderBatch = new PipelineBuilderBatch(builder, batch_size);
-        weights = new float[batch_size * weights_size];
-        memset(weights, 0, batch_size * weights_size * sizeof(float));
-        datastream = new float[batch_size * datastream_size];
-        memory = new float[batch_size * memory_size];
-        memset(memory, 0, batch_size * memory_size * sizeof(float));
-        rewardArray = new float[batch_size];
-        rewardEntryArray = new RewardEntry[batch_size];
-        instructions = new Instruction[batch_size * num_instructions];
+        builderBatch.reset(new PipelineBuilderBatch(builder, batch_size));
+        weights.reset(new float[batch_size * weights_size]);
+        memset(weights.get(), 0, batch_size * weights_size * sizeof(float));
+        datastream.reset(new float[batch_size * datastream_size]);
+        memory.reset(new float[batch_size * memory_size]);
+        memset(memory.get(), 0, batch_size * memory_size * sizeof(float));
+        rewardArray.reset(new float[batch_size]);
+        rewardEntryArray.reset(new RewardEntry[batch_size]);
+        instructions.reset(new Instruction[batch_size * num_instructions]);
 
-        builderBatch->init(instructions, datastream, weights);
+        builderBatch->init(instructions.get(), datastream.get(), weights.get());
     }
 
     void sortRewards()
     {
-        heapSort(rewardEntryArray, batch_size, comparison);
+        heapSort(rewardEntryArray.get(), batch_size, comparison);
     }
 
     void initIterator()
@@ -84,26 +83,13 @@ struct BatchEnvironment
         return {
             builderBatch->builders + current_pointer,
             current_pointer,
-            instructions + current_pointer * num_instructions,
-            weights + current_pointer * weights_size,
-            memory + current_pointer * memory_size,
-            datastream + current_pointer * datastream_size,
-            rewardArray + current_pointer,
-            rewardEntryArray + current_pointer};
+            instructions.get() + current_pointer * num_instructions,
+            weights.get() + current_pointer * weights_size,
+            memory.get() + current_pointer * memory_size,
+            datastream.get() + current_pointer * datastream_size,
+            rewardArray.get() + current_pointer,
+            rewardEntryArray.get() + current_pointer};
     }
 
-    ~BatchEnvironment()
-    {
-
-        if (!manage_memory)
-            return;
-
-        delete builderBatch;
-        delete[] weights;
-        delete[] datastream;
-        delete[] memory;
-        delete[] rewardArray;
-        delete[] rewardEntryArray;
-        delete[] instructions;
-    }
+    ~BatchEnvironment() = default;
 };
